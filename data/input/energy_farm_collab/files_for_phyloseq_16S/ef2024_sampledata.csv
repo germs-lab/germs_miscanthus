@@ -1,0 +1,353 @@
+﻿label_id,crop,Plot description,Plot_id,subblock,treatment,sample date,timing,rep,MR_location,MR_loc_id,Sample description,soil_type,DK_plotid,soil_type,fertilizer
+P1-SB-525-A,SB,Furthest North 0.35 ha plot,1,,MR,230525,early,A,1,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-525-B,SB,Furthest North 0.35 ha plot,1,,MR,230525,early,B,2,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-525-C,SB,Furthest North 0.35 ha plot,1,,MR,230525,early,C,3,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-525-D,SB,Furthest North 0.35 ha plot,1,,MR,230525,early,D,4,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-525-E,SB,Furthest North 0.35 ha plot,1,,MR,230525,early,E,5,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-525-F,SB,Furthest North 0.35 ha plot,1,,MR,230525,early,F,6,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-525-A,SB,Mid North 0.35 ha plot,2,,MR,230525,early,A,7,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-525-B,SB,Mid North 0.35 ha plot,2,,MR,230525,early,B,8,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-525-C,SB,Mid North 0.35 ha plot,2,,MR,230525,early,C,9,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-525-D,SB,Mid North 0.35 ha plot,2,,MR,230525,early,D,9,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-525-E,SB,Mid North 0.35 ha plot,2,,MR,230525,early,E,10,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-525-F,SB,Mid North 0.35 ha plot,2,,MR,230525,early,F,10,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-525-A,SB,Mid South 0.35 ha plot,3,,MR,230525,early,A,11,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-525-B,SB,Mid South 0.35 ha plot,3,,MR,230525,early,B,11,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-525-C,SB,Mid South 0.35 ha plot,3,,MR,230525,early,C,12,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-525-D,SB,Mid South 0.35 ha plot,3,,MR,230525,early,D,12,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-525-E,SB,Mid South 0.35 ha plot,3,,MR,230525,early,E,13,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-525-F,SB,Mid South 0.35 ha plot,3,,MR,230525,early,F,13,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-525-A,SB,Furthest South 0.35 ha plot,4,,MR,230525,early,A,14,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-525-B,SB,Furthest South 0.35 ha plot,4,,MR,230525,early,B,14,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-525-C,SB,Furthest South 0.35 ha plot,4,,MR,230525,early,C,15,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-525-D,SB,Furthest South 0.35 ha plot,4,,MR,230525,early,D,15,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-525-E,SB,Furthest South 0.35 ha plot,4,,MR,230525,early,E,16,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-525-F,SB,Furthest South 0.35 ha plot,4,,MR,230525,early,F,16,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-A,SB,3.8 ha Large Plot,5,,MR,230525,early,A,17,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-B,SB,3.8 ha Large Plot,5,,MR,230525,early,B,17,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-C,SB,3.8 ha Large Plot,5,,MR,230525,early,C,18,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-D,SB,3.8 ha Large Plot,5,,MR,230525,early,D,18,4_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-E,SB,3.8 ha Large Plot,5,,MR,230525,early,E,19,5_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-F,SB,3.8 ha Large Plot,5,,MR,230525,early,F,19,6_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-G,SB,3.8 ha Large Plot,5,,MR,230525,early,G,20,7_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-525-H,SB,3.8 ha Large Plot,5,,MR,230525,early,H,20,8_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-816-A,SB,Furthest North 0.35 ha plot,1,,MR,230816,late,A,1,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-816-B,SB,Furthest North 0.35 ha plot,1,,MR,230816,late,B,2,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-816-C,SB,Furthest North 0.35 ha plot,1,,MR,230816,late,C,3,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-816-D,SB,Furthest North 0.35 ha plot,1,,MR,230816,late,D,4,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-816-E,SB,Furthest North 0.35 ha plot,1,,MR,230816,late,E,5,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-SB-816-F,SB,Furthest North 0.35 ha plot,1,,MR,230816,late,F,6,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-816-A,SB,Mid North 0.35 ha plot,2,,MR,230816,late,A,7,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-816-B,SB,Mid North 0.35 ha plot,2,,MR,230816,late,B,8,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-816-C,SB,Mid North 0.35 ha plot,2,,MR,230816,late,C,9,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-816-D,SB,Mid North 0.35 ha plot,2,,MR,230816,late,D,9,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-816-E,SB,Mid North 0.35 ha plot,2,,MR,230816,late,E,10,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-SB-816-F,SB,Mid North 0.35 ha plot,2,,MR,230816,late,F,10,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-816-A,SB,Mid South 0.35 ha plot,3,,MR,230816,late,A,11,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-816-B,SB,Mid South 0.35 ha plot,3,,MR,230816,late,B,11,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-816-C,SB,Mid South 0.35 ha plot,3,,MR,230816,late,C,12,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-816-D,SB,Mid South 0.35 ha plot,3,,MR,230816,late,D,12,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-816-E,SB,Mid South 0.35 ha plot,3,,MR,230816,late,E,13,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-SB-816-F,SB,Mid South 0.35 ha plot,3,,MR,230816,late,F,13,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-815-A,SB,Furthest South 0.35 ha plot,4,,MR,230815,late,A,14,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-815-B,SB,Furthest South 0.35 ha plot,4,,MR,230815,late,B,14,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-815-C,SB,Furthest South 0.35 ha plot,4,,MR,230815,late,C,15,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-815-D,SB,Furthest South 0.35 ha plot,4,,MR,230815,late,D,15,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-815-E,SB,Furthest South 0.35 ha plot,4,,MR,230815,late,E,16,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-SB-815-F,SB,Furthest South 0.35 ha plot,4,,MR,230815,late,F,16,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-809-A,SB,3.8 ha Large Plot,5,,MR,230809,late,A,17,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-809-B,SB,3.8 ha Large Plot,5,,MR,230809,late,B,17,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-815-C,SB,3.8 ha Large Plot,5,,MR,230815,late,C,18,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-815-D,SB,3.8 ha Large Plot,5,,MR,230815,late,D,18,4_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-815-E,SB,3.8 ha Large Plot,5,,MR,230815,late,E,19,5_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-815-F,SB,3.8 ha Large Plot,5,,MR,230815,late,F,19,6_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-815-G,SB,3.8 ha Large Plot,5,,MR,230815,late,G,20,7_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-SB-815-H,SB,3.8 ha Large Plot,5,,MR,230815,late,H,20,8_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-525-A,ZM,Furthest North 0.35 ha plot,1,,MR,230525,early,A,1,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-525-B,ZM,Furthest North 0.35 ha plot,1,,MR,230525,early,B,2,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-525-C,ZM,Furthest North 0.35 ha plot,1,,MR,230525,early,C,3,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-525-D,ZM,Furthest North 0.35 ha plot,1,,MR,230525,early,D,4,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-525-E,ZM,Furthest North 0.35 ha plot,1,,MR,230525,early,E,5,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-525-F,ZM,Furthest North 0.35 ha plot,1,,MR,230525,early,F,6,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-525-A,ZM,Mid North 0.35 ha plot,2,,MR,230525,early,A,7,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-525-B,ZM,Mid North 0.35 ha plot,2,,MR,230525,early,B,8,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-525-C,ZM,Mid North 0.35 ha plot,2,,MR,230525,early,C,9,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-525-D,ZM,Mid North 0.35 ha plot,2,,MR,230525,early,D,9,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-525-E,ZM,Mid North 0.35 ha plot,2,,MR,230525,early,E,10,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-525-F,ZM,Mid North 0.35 ha plot,2,,MR,230525,early,F,10,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-525-A,ZM,Mid South 0.35 ha plot,3,,MR,230525,early,A,11,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-525-B,ZM,Mid South 0.35 ha plot,3,,MR,230525,early,B,11,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-525-C,ZM,Mid South 0.35 ha plot,3,,MR,230525,early,C,12,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-525-D,ZM,Mid South 0.35 ha plot,3,,MR,230525,early,D,12,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-525-E,ZM,Mid South 0.35 ha plot,3,,MR,230525,early,E,13,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-525-F,ZM,Mid South 0.35 ha plot,3,,MR,230525,early,F,13,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-525-A,ZM,Furthest South 0.35 ha plot,4,,MR,230525,early,A,14,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-525-B,ZM,Furthest South 0.35 ha plot,4,,MR,230525,early,B,14,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-525-C,ZM,Furthest South 0.35 ha plot,4,,MR,230525,early,C,15,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-525-D,ZM,Furthest South 0.35 ha plot,4,,MR,230525,early,D,15,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-525-E,ZM,Furthest South 0.35 ha plot,4,,MR,230525,early,E,16,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-525-F,ZM,Furthest South 0.35 ha plot,4,,MR,230525,early,F,16,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-A,ZM,3.8 ha Large Plot,5,,MR,230525,early,A,17,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-B,ZM,3.8 ha Large Plot,5,,MR,230525,early,B,17,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-C,ZM,3.8 ha Large Plot,5,,MR,230525,early,C,18,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-D,ZM,3.8 ha Large Plot,5,,MR,230525,early,D,18,4_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-E,ZM,3.8 ha Large Plot,5,,MR,230525,early,E,19,5_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-F,ZM,3.8 ha Large Plot,5,,MR,230525,early,F,19,6_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-G,ZM,3.8 ha Large Plot,5,,MR,230525,early,G,20,7_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-525-H,ZM,3.8 ha Large Plot,5,,MR,230525,early,H,20,8_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-816-A,ZM,Furthest North 0.35 ha plot,1,,MR,230816,late,A,1,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-816-B,ZM,Furthest North 0.35 ha plot,1,,MR,230816,late,B,2,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-816-C,ZM,Furthest North 0.35 ha plot,1,,MR,230816,late,C,3,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-816-D,ZM,Furthest North 0.35 ha plot,1,,MR,230816,late,D,4,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-816-E,ZM,Furthest North 0.35 ha plot,1,,MR,230816,late,E,5,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-ZM-816-F,ZM,Furthest North 0.35 ha plot,1,,MR,230816,late,F,6,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-816-A,ZM,Mid North 0.35 ha plot,2,,MR,230816,late,A,7,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-816-B,ZM,Mid North 0.35 ha plot,2,,MR,230816,late,B,8,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-816-C,ZM,Mid North 0.35 ha plot,2,,MR,230816,late,C,9,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-816-D,ZM,Mid North 0.35 ha plot,2,,MR,230816,late,D,9,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-816-E,ZM,Mid North 0.35 ha plot,2,,MR,230816,late,E,10,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P2-ZM-816-F,ZM,Mid North 0.35 ha plot,2,,MR,230816,late,F,10,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-815-A,ZM,Mid South 0.35 ha plot,3,,MR,230815,late,A,11,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-815-B,ZM,Mid South 0.35 ha plot,3,,MR,230815,late,B,11,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-815-C,ZM,Mid South 0.35 ha plot,3,,MR,230815,late,C,12,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-815-D,ZM,Mid South 0.35 ha plot,3,,MR,230815,late,D,12,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-815-E,ZM,Mid South 0.35 ha plot,3,,MR,230815,late,E,13,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P3-ZM-815-F,ZM,Mid South 0.35 ha plot,3,,MR,230815,late,F,13,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-815-A,ZM,Furthest South 0.35 ha plot,4,,MR,230815,late,A,14,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-815-B,ZM,Furthest South 0.35 ha plot,4,,MR,230815,late,B,14,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-815-C,ZM,Furthest South 0.35 ha plot,4,,MR,230815,late,C,15,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-815-D,ZM,Furthest South 0.35 ha plot,4,,MR,230815,late,D,15,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-815-E,ZM,Furthest South 0.35 ha plot,4,,MR,230815,late,E,16,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P4-ZM-815-F,ZM,Furthest South 0.35 ha plot,4,,MR,230815,late,F,16,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-A,ZM,3.8 ha Large Plot,5,,MR,230808,late,A,17,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-B,ZM,3.8 ha Large Plot,5,,MR,230808,late,B,17,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-C,ZM,3.8 ha Large Plot,5,,MR,230808,late,C,18,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-D,ZM,3.8 ha Large Plot,5,,MR,230808,late,D,18,4_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-E,ZM,3.8 ha Large Plot,5,,MR,230808,late,E,19,5_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-F,ZM,3.8 ha Large Plot,5,,MR,230808,late,F,19,6_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-G,ZM,3.8 ha Large Plot,5,,MR,230808,late,G,20,7_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-ZM-808-H,ZM,3.8 ha Large Plot,5,,MR,230808,late,H,20,8_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-58-A,MXG,Furthest North 0.35 ha plot,1,,MR,230509,early,A,1,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-58-B,MXG,Furthest North 0.35 ha plot,1,,MR,230509,early,B,2,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-58-C,MXG,Furthest North 0.35 ha plot,1,,MR,230509,early,C,3,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-58-D,MXG,Furthest North 0.35 ha plot,1,,MR,230509,early,D,4,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-58-E,MXG,Furthest North 0.35 ha plot,1,,MR,230509,early,E,5,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-58-F,MXG,Furthest North 0.35 ha plot,1,,MR,230509,early,F,6,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P2-58-A,MXG,Mid North 0.35 ha plot,2,,MR,230509,early,A,7,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-58-B,MXG,Mid North 0.35 ha plot,2,,MR,230509,early,B,8,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-58-C,MXG,Mid North 0.35 ha plot,2,,MR,230509,early,C,9,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-58-D,MXG,Mid North 0.35 ha plot,2,,MR,230509,early,D,9,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-58-E,MXG,Mid North 0.35 ha plot,2,,MR,230509,early,E,10,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-58-F,MXG,Mid North 0.35 ha plot,2,,MR,230509,early,F,10,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P3-58-A,MXG,Mid South 0.35 ha plot,3,,MR,230509,early,A,11,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-58-B,MXG,Mid South 0.35 ha plot,3,,MR,230509,early,B,11,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-58-C,MXG,Mid South 0.35 ha plot,3,,MR,230509,early,C,12,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-58-D,MXG,Mid South 0.35 ha plot,3,,MR,230509,early,D,12,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-58-E,MXG,Mid South 0.35 ha plot,3,,MR,230509,early,E,13,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-58-F,MXG,Mid South 0.35 ha plot,3,,MR,230509,early,F,13,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P4-58-A,MXG,Furthest South 0.35 ha plot,4,,MR,230510,early,A,14,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-58-B,MXG,Furthest South 0.35 ha plot,4,,MR,230510,early,B,14,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-58-C,MXG,Furthest South 0.35 ha plot,4,,MR,230510,early,C,15,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-58-D,MXG,Furthest South 0.35 ha plot,4,,MR,230510,early,D,15,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-58-E,MXG,Furthest South 0.35 ha plot,4,,MR,230510,early,E,16,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-58-F,MXG,Furthest South 0.35 ha plot,4,,MR,230510,early,F,16,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P5-58-A,MXG,3.8 ha Large Plot,5,,MR,230510,early,A,17,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-58-B,MXG,3.8 ha Large Plot,5,,MR,230510,early,B,17,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-58-C,MXG,3.8 ha Large Plot,5,,MR,230510,early,C,18,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-58-D,MXG,3.8 ha Large Plot,5,,MR,230510,early,D,18,4_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-58-E,MXG,3.8 ha Large Plot,5,,MR,230510,early,E,19,5_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-58-F,MXG,3.8 ha Large Plot,5,,MR,230510,early,F,19,6_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-58-G,MXG,3.8 ha Large Plot,5,,MR,230510,early,G,20,7_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-58-H,MXG,3.8 ha Large Plot,5,,MR,230510,early,H,20,8_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-810-A,MXG,Furthest North 0.35 ha plot,1,,MR,230810,late,A,1,1_1,"3, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-810-B,MXG,Furthest North 0.35 ha plot,1,,MR,230810,late,B,2,1_2,"3, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-810-C,MXG,Furthest North 0.35 ha plot,1,,MR,230810,late,C,3,2_1,"3, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-810-D,MXG,Furthest North 0.35 ha plot,1,,MR,230810,late,D,4,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-810-E,MXG,Furthest North 0.35 ha plot,1,,MR,230810,late,E,5,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P1-810-F,MXG,Furthest North 0.35 ha plot,1,,MR,230810,late,F,6,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B2,,0 N
+P2-810-A,MXG,Mid North 0.35 ha plot,2,,MR,230810,late,A,7,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-810-B,MXG,Mid North 0.35 ha plot,2,,MR,230810,late,B,8,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-810-C,MXG,Mid North 0.35 ha plot,2,,MR,230810,late,C,9,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-810-D,MXG,Mid North 0.35 ha plot,2,,MR,230810,late,D,9,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-810-E,MXG,Mid North 0.35 ha plot,2,,MR,230810,late,E,10,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P2-810-F,MXG,Mid North 0.35 ha plot,2,,MR,230810,late,F,10,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B1,,0 N
+P3-809-A,MXG,Mid South 0.35 ha plot,3,,MR,230809,late,A,11,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-809-B,MXG,Mid South 0.35 ha plot,3,,MR,230809,late,B,11,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-809-C,MXG,Mid South 0.35 ha plot,3,,MR,230809,late,C,12,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-809-D,MXG,Mid South 0.35 ha plot,3,,MR,230809,late,D,12,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-809-E,MXG,Mid South 0.35 ha plot,3,,MR,230809,late,E,13,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P3-809-F,MXG,Mid South 0.35 ha plot,3,,MR,230809,late,F,13,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B3,,0 N
+P4-809-A,MXG,Furthest South 0.35 ha plot,4,,MR,230809,late,A,14,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-809-B,MXG,Furthest South 0.35 ha plot,4,,MR,230809,late,B,14,1_2,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-809-C,MXG,Furthest South 0.35 ha plot,4,,MR,230809,late,C,15,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-809-D,MXG,Furthest South 0.35 ha plot,4,,MR,230809,late,D,15,2_2,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-809-E,MXG,Furthest South 0.35 ha plot,4,,MR,230809,late,E,16,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P4-809-F,MXG,Furthest South 0.35 ha plot,4,,MR,230809,late,F,16,3_2,"6, 30 cm cores, composite sample in a ziplock bag",,B4,,0 N
+P5-808-A,MXG,3.8 ha Large Plot,5,,MR,230808,late,A,17,1_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-808-B,MXG,3.8 ha Large Plot,5,,MR,230808,late,B,17,2_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-808-C,MXG,3.8 ha Large Plot,5,,MR,230808,late,C,18,3_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-808-D,MXG,3.8 ha Large Plot,5,,MR,230808,late,D,18,4_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-808-E,MXG,3.8 ha Large Plot,5,,MR,230808,late,E,19,5_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-808-F,MXG,3.8 ha Large Plot,5,,MR,230808,late,F,19,6_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-808-G,MXG,3.8 ha Large Plot,5,,MR,230808,late,G,20,7_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P5-808-H,MXG,3.8 ha Large Plot,5,,MR,230808,late,H,20,8_1,"6, 30 cm cores, composite sample in a ziplock bag",,,,
+P1-58-F1-A,MXG,,1,F1,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-58-F1-B,MXG,,1,F1,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-58-F1-C,MXG,,1,F1,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-58-F1-D,MXG,,1,F1,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-58-F1-E,MXG,,1,F1,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-58-F2-A,MXG,,1,F2,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-58-F2-B,MXG,,1,F2,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-58-F2-C,MXG,,1,F2,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-58-F2-D,MXG,,1,F2,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-58-F2-E,MXG,,1,F2,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-58-F3-A,MXG,,1,F3,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-58-F3-B,MXG,,1,F3,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-58-F3-C,MXG,,1,F3,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-58-F3-D,MXG,,1,F3,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-58-F3-E,MXG,,1,F3,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-58-F4-A,MXG,,1,F4,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-58-F4-B,MXG,,1,F4,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-58-F4-C,MXG,,1,F4,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-58-F4-D,MXG,,1,F4,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-58-F4-E,MXG,,1,F4,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P2-58-F1-A,MXG,,2,F1,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-58-F1-B,MXG,,2,F1,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-58-F1-C,MXG,,2,F1,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-58-F1-D,MXG,,2,F1,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-58-F1-E,MXG,,2,F1,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-58-F2-A,MXG,,2,F2,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-58-F2-B,MXG,,2,F2,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-58-F2-C,MXG,,2,F2,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-58-F2-D,MXG,,2,F2,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-58-F2-E,MXG,,2,F2,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-58-F3-A,MXG,,2,F3,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-58-F3-B,MXG,,2,F3,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-58-F3-C,MXG,,2,F3,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-58-F3-D,MXG,,2,F3,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-58-F3-E,MXG,,2,F3,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-58-F4-A,MXG,,2,F4,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-58-F4-B,MXG,,2,F4,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-58-F4-C,MXG,,2,F4,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-58-F4-D,MXG,,2,F4,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-58-F4-E,MXG,,2,F4,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P3-58-F1-A,MXG,,3,F1,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-58-F1-B,MXG,,3,F1,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-58-F1-C,MXG,,3,F1,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-58-F1-D,MXG,,3,F1,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-58-F1-E,MXG,,3,F1,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-58-F2-A,MXG,,3,F2,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-58-F2-B,MXG,,3,F2,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-58-F2-C,MXG,,3,F2,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-58-F2-D,MXG,,3,F2,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-58-F2-E,MXG,,3,F2,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-58-F3-A,MXG,,3,F3,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-58-F3-B,MXG,,3,F3,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-58-F3-C,MXG,,3,F3,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-58-F3-D,MXG,,3,F3,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-58-F3-E,MXG,,3,F3,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-58-F4-A,MXG,,3,F4,DK,230509,early,A,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-58-F4-B,MXG,,3,F4,DK,230509,early,B,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-58-F4-C,MXG,,3,F4,DK,230509,early,C,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-58-F4-D,MXG,,3,F4,DK,230509,early,D,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-58-F4-E,MXG,,3,F4,DK,230509,early,E,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P4-58-F1-A,MXG,,4,F1,DK,230510,early,A,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-58-F1-B,MXG,,4,F1,DK,230510,early,B,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-58-F1-C,MXG,,4,F1,DK,230510,early,C,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-58-F1-D,MXG,,4,F1,DK,230510,early,D,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-58-F1-E,MXG,,4,F1,DK,230510,early,E,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-58-F2-A,MXG,,4,F2,DK,230510,early,A,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-58-F2-B,MXG,,4,F2,DK,230510,early,B,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-58-F2-C,MXG,,4,F2,DK,230510,early,C,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-58-F2-D,MXG,,4,F2,DK,230510,early,D,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-58-F2-E,MXG,,4,F2,DK,230510,early,E,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-58-F3-A,MXG,,4,F3,DK,230510,early,A,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-58-F3-B,MXG,,4,F3,DK,230510,early,B,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-58-F3-C,MXG,,4,F3,DK,230510,early,C,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-58-F3-D,MXG,,4,F3,DK,230510,early,D,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-58-F3-E,MXG,,4,F3,DK,230510,early,E,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-58-F4-A,MXG,,4,F4,DK,230510,early,A,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-58-F4-B,MXG,,4,F4,DK,230510,early,B,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-58-F4-C,MXG,,4,F4,DK,230510,early,C,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-58-F4-D,MXG,,4,F4,DK,230510,early,D,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-58-F4-E,MXG,,4,F4,DK,230510,early,E,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P1-810-F1-A,MXG,,1,F1,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-810-F1-B,MXG,,1,F1,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-810-F1-C,MXG,,1,F1,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-810-F1-D,MXG,,1,F1,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-810-F1-E,MXG,,1,F1,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N
+P1-810-F2-A,MXG,,1,F2,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-810-F2-B,MXG,,1,F2,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-810-F2-C,MXG,,1,F2,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-810-F2-D,MXG,,1,F2,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-810-F2-E,MXG,,1,F2,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B2,Dana/Drum,50 N + PK
+P1-810-F3-A,MXG,,1,F3,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-810-F3-B,MXG,,1,F3,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-810-F3-C,MXG,,1,F3,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-810-F3-D,MXG,,1,F3,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-810-F3-E,MXG,,1,F3,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N
+P1-810-F4-A,MXG,,1,F4,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-810-F4-B,MXG,,1,F4,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-810-F4-C,MXG,,1,F4,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-810-F4-D,MXG,,1,F4,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P1-810-F4-E,MXG,,1,F4,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B2,Flan/Elpa,150 N + PK
+P2-810-F1-A,MXG,,2,F1,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-810-F1-B,MXG,,2,F1,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-810-F1-C,MXG,,2,F1,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-810-F1-D,MXG,,2,F1,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-810-F1-E,MXG,,2,F1,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N + PK
+P2-810-F2-A,MXG,,2,F2,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-810-F2-B,MXG,,2,F2,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-810-F2-C,MXG,,2,F2,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-810-F2-D,MXG,,2,F2,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-810-F2-E,MXG,,2,F2,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N
+P2-810-F3-A,MXG,,2,F3,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-810-F3-B,MXG,,2,F3,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-810-F3-C,MXG,,2,F3,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-810-F3-D,MXG,,2,F3,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-810-F3-E,MXG,,2,F3,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,50 N + PK
+P2-810-F4-A,MXG,,2,F4,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-810-F4-B,MXG,,2,F4,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-810-F4-C,MXG,,2,F4,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-810-F4-D,MXG,,2,F4,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P2-810-F4-E,MXG,,2,F4,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B1,Dana/Drum,150 N
+P3-810-F1-A,MXG,,3,F1,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-810-F1-B,MXG,,3,F1,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-810-F1-C,MXG,,3,F1,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-810-F1-D,MXG,,3,F1,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-810-F1-E,MXG,,3,F1,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,50 N
+P3-810-F2-A,MXG,,3,F2,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-810-F2-B,MXG,,3,F2,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-810-F2-C,MXG,,3,F2,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-810-F2-D,MXG,,3,F2,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-810-F2-E,MXG,,3,F2,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B3,Flan/Elpa,150 N + PK
+P3-810-F3-A,MXG,,3,F3,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-810-F3-B,MXG,,3,F3,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-810-F3-C,MXG,,3,F3,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-810-F3-D,MXG,,3,F3,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-810-F3-E,MXG,,3,F3,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,150 N
+P3-810-F4-A,MXG,,3,F4,DK,230810,late,A,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-810-F4-B,MXG,,3,F4,DK,230810,late,B,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-810-F4-C,MXG,,3,F4,DK,230810,late,C,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-810-F4-D,MXG,,3,F4,DK,230810,late,D,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P3-810-F4-E,MXG,,3,F4,DK,230810,late,E,,,Single 30 cm core in a ziplock bag,,B3,Dana/Drum,50 N + PK
+P4-814-F1-A,MXG,,4,F1,DK,230814,late,A,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-814-F1-B,MXG,,4,F1,DK,230814,late,B,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-814-F1-C,MXG,,4,F1,DK,230814,late,C,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-814-F1-D,MXG,,4,F1,DK,230814,late,D,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-814-F1-E,MXG,,4,F1,DK,230814,late,E,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,50 N + PK
+P4-814-F2-A,MXG,,4,F2,DK,230814,late,A,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-814-F2-B,MXG,,4,F2,DK,230814,late,B,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-814-F2-C,MXG,,4,F2,DK,230814,late,C,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-814-F2-D,MXG,,4,F2,DK,230814,late,D,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-814-F2-E,MXG,,4,F2,DK,230814,late,E,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N
+P4-814-F3-A,MXG,,4,F3,DK,230814,late,A,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-814-F3-B,MXG,,4,F3,DK,230814,late,B,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-814-F3-C,MXG,,4,F3,DK,230814,late,C,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-814-F3-D,MXG,,4,F3,DK,230814,late,D,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-814-F3-E,MXG,,4,F3,DK,230814,late,E,,,Single 30 cm core in a ziplock bag,,B4,Flan/Elpa,150 N + PK
+P4-814-F4-A,MXG,,4,F4,DK,230814,late,A,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-814-F4-B,MXG,,4,F4,DK,230814,late,B,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-814-F4-C,MXG,,4,F4,DK,230814,late,C,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-814-F4-D,MXG,,4,F4,DK,230814,late,D,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
+P4-814-F4-E,MXG,,4,F4,DK,230814,late,E,,,Single 30 cm core in a ziplock bag,,B4,Dana/Drum,50 N
