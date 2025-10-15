@@ -18,7 +18,9 @@ source("R/utils/00_setup.R")
 # "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv" and
 # "data/input/energy_farm_collab/files_for_phyloseq_AMF/ef2024_sampledata.csv" are the same
 
-ef_metadata <- read.csv("data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv") %>%
+ef_metadata <- read.csv(
+  "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv"
+) %>%
   janitor::clean_names(.) %>%
   column_to_rownames(var = "label_id")
 
@@ -103,13 +105,17 @@ rownames(taxa_AMF) <- paste0("ASV_", 1:nrow(taxa_AMF))
 taxa_AMF <- tax_table(as.matrix(taxa_AMF))
 
 # ASVs ------------------------
-seqtab_nochim_AMF <- readRDS("data/input/energy_farm_collab/files_for_phyloseq_AMF/seqtabf.nochim.rds") # Forward reads only
+seqtab_nochim_AMF <- readRDS(
+  "data/input/energy_farm_collab/files_for_phyloseq_AMF/seqtabf.nochim.rds"
+) # Forward reads only
 
 # seqtab_nochim_AMF needs a sample name clean up to match metadata
-rownames(seqtab_nochim_AMF) <-gsub("_S.*", "", rownames(seqtab_nochim_AMF))
+rownames(seqtab_nochim_AMF) <- gsub("_S.*", "", rownames(seqtab_nochim_AMF))
 
-# Remove "method" samples 
-seqtab_nochim_AMF <- seqtab_nochim_AMF[!grepl("^method([1-9]|10)$", rownames(seqtab_nochim_AMF)), ]
+# Remove "method" samples
+seqtab_nochim_AMF <- seqtab_nochim_AMF[
+  !grepl("^method([1-9]|10)$", rownames(seqtab_nochim_AMF)),
+]
 
 # Create ASV table
 ## Cleaning ASV names for FASTA file
@@ -175,6 +181,123 @@ purrr::iwalk(
   ef_physeq_list,
   ~ {
     assign(.y, .x)
-    save(list = .y, file = file.path("data/output/processed/rdata/phyloseq/", paste0(.y, ".rda")))
+    save(
+      list = .y,
+      file = file.path(
+        "data/output/processed/rdata/phyloseq/",
+        paste0(.y, ".rda")
+      )
+    )
   }
+)
+
+
+#------------------------------------------------
+# LAMPS: 2018
+#------------------------------------------------
+
+# Cleaning up meta data to match up sequence file names
+# Reconstruction of file names. See README in ~/data/input/LAMPS/README.md
+
+# library(readr)
+library(readxl)
+# library(dplyr)
+# library(stringr)
+
+csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
+xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
+csv = csv_path
+xlsx = xlsx_path
+
+
+build_proper_metadata <- function(
+  csv = csv_path,
+  xlsx = xlsx_path,
+  .distinct = TRUE
+) {
+  meta_csv <- read_csv(
+    csv,
+    col_types = cols(.default = col_character()),
+    show_col_types = TRUE
+  ) %>%
+    janitor::clean_names() %>% # Everything should be character/categorical
+    select(sample_id, sample_date, soil_type) %>%
+    as_tibble()
+
+  meta_xls <- read_xlsx(
+    xlsx,
+    sheet = "useful_metadata",
+    .name_repair = "unique",
+    col_types = "text"
+  ) %>%
+    janitor::clean_names() %>%
+    rename(sample_id = id) %>%
+    mutate(
+      plant = case_when(
+        plant == "Corn" ~ "C",
+        plant == "Miscanthus" ~ "M",
+        TRUE ~ plant
+      ),
+      plot = paste0("P", plot),
+      nitrogen_conc = paste0("N", nitrogen_conc)
+    ) %>%
+    select(!samples)
+
+  meta <- meta_xls %>%
+    left_join(., meta_csv, by = "sample_id") %>%
+    relocate(c(year:nitrogen_conc), .after = plant) %>%
+    relocate(sample_date, .after = replicate) %>%
+    mutate(
+      # Normalize re-extraction marker
+      sample_id = if_else(
+        str_starts(sample_id, "Reextracted-"),
+        str_replace(sample_id, "^Reextracted-", "re-"),
+        sample_id
+      ),
+      # For re- samples, copy sample_date from the original sample
+      sample_date = case_when(
+        str_starts(sample_id, "re-") & is.na(sample_date) ~
+          {
+            # Extract the number after "re-"
+            original_id <- str_extract(sample_id, "(?<=re-)\\d+")
+            # Find the sample_date from the matching original sample
+            sample_date[match(original_id, sample_id)]
+          },
+        TRUE ~ sample_date
+      ),
+      sequence_id = paste(
+        sample_id,
+        plant,
+        year,
+        plot,
+        nitrogen_conc,
+        sample_date,
+        sep = "_"
+      )
+    ) %>%
+    relocate(sequence_id, .before = sample_id)
+
+  if (.distinct) {
+    meta <- meta %>%
+      distinct(sequence_id, .keep_all = TRUE)
+  }
+
+  # Basic checks
+  stopifnot(!any(is.na(meta$sample_id)))
+  if (anyDuplicated(meta$sample_id)) {
+    warning("Duplicate sample_id detected.")
+  }
+  if (any(is.na(meta$plant))) {
+    warning("Missing plant for some rows after join.")
+  }
+
+  meta
+}
+
+proper_metadata <- build_proper_metadata()
+
+# Optionally, save for reuse
+write_csv(
+  proper_metadata,
+  "data/input/LAMPS/DNA_amplicon_sequencing/proper_metadata.csv"
 )
