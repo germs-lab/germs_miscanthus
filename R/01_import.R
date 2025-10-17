@@ -200,14 +200,12 @@ purrr::iwalk(
 # Reconstruction of file names. See README in ~/data/input/LAMPS/README.md
 
 # DNA amplicons ---------------------
-csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
-xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
-
-
+# Proper metadata worlflow
 build_proper_metadata <- function(
   csv,
   xlsx,
-  .distinct = TRUE
+  .distinct = TRUE,
+  rna = FALSE
 ) {
   meta_csv <- read_csv(
     csv,
@@ -269,6 +267,38 @@ build_proper_metadata <- function(
     ) %>%
     relocate(sequence_id, .before = sample_id)
 
+  if (rna) {
+    meta <- meta_xls %>%
+      left_join(., meta_csv, by = "sample_id") %>%
+      relocate(c(year:nitrogen_conc), .after = plant) %>%
+      relocate(sample_date, .after = replicate) %>%
+      mutate(
+        # For re- samples, copy sample_date from the original sample
+        sample_date = case_when(
+          str_equal(sample_date, "20180429") ~ "20180430", # potential typo in seuqence file naming
+          TRUE ~ sample_date
+        )
+      ) %>%
+      tidyr::unite(
+        "sequence_id",
+        c(
+          sample_id,
+          plant,
+          year,
+          plot,
+          nitrogen_conc,
+          replicate,
+          sample_date
+        ),
+        sep = "_",
+        remove = FALSE,
+        na.rm = TRUE
+      ) %>%
+      relocate(sequence_id, .before = sample_id) %>%
+
+      mutate(sequence_id = paste(sequence_id, "RNA", sep = "_"))
+  }
+
   if (.distinct) {
     meta <- meta %>%
       distinct(sequence_id, .keep_all = TRUE)
@@ -285,15 +315,18 @@ build_proper_metadata <- function(
 
   meta
 }
+#---------------
 
-proper_metadata <- build_proper_metadata(
+csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
+xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
+
+dna_proper_metadata <- build_proper_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
   .distinct = FALSE
 )
 
 # Compare sequence_id with actual sequence file names.
-
 # Actual files
 sequence_file_names <- fs::dir_ls(
   "data/input/LAMPS/DNA_amplicon_sequencing/raw_sequences"
@@ -312,12 +345,12 @@ clean_sequence_file_names <- sequence_file_names %>%
 # Check matches
 clean_sequence_file_names %in%
   {
-    proper_metadata %>%
+    dna_proper_metadata %>%
       pull(sequence_id)
   }
 
 setdiff(clean_names, {
-  proper_metadata %>%
+  dna_proper_metadata %>%
     pull(sequence_id)
 })
 
@@ -327,11 +360,60 @@ setdiff(clean_names, {
 
 # Save
 write_csv(
-  proper_metadata,
-  "data/input/LAMPS/DNA_amplicon_sequencing/proper_metadata.csv"
+  dna_proper_metadata,
+  "data/input/LAMPS/DNA_amplicon_sequencing/dna_proper_metadata.csv",
+  na = ""
 )
 
 
 # RNA amplicons---------------------
 csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
-xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
+xlsx_path <- "data/input/LAMPS/RNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_RNA.xlsx"
+
+
+rna_proper_metadata <- build_proper_metadata(
+  csv = csv_path,
+  xlsx = xlsx_path,
+  .distinct = FALSE,
+  rna = TRUE
+)
+
+duplicated_df <- rna_proper_metadata %>%
+  slice(rep(1:n(), each = 2)) # Since the initial df is not in duplicate as are the sample _R1 and _R2, then we duplicate to make sure all matches.
+
+rna_sequence_file_names <- fs::dir_ls(
+  "data/input/LAMPS/RNA_amplicon_sequencing/raw_sequences"
+)
+
+clean_rna_sequence_file_names <- rna_sequence_file_names %>%
+  basename() %>%
+  str_remove("_CABBI\\_L001\\_R[12]\\_001\\.fastq\\.gz$") %>%
+  ifelse(
+    # Correcting inverted fields in sequence file names.
+    str_detect(., "_(N\\d+)_(P\\d+)_"), # detects N0, N200, N400, etc. before P
+    str_replace(., "^(.+)_(N\\d+)_(P\\d+)_(.+)$", "\\1_\\3_\\2_\\4"),
+    . # keep as-is if already correct
+  )
+
+# Check matches
+clean_rna_sequence_file_names %in%
+  {
+    duplicated_df %>%
+      pull(sequence_id)
+  }
+
+# There was a lot of going back and forth here. Missing sequence sample replicates cause it to not follow A, B, C replicate order all the time.
+
+setdiff(clean_rna_sequence_file_names, {
+  duplicated_df %>%
+    pull(sequence_id)
+})
+
+# No mismatches after proper field entering in "replicate" in Excel.
+
+# Save
+write_csv(
+  rna_proper_metadata,
+  "data/input/LAMPS/RNA_amplicon_sequencing/rna_proper_metadata.csv",
+  na = ""
+)
