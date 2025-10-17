@@ -199,20 +199,14 @@ purrr::iwalk(
 # Cleaning up meta data to match up sequence file names
 # Reconstruction of file names. See README in ~/data/input/LAMPS/README.md
 
-# library(readr)
-library(readxl)
-# library(dplyr)
-# library(stringr)
-
+# DNA amplicons ---------------------
 csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
 xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
-csv = csv_path
-xlsx = xlsx_path
 
 
 build_proper_metadata <- function(
-  csv = csv_path,
-  xlsx = xlsx_path,
+  csv,
+  xlsx,
   .distinct = TRUE
 ) {
   meta_csv <- read_csv(
@@ -264,16 +258,14 @@ build_proper_metadata <- function(
             sample_date[match(original_id, sample_id)]
           },
         TRUE ~ sample_date
-      ),
-      sequence_id = paste(
-        sample_id,
-        plant,
-        year,
-        plot,
-        nitrogen_conc,
-        sample_date,
-        sep = "_"
       )
+    ) %>%
+    tidyr::unite(
+      "sequence_id",
+      c(sample_id, plant, year, plot, nitrogen_conc, replicate, sample_date),
+      sep = "_",
+      remove = FALSE,
+      na.rm = TRUE
     ) %>%
     relocate(sequence_id, .before = sample_id)
 
@@ -294,10 +286,52 @@ build_proper_metadata <- function(
   meta
 }
 
-proper_metadata <- build_proper_metadata()
+proper_metadata <- build_proper_metadata(
+  csv = csv_path,
+  xlsx = xlsx_path,
+  .distinct = FALSE
+)
 
-# Optionally, save for reuse
+# Compare sequence_id with actual sequence file names.
+
+# Actual files
+sequence_file_names <- fs::dir_ls(
+  "data/input/LAMPS/DNA_amplicon_sequencing/raw_sequences"
+)
+
+clean_sequence_file_names <- sequence_file_names %>%
+  basename() %>%
+  str_remove("_CABBI\\.R[12]\\.fastq$") %>%
+  ifelse(
+    # Correcting inverted fields in sequence file names.
+    str_detect(., "_\\d{8}_BULK_DNA$"), # ends with date_BULK_DNA
+    str_replace(., "^(.+)_(\\d{8})_BULK_DNA$", "\\1_BULK_DNA_\\2"),
+    . # keep as-is if already correct
+  )
+
+# Check matches
+clean_sequence_file_names %in%
+  {
+    proper_metadata %>%
+      pull(sequence_id)
+  }
+
+setdiff(clean_names, {
+  proper_metadata %>%
+    pull(sequence_id)
+})
+
+# No mismatches. All sequence files have corresponding medata sequence_id.
+
+# The proper metadata was generated to reconstruct the existing sequence file names in raw_sequences/
+
+# Save
 write_csv(
   proper_metadata,
   "data/input/LAMPS/DNA_amplicon_sequencing/proper_metadata.csv"
 )
+
+
+# RNA amplicons---------------------
+csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
+xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
