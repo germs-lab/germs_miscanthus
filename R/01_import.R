@@ -1,19 +1,24 @@
 ###################################################################
-# Import of R object from DADA2 pipeline for phyloseq generation
+# Import of R objects, .csv and .xlsx for Miscanthus overview
 #
-#
-#
+# Import sequence, phyloseqs and metadata files from:
+# - Energy Farm Collab project
+# - LAMPS: 2018
+#   - 16S
+#     - DNA
+#     - RNA
+
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-01
 ###################################################################
 
 source("R/utils/00_setup.R")
 
-#===============================================
+# =============================================================================
 # Files from Energy Farm Collab
-#===============================================
+# =============================================================================
 
-# Metadata ------------------------
+# Metadata ---------------------------------------------------
 # For 16S and AMF
 # "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv" and
 # "data/input/energy_farm_collab/files_for_phyloseq_AMF/ef2024_sampledata.csv" are the same
@@ -159,9 +164,7 @@ post_physeq_missing <- base::setdiff(
 missing_sample <- post_physeq_missing %in% colnames(seqtab_nochim_AMF)
 # No missing samples
 
-#--------------------------------------------------------
-# Save results
-#--------------------------------------------------------
+# Save results ---------------------------------------------------
 
 # # Save phyloseq object as RDS file
 # Name change
@@ -192,30 +195,25 @@ purrr::iwalk(
 )
 
 
-#------------------------------------------------
-# LAMPS: 2018
-#------------------------------------------------
+# =============================================================================
+# METADATA PROCESSING FOR LAMPS SEQUENCING DATA
+# =============================================================================
+# Purpose: Clean and standardize metadata to match sequence file names
+# Documentation: See README in ~/data/input/LAMPS/README.md
 
-# Cleaning up meta data to match up sequence file names
-# Reconstruction of file names. See README in ~/data/input/LAMPS/README.md
-
-# DNA amplicons ---------------------
 # Proper metadata worlflow
-build_proper_metadata <- function(
-  csv,
-  xlsx,
-  .distinct = TRUE,
-  rna = FALSE
-) {
+build_proper_metadata <- function(csv, xlsx, .distinct = TRUE, rna = FALSE) {
+  # Read and clean CSV metadata
   meta_csv <- read_csv(
     csv,
     col_types = cols(.default = col_character()),
     show_col_types = TRUE
   ) %>%
-    janitor::clean_names() %>% # Everything should be character/categorical
+    janitor::clean_names() %>%
     select(sample_id, sample_date, soil_type) %>%
     as_tibble()
 
+  # Read and clean Excel metadata
   meta_xls <- read_xlsx(
     xlsx,
     sheet = "useful_metadata",
@@ -225,16 +223,19 @@ build_proper_metadata <- function(
     janitor::clean_names() %>%
     rename(sample_id = id) %>%
     mutate(
+      # Standardize plant names to tokens
       plant = case_when(
         plant == "Corn" ~ "C",
         plant == "Miscanthus" ~ "M",
         TRUE ~ plant
       ),
+      # Add prefixes to plot and nitrogen concentration
       plot = paste0("P", plot),
       nitrogen_conc = paste0("N", nitrogen_conc)
     ) %>%
     select(!samples)
 
+  # Join metadata and create sequence IDs
   meta <- meta_xls %>%
     left_join(., meta_csv, by = "sample_id") %>%
     relocate(c(year:nitrogen_conc), .after = plant) %>%
@@ -267,98 +268,94 @@ build_proper_metadata <- function(
     ) %>%
     relocate(sequence_id, .before = sample_id)
 
+  # RNA-specific processing
   if (rna) {
-    meta <- meta_xls %>%
-      left_join(., meta_csv, by = "sample_id") %>%
-      relocate(c(year:nitrogen_conc), .after = plant) %>%
-      relocate(sample_date, .after = replicate) %>%
+    meta <- meta %>%
       mutate(
-        # For re- samples, copy sample_date from the original sample
+        # Fix potential typo in sequence file naming
         sample_date = case_when(
-          str_equal(sample_date, "20180429") ~ "20180430", # potential typo in seuqence file naming
+          str_equal(sample_date, "20180429") ~ "20180430",
           TRUE ~ sample_date
-        )
-      ) %>%
-      tidyr::unite(
-        "sequence_id",
-        c(
-          sample_id,
-          plant,
-          year,
-          plot,
-          nitrogen_conc,
-          replicate,
-          sample_date
         ),
-        sep = "_",
-        remove = FALSE,
-        na.rm = TRUE
-      ) %>%
-      relocate(sequence_id, .before = sample_id) %>%
-
-      mutate(sequence_id = paste(sequence_id, "RNA", sep = "_"))
+        # Add RNA suffix to sequence_id
+        sequence_id = paste(sequence_id, "RNA", sep = "_")
+      )
   }
 
+  # Remove duplicates if requested
   if (.distinct) {
     meta <- meta %>%
       distinct(sequence_id, .keep_all = TRUE)
   }
 
-  # Basic checks
+  # Data validation checks
   stopifnot(!any(is.na(meta$sample_id)))
+
   if (anyDuplicated(meta$sample_id)) {
     warning("Duplicate sample_id detected.")
   }
+
   if (any(is.na(meta$plant))) {
     warning("Missing plant for some rows after join.")
   }
 
-  meta
+  return(meta)
 }
-#---------------
 
+
+#----------------------------------------------------------------------------
+# LAMPS: 2018
+#----------------------------------------------------------------------------
+
+# DNA amplicon processing ---------------------------------------------------
+
+# Define file paths
 csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
 xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
 
+# Build DNA metadata
 dna_proper_metadata <- build_proper_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
   .distinct = FALSE
 )
 
-# Compare sequence_id with actual sequence file names.
-# Actual files
+# Get actual sequence file names
 sequence_file_names <- fs::dir_ls(
   "data/input/LAMPS/DNA_amplicon_sequencing/raw_sequences"
 )
 
+# Clean sequence file names and correct inverted fields
 clean_sequence_file_names <- sequence_file_names %>%
   basename() %>%
   str_remove("_CABBI\\.R[12]\\.fastq$") %>%
+  # Correct BULK_DNA position: move from after date to before date
   ifelse(
-    # Correcting inverted fields in sequence file names.
     str_detect(., "_\\d{8}_BULK_DNA$"), # ends with date_BULK_DNA
     str_replace(., "^(.+)_(\\d{8})_BULK_DNA$", "\\1_BULK_DNA_\\2"),
     . # keep as-is if already correct
   )
 
-# Check matches
-clean_sequence_file_names %in%
+# Validate matches between cleaned file names and metadata
+matches <- clean_sequence_file_names %in%
   {
-    dna_proper_metadata %>%
-      pull(sequence_id)
+    dna_proper_metadata %>% pull(sequence_id)
   }
 
-setdiff(clean_names, {
-  dna_proper_metadata %>%
-    pull(sequence_id)
+# Check for mismatches
+dna_mismatches <- setdiff(clean_sequence_file_names, {
+  dna_proper_metadata %>% pull(sequence_id)
 })
 
-# No mismatches. All sequence files have corresponding medata sequence_id.
+# No mismatches expected, all sequence files should have corresponding metadata
+if (length(dna_mismatches) > 0) {
+  warning(
+    "Mismatched sequence files found: ",
+    paste(dna_mismatches, collapse = ", ")
+  )
+}
 
-# The proper metadata was generated to reconstruct the existing sequence file names in raw_sequences/
-
-# Save
+# Save DNA metadata
 write_csv(
   dna_proper_metadata,
   "data/input/LAMPS/DNA_amplicon_sequencing/dna_proper_metadata.csv",
@@ -366,11 +363,13 @@ write_csv(
 )
 
 
-# RNA amplicons---------------------
+# RNA amplicon processing ---------------------------------------------------
+
+# Define file paths (note: uses same CSV as DNA)
 csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
 xlsx_path <- "data/input/LAMPS/RNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_RNA.xlsx"
 
-
+# Build RNA metadata
 rna_proper_metadata <- build_proper_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
@@ -378,40 +377,47 @@ rna_proper_metadata <- build_proper_metadata(
   rna = TRUE
 )
 
-duplicated_df <- rna_proper_metadata %>%
-  slice(rep(1:n(), each = 2)) # Since the initial df is not in duplicate as are the sample _R1 and _R2, then we duplicate to make sure all matches.
+# Duplicate metadata rows to match R1/R2 paired-end files
+rna_duplicated_df <- rna_proper_metadata %>%
+  slice(rep(1:n(), each = 2))
 
+# Get actual RNA sequence file names
 rna_sequence_file_names <- fs::dir_ls(
   "data/input/LAMPS/RNA_amplicon_sequencing/raw_sequences"
 )
 
+# Clean RNA sequence file names and correct inverted fields
 clean_rna_sequence_file_names <- rna_sequence_file_names %>%
   basename() %>%
   str_remove("_CABBI\\_L001\\_R[12]\\_001\\.fastq\\.gz$") %>%
+  # Correct N/P field order: swap nitrogen (N) and plot (P) positions
   ifelse(
-    # Correcting inverted fields in sequence file names.
     str_detect(., "_(N\\d+)_(P\\d+)_"), # detects N0, N200, N400, etc. before P
     str_replace(., "^(.+)_(N\\d+)_(P\\d+)_(.+)$", "\\1_\\3_\\2_\\4"),
-    . # keep as-is if already correct
+    . # keep as-is if already correct (P before N)
   )
 
-# Check matches
-clean_rna_sequence_file_names %in%
+# Validate matches between cleaned file names and metadata
+rna_matches <- clean_rna_sequence_file_names %in%
   {
-    duplicated_df %>%
-      pull(sequence_id)
+    rna_duplicated_df %>% pull(sequence_id)
   }
 
-# There was a lot of going back and forth here. Missing sequence sample replicates cause it to not follow A, B, C replicate order all the time.
-
-setdiff(clean_rna_sequence_file_names, {
-  duplicated_df %>%
-    pull(sequence_id)
+# Check for mismatches
+rna_mismatches <- setdiff(clean_rna_sequence_file_names, {
+  rna_duplicated_df %>% pull(sequence_id)
 })
 
-# No mismatches after proper field entering in "replicate" in Excel.
 
-# Save
+if (length(rna_mismatches) > 0) {
+  warning(
+    "Mismatched RNA sequence files found: ",
+    paste(rna_mismatches, collapse = ", ")
+  )
+}
+# Note: Missing sequence sample replicates cause irregular A, B, C replicate ordering, thus mismatches. This was resolved by proper field entry in "replicate" column in Excel.
+
+# Save RNA metadata
 write_csv(
   rna_proper_metadata,
   "data/input/LAMPS/RNA_amplicon_sequencing/rna_proper_metadata.csv",
