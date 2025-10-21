@@ -7,6 +7,7 @@
 #   - 16S
 #     - DNA
 #     - RNA
+# For LAMPS metadata: Clean and standardize metadata to match sequence file  names. See README in ~/data/input/LAMPS/README.md
 
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-01
@@ -198,11 +199,15 @@ purrr::iwalk(
 # =============================================================================
 # METADATA PROCESSING FOR LAMPS SEQUENCING DATA
 # =============================================================================
-# Purpose: Clean and standardize metadata to match sequence file names
-# Documentation: See README in ~/data/input/LAMPS/README.md
 
 # Proper metadata worlflow
-build_proper_metadata <- function(csv, xlsx, .distinct = TRUE, rna = FALSE) {
+build_proper_metadata <- function(
+  csv,
+  xlsx,
+  .distinct = TRUE,
+  target_region,
+  rna = FALSE
+) {
   # Read and clean CSV metadata
   meta_csv <- read_csv(
     csv,
@@ -257,8 +262,10 @@ build_proper_metadata <- function(csv, xlsx, .distinct = TRUE, rna = FALSE) {
             sample_date[match(original_id, sample_id)]
           },
         TRUE ~ sample_date
-      )
+      ),
+      target_region = target_region
     ) %>%
+    relocate(target_region, .after = nucleotide) %>%
     tidyr::unite(
       "sequence_id",
       c(sample_id, plant, year, plot, nitrogen_conc, replicate, sample_date),
@@ -276,7 +283,25 @@ build_proper_metadata <- function(csv, xlsx, .distinct = TRUE, rna = FALSE) {
         sample_date = case_when(
           str_equal(sample_date, "20180429") ~ "20180430",
           TRUE ~ sample_date
+        )
+      ) %>%
+      tidyr::unite(
+        "sequence_id",
+        c(
+          sample_id,
+          plant,
+          year,
+          plot,
+          nitrogen_conc,
+          replicate,
+          sample_date
         ),
+        sep = "_",
+        remove = FALSE,
+        na.rm = TRUE
+      ) %>%
+      relocate(sequence_id, .before = sample_id) %>%
+      mutate(
         # Add RNA suffix to sequence_id
         sequence_id = paste(sequence_id, "RNA", sep = "_")
       )
@@ -306,6 +331,7 @@ build_proper_metadata <- function(csv, xlsx, .distinct = TRUE, rna = FALSE) {
 #----------------------------------------------------------------------------
 # LAMPS: 2018
 #----------------------------------------------------------------------------
+# 16S -----------------------------------------------------------------------
 
 # DNA amplicon processing ---------------------------------------------------
 
@@ -317,18 +343,19 @@ xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DN
 dna_proper_metadata <- build_proper_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
-  .distinct = FALSE
+  .distinct = FALSE,
+  target_region = "16S"
 )
 
 # Get actual sequence file names
-sequence_file_names <- fs::dir_ls(
+dna_seq_names <- fs::dir_ls(
   "data/input/LAMPS/DNA_amplicon_sequencing/raw_sequences"
 )
 
 # Clean sequence file names and correct inverted fields
-clean_sequence_file_names <- sequence_file_names %>%
+dna_seq_names_clean <- dna_seq_names %>%
   basename() %>%
-  str_remove("_CABBI\\.R[12]\\.fastq$") %>%
+  str_remove("_CABBI\\.R[12]\\.fastq\\.gz$") %>%
   # Correct BULK_DNA position: move from after date to before date
   ifelse(
     str_detect(., "_\\d{8}_BULK_DNA$"), # ends with date_BULK_DNA
@@ -337,13 +364,13 @@ clean_sequence_file_names <- sequence_file_names %>%
   )
 
 # Validate matches between cleaned file names and metadata
-matches <- clean_sequence_file_names %in%
+matches <- dna_seq_names_clean %in%
   {
     dna_proper_metadata %>% pull(sequence_id)
   }
 
 # Check for mismatches
-dna_mismatches <- setdiff(clean_sequence_file_names, {
+dna_mismatches <- setdiff(dna_seq_names_clean, {
   dna_proper_metadata %>% pull(sequence_id)
 })
 
@@ -374,6 +401,7 @@ rna_proper_metadata <- build_proper_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
   .distinct = FALSE,
+  target_region = "16S",
   rna = TRUE
 )
 
@@ -382,12 +410,12 @@ rna_duplicated_df <- rna_proper_metadata %>%
   slice(rep(1:n(), each = 2))
 
 # Get actual RNA sequence file names
-rna_sequence_file_names <- fs::dir_ls(
+rna_seq_names <- fs::dir_ls(
   "data/input/LAMPS/RNA_amplicon_sequencing/raw_sequences"
 )
 
 # Clean RNA sequence file names and correct inverted fields
-clean_rna_sequence_file_names <- rna_sequence_file_names %>%
+rna_seq_names_clean <- rna_seq_names %>%
   basename() %>%
   str_remove("_CABBI\\_L001\\_R[12]\\_001\\.fastq\\.gz$") %>%
   # Correct N/P field order: swap nitrogen (N) and plot (P) positions
@@ -397,14 +425,15 @@ clean_rna_sequence_file_names <- rna_sequence_file_names %>%
     . # keep as-is if already correct (P before N)
   )
 
+
 # Validate matches between cleaned file names and metadata
-rna_matches <- clean_rna_sequence_file_names %in%
+rna_matches <- rna_seq_names_clean %in%
   {
     rna_duplicated_df %>% pull(sequence_id)
   }
 
 # Check for mismatches
-rna_mismatches <- setdiff(clean_rna_sequence_file_names, {
+rna_mismatches <- setdiff(rna_seq_names_clean, {
   rna_duplicated_df %>% pull(sequence_id)
 })
 
@@ -423,3 +452,73 @@ write_csv(
   "data/input/LAMPS/RNA_amplicon_sequencing/rna_proper_metadata.csv",
   na = ""
 )
+
+# ITS -----------------------------------------------------------------------
+
+# Import metadata
+
+its_metadata <- read_xlsx(
+  "data/input/LAMPS/ITS_sequencing/0.metadata.xlsx",
+  sheet = "Sample_name",
+  col_types = "text"
+) %>%
+  janitor::clean_names() %>%
+  rename(sample_id = name_of_sequence) %>%
+  mutate(
+    sequence_id = sample_id,
+    sample_id = str_remove(sample_id, "_(.+)$"),
+    plant = case_when(
+      plant == "Corn" ~ "C",
+      plant == "Miscanthus" ~ "M",
+      TRUE ~ plant
+    ),
+    nitrogen_conc = paste0("N", nitrogen_conc)
+  ) %>%
+  select(!samples) %>%
+  relocate(sequence_id, .before = sample_id) %>%
+  relocate(plant, .before = year) %>%
+  relocate(plot, .before = nitrogen_conc)
+
+
+# Sequence file names
+its_seq_names <- fs::dir_ls(
+  "data/input/LAMPS/ITS_sequencing/raw_sequences"
+)
+
+# Validate matches between cleaned file names and metadata
+its_seq_names_clean <- its_seq_names %>%
+  basename() %>%
+  str_remove("_S(.+)$")
+
+
+its_mismatches <- setdiff(its_seq_names_clean, {
+  its_metadata %>% pull(sequence_id)
+})
+
+# No mismatches
+
+write_csv(
+  its_metadata,
+  "data/input/LAMPS/ITS_sequencing/its_proper_metadata.csv",
+  na = ""
+)
+
+#----------------------------------------------------------------------------
+# LAMPS: 2023
+#----------------------------------------------------------------------------
+
+# Phyloseq objects
+# 16S
+lamps_16S_2023 <- readRDS("data/input/LAMPS/2023/data/LAMPS_EPS_16S.rds")
+
+# AMF
+lamps_AMF_2023 <- readRDS("data/input/LAMPS/2023/data/LAMPS_EPS_AMF.rds")
+
+# Metadata
+
+lamps_metadata_2023 <- read_xlsx(
+  "data/input/LAMPS/2023/data/LAMPS_EPS_metadata.xlsx",
+  sheet = "sample_data"
+) %>%
+  janitor::clean_names() %>%
+  mutate(replicate = as.character(replicate))
