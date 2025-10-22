@@ -200,8 +200,8 @@ purrr::iwalk(
 # METADATA PROCESSING FOR LAMPS SEQUENCING DATA
 # =============================================================================
 
-# Proper metadata worlflow
-build_proper_metadata <- function(
+# Updated metadata worlflow
+build_updated_metadata <- function(
   csv,
   xlsx,
   .distinct = TRUE,
@@ -328,6 +328,15 @@ build_proper_metadata <- function(
 }
 
 
+regen_physeq <- function(physeq, sample_metadata, rownames = "sample_id") {
+  phyloseq(
+    otu_table(physeq),
+    tax_table(physeq),
+    sample_data(sample_metadata %>% column_to_rownames(., var = rownames))
+  )
+}
+
+
 #----------------------------------------------------------------------------
 # LAMPS: 2018
 #----------------------------------------------------------------------------
@@ -340,7 +349,7 @@ csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
 xlsx_path <- "data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
 
 # Build DNA metadata
-dna_proper_metadata <- build_proper_metadata(
+dna_updated_metadata <- build_updated_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
   .distinct = FALSE,
@@ -366,12 +375,12 @@ dna_seq_names_clean <- dna_seq_names %>%
 # Validate matches between cleaned file names and metadata
 matches <- dna_seq_names_clean %in%
   {
-    dna_proper_metadata %>% pull(sequence_id)
+    dna_updated_metadata %>% pull(sequence_id)
   }
 
 # Check for mismatches
 dna_mismatches <- setdiff(dna_seq_names_clean, {
-  dna_proper_metadata %>% pull(sequence_id)
+  dna_updated_metadata %>% pull(sequence_id)
 })
 
 # No mismatches expected, all sequence files should have corresponding metadata
@@ -384,11 +393,11 @@ if (length(dna_mismatches) > 0) {
 
 # Save DNA metadata
 write_csv(
-  dna_proper_metadata,
-  "data/input/LAMPS/DNA_amplicon_sequencing/dna_proper_metadata.csv",
+  dna_updated_metadata %>%
+    distinct(sequence_id, .keep_all = TRUE),
+  "data/input/LAMPS/DNA_amplicon_sequencing/dna_updated_metadata.csv",
   na = ""
 )
-
 
 # RNA amplicon processing ---------------------------------------------------
 
@@ -397,7 +406,7 @@ csv_path <- "data/input/LAMPS/DNA_amplicon_sequencing/bacterial-metadata.csv"
 xlsx_path <- "data/input/LAMPS/RNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_RNA.xlsx"
 
 # Build RNA metadata
-rna_proper_metadata <- build_proper_metadata(
+rna_updated_metadata <- build_updated_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
   .distinct = FALSE,
@@ -406,7 +415,7 @@ rna_proper_metadata <- build_proper_metadata(
 )
 
 # Duplicate metadata rows to match R1/R2 paired-end files
-rna_duplicated_df <- rna_proper_metadata %>%
+rna_duplicated_df <- rna_updated_metadata %>%
   slice(rep(1:n(), each = 2))
 
 # Get actual RNA sequence file names
@@ -444,13 +453,53 @@ if (length(rna_mismatches) > 0) {
     paste(rna_mismatches, collapse = ", ")
   )
 }
-# Note: Missing sequence sample replicates cause irregular A, B, C replicate ordering, thus mismatches. This was resolved by proper field entry in "replicate" column in Excel.
+# Note: Missing sequence sample replicates cause irregular A, B, C replicate ordering, thus mismatches. This was resolved by updated field entry in "replicate" column in Excel.
 
 # Save RNA metadata
 write_csv(
-  rna_proper_metadata,
-  "data/input/LAMPS/RNA_amplicon_sequencing/rna_proper_metadata.csv",
+  rna_updated_metadata,
+  "data/input/LAMPS/RNA_amplicon_sequencing/rna_updated_metadata.csv",
   na = ""
+)
+
+# --------------------------------------------------------------------------
+# Metadata update to LAMPS 2018 phyloseq object ----------------------------
+# --------------------------------------------------------------------------
+
+ps_16S_LAMPS <- readRDS("data/input/LAMPS/ps_16S_LAMP.rds")
+
+#head(sample_data(ps_16S_LAMPS))
+
+# One last little clean up
+dna_updated_metadata <- dna_updated_metadata %>%
+  distinct(sequence_id, .keep_all = TRUE) %>%
+  mutate(
+    sample_id = paste(sample_id, nucleotide, sep = "_"),
+    rownames = sample_id
+  )
+
+rna_updated_metadata <- rna_updated_metadata %>%
+  mutate(
+    sample_id = paste(sample_id, nucleotide, sep = "_"),
+    rownames = sample_id
+  )
+
+complete_16S_metadata <- rbind(dna_updated_metadata, rna_updated_metadata)
+
+
+# Updated phyloseq
+
+lamps_2018_16S_physeq <- regen_physeq(
+  ps_16S_LAMPS,
+  complete_16S_metadata,
+  rownames = "rownames"
+)
+
+#head(sample_data(lamps_2018_physeq))
+
+save(
+  lamps_2018_16S_physeq,
+  file = "data/output/processed/rdata/phyloseq/lamps_2018_16S_physeq.rda"
 )
 
 # ITS -----------------------------------------------------------------------
@@ -472,12 +521,14 @@ its_metadata <- read_xlsx(
       plant == "Miscanthus" ~ "M",
       TRUE ~ plant
     ),
-    nitrogen_conc = paste0("N", nitrogen_conc)
+    nitrogen_conc = paste0("N", nitrogen_conc),
+    target_region = "ITS"
   ) %>%
   select(!samples) %>%
   relocate(sequence_id, .before = sample_id) %>%
   relocate(plant, .before = year) %>%
-  relocate(plot, .before = nitrogen_conc)
+  relocate(plot, .before = nitrogen_conc) %>%
+  relocate(target_region, .after = nucleotide)
 
 
 # Sequence file names
@@ -499,7 +550,7 @@ its_mismatches <- setdiff(its_seq_names_clean, {
 
 write_csv(
   its_metadata,
-  "data/input/LAMPS/ITS_sequencing/its_proper_metadata.csv",
+  "data/input/LAMPS/ITS_sequencing/its_updated_metadata.csv",
   na = ""
 )
 
@@ -509,16 +560,66 @@ write_csv(
 
 # Phyloseq objects
 # 16S
-lamps_16S_2023 <- readRDS("data/input/LAMPS/2023/data/LAMPS_EPS_16S.rds")
+lamps_16S_2022 <- readRDS("data/input/LAMPS/2022/data/LAMPS_EPS_16S.rds")
 
 # AMF
-lamps_AMF_2023 <- readRDS("data/input/LAMPS/2023/data/LAMPS_EPS_AMF.rds")
+lamps_AMF_2022 <- readRDS("data/input/LAMPS/2022/data/LAMPS_EPS_AMF.rds")
 
 # Metadata
-
-lamps_metadata_2023 <- read_xlsx(
-  "data/input/LAMPS/2023/data/LAMPS_EPS_metadata.xlsx",
+lamps_metadata_2022 <- read_xlsx(
+  "data/input/LAMPS/2022/data/LAMPS_EPS_metadata.xlsx",
   sheet = "sample_data"
 ) %>%
   janitor::clean_names() %>%
-  mutate(replicate = as.character(replicate))
+  select(sample_id:replicate) %>%
+  mutate(
+    replicate = as.character(replicate),
+    year = "2022",
+    sequence_id = sample_id
+  ) %>% # Sampling year
+  relocate(sequence_id, .before = sample_id)
+
+
+# Let's reconstruct the phyloseq object with simpler metadata
+
+nphyseq_lamps_16S_2022 <- regen_physeq(
+  lamps_16S_2022,
+  sample_metadata = lamps_metadata_2022,
+)
+
+sample_names(nphyseq_lamps_16S_2022)
+
+
+nphyseq_lamps_AMF_2022 <- regen_physeq(
+  lamps_AMF_2022,
+  sample_metadata = lamps_metadata_2022
+)
+
+sample_names(nphyseq_lamps_AMF_2022)
+
+lamps_2022_physeq_list <- list(
+  lamps_16S_2022 = nphyseq_lamps_16S_2022,
+  lamps_AMF_2022 = nphyseq_lamps_AMF_2022
+)
+
+
+save(
+  lamps_2022_physeq_list,
+  file = "data/output/processed/rdata/phyloseq/lamps_2022_physeq_list.rda"
+)
+
+
+# Save phyloseqs independently
+purrr::iwalk(
+  lamps_2022_physeq_list,
+  ~ {
+    assign(.y, .x)
+    save(
+      list = .y,
+      file = file.path(
+        "data/output/processed/rdata/phyloseq/",
+        paste0(.y, ".rda")
+      )
+    )
+  }
+)
