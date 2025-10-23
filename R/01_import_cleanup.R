@@ -74,12 +74,12 @@ if (length(dna_mismatches) > 0) {
 }
 
 # Save DNA metadata
-write_csv(
-  dna_updated_metadata %>%
-    distinct(sequence_id, .keep_all = TRUE),
-  "data/input/LAMPS/DNA_amplicon_sequencing/dna_updated_metadata.csv",
-  na = ""
-)
+# write_csv(
+#   dna_updated_metadata %>%
+#     distinct(sequence_id, .keep_all = TRUE),
+#   "data/input/LAMPS/DNA_amplicon_sequencing/dna_updated_metadata.csv",
+#   na = ""
+# )
 
 # RNA amplicon processing ---------------------------------------------------
 
@@ -139,11 +139,11 @@ if (length(rna_mismatches) > 0) {
 # Note: Missing sequence sample replicates cause irregular A, B, C replicate ordering, thus mismatches. This was resolved by updated field entry in "replicate" column in Excel.
 
 # Save RNA metadata
-write_csv(
-  rna_updated_metadata,
-  "data/input/LAMPS/RNA_amplicon_sequencing/rna_updated_metadata.csv",
-  na = ""
-)
+# write_csv(
+#   rna_updated_metadata,
+#   "data/input/LAMPS/RNA_amplicon_sequencing/rna_updated_metadata.csv",
+#   na = ""
+# )
 
 # --------------------------------------------------------------------------
 # Metadata update to LAMPS 2018 phyloseq object ----------------------------
@@ -179,10 +179,19 @@ lamps_2018_tax <- tax_table(ps_16S_LAMPS) %>%
 rownames(lamps_2018_tax) <- lamps_2018_tax %>%
   pull(sequence)
 
-#TODO
-tax_table(ps_16S_LAMPS) <- tax_table(lamps_2018_tax)
+
+base::setdiff(
+  rownames(otu_table(ps_16S_LAMPS)),
+  rownames(lamps_2018_tax)
+)
+
 
 # Updated phyloseq
+# Check class for replacement
+class(tax_table(ps_16S_LAMPS))
+class(tax_table(as.matrix(lamps_2018_tax)))
+
+tax_table(ps_16S_LAMPS) <- tax_table(as.matrix(lamps_2018_tax))
 
 lamps_2018_16S_physeq <- regen_physeq(
   ps_16S_LAMPS,
@@ -190,8 +199,8 @@ lamps_2018_16S_physeq <- regen_physeq(
   rownames = "rownames"
 )
 
-
-#head(sample_data(lamps_2018_physeq))
+# Add refseq
+lamps_2018_16S_physeq <- add_refseq(lamps_2018_16S_physeq, tag = "ASV_")
 
 save(
   lamps_2018_16S_physeq,
@@ -252,15 +261,15 @@ write_csv(
 )
 
 #----------------------------------------------------------------------------
-# LAMPS: 2023
+# LAMPS: 2022
 #----------------------------------------------------------------------------
 
 # Phyloseq objects
 # 16S
-lamps_16S_2022 <- readRDS("data/input/LAMPS/2022/data/LAMPS_EPS_16S.rds")
+lamps_2022_16S <- readRDS("data/input/LAMPS/2022/data/LAMPS_EPS_16S.rds")
 
 # AMF
-lamps_AMF_2022 <- readRDS("data/input/LAMPS/2022/data/LAMPS_EPS_AMF.rds")
+lamps_2022_AMF <- readRDS("data/input/LAMPS/2022/data/LAMPS_EPS_AMF.rds")
 
 # Metadata
 lamps_metadata_2022 <- read_xlsx(
@@ -279,24 +288,24 @@ lamps_metadata_2022 <- read_xlsx(
 
 # Let's reconstruct the phyloseq object with simpler metadata
 
-nphyseq_lamps_16S_2022 <- regen_physeq(
-  lamps_16S_2022,
+nphyseq_lamps_2022_16S <- regen_physeq(
+  lamps_2022_16S,
   sample_metadata = lamps_metadata_2022,
 )
 
-sample_names(nphyseq_lamps_16S_2022)
+sample_names(nphyseq_lamps_2022_16S)
 
 
-nphyseq_lamps_AMF_2022 <- regen_physeq(
-  lamps_AMF_2022,
+nphyseq_lamps_2022_AMF <- regen_physeq(
+  lamps_2022_AMF,
   sample_metadata = lamps_metadata_2022
 )
 
-sample_names(nphyseq_lamps_AMF_2022)
+sample_names(nphyseq_lamps_2022_AMF)
 
 lamps_2022_physeq_list <- list(
-  lamps_16S_2022 = nphyseq_lamps_16S_2022,
-  lamps_AMF_2022 = nphyseq_lamps_AMF_2022
+  lamps_2022_16S_physeq = nphyseq_lamps_2022_16S,
+  lamps_2022_AMF_physeq = nphyseq_lamps_2022_AMF
 )
 
 
@@ -365,7 +374,6 @@ seqtab_nochim_16S <- t(seqtab_nochim_16S) # Retaining sequences and asigning sho
 
 asv_16S <- otu_table(seqtab_nochim_16S, taxa_are_rows = TRUE)
 
-
 # 16S Phyloseq object ------------------------
 # Checking that metadata and asvs have the same number of samples
 samples_missing_metadata <- base::setdiff(
@@ -379,6 +387,9 @@ ef_16S_physeq <- phyloseq(asv_16S, taxa_16S, ef_metadata)
 otu_table(ef_16S_physeq)
 tax_table(ef_16S_physeq)
 sample_data(ef_16S_physeq)
+
+# Add refseq
+ef_16S_physeq <- add_refseq(ef_16S_physeq, tag = "ASV_")
 
 # Any other missing or dropped sample?
 post_physeq_missing <- base::setdiff(
@@ -444,6 +455,10 @@ ef_AMF_physeq <- phyloseq(asv_AMF, taxa_AMF, ef_metadata)
 otu_table(ef_AMF_physeq)
 tax_table(ef_AMF_physeq)
 sample_data(ef_AMF_physeq)
+
+# Add refseq
+ef_AMF_physeq <- add_refseq(ef_AMF_physeq, tag = "ASV_")
+
 
 # Any other missing or dropped sample?
 post_physeq_missing <- base::setdiff(
