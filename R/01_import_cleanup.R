@@ -16,327 +16,8 @@
 source("R/utils/00_setup.R")
 
 # =============================================================================
-# Files from Energy Farm Collab
-# =============================================================================
-
-# Metadata ---------------------------------------------------
-# For 16S and AMF
-# "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv" and
-# "data/input/energy_farm_collab/files_for_phyloseq_AMF/ef2024_sampledata.csv" are the same
-
-ef_metadata <- read.csv(
-  "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv"
-) %>%
-  janitor::clean_names(.) %>%
-  column_to_rownames(var = "label_id")
-
-
-ef_metadata <- sample_data(ef_metadata)
-
-#----------------------------------
-# 16S
-#----------------------------------
-
-# Taxonomy ------------------------
-taxa_16S <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_16S/taxa.rds"
-) %>%
-  as.data.frame() %>%
-  rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
-
-rownames(taxa_16S) <- paste0("ASV_", 1:nrow(taxa_16S))
-
-taxa_16S <- tax_table(as.matrix(taxa_16S))
-
-# ASVs ------------------------
-seqtab_nochim_16S <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_16S/seqtab.nochim.rds"
-)
-# Create ASV table
-## Cleaning ASV names for FASTA file
-
-asv_fasta <- seqtab2fasta(seqtab_nochim_16S)
-
-seqtab_nochim_16S <- t(seqtab_nochim_16S) # Retaining sequences and asigning shorthand ASV names
-
-row.names(seqtab_nochim_16S) <- sub(">", "", asv_fasta$asv_headers)
-
-asv_16S <- otu_table(seqtab_nochim_16S, taxa_are_rows = TRUE)
-
-
-## Save FASTA file
-dir.create("data/output/processed/sequences/", recursive = TRUE)
-write(
-  asv_fasta$asv_fasta,
-  file.path("data/output/processed/sequences/energy_farm_collab_16S.fa")
-)
-
-# 16S Phyloseq object ------------------------
-# Checking that metadata and asvs have the same number of samples
-samples_missing_metadata <- base::setdiff(
-  colnames(seqtab_nochim_16S),
-  rownames(ef_metadata)
-)
-# We have 10 missing samples
-
-ef_16S_physeq <- phyloseq(asv_16S, taxa_16S, ef_metadata)
-
-otu_table(ef_16S_physeq)
-tax_table(ef_16S_physeq)
-sample_data(ef_16S_physeq)
-
-# Any other missing or dropped sample?
-post_physeq_missing <- base::setdiff(
-  sample_names(ef_metadata),
-  sample_names(ef_16S_physeq)
-)
-missing_sample <- post_physeq_missing %in% colnames(seqtab_nochim_16S)
-
-
-#----------------------------------
-# AMF (only forward reads)
-#----------------------------------
-
-# Taxonomy ------------------------
-taxa_AMF <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_AMF/taxa.rds"
-) %>%
-  as.data.frame() %>%
-  rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
-
-rownames(taxa_AMF) <- paste0("ASV_", 1:nrow(taxa_AMF))
-
-taxa_AMF <- tax_table(as.matrix(taxa_AMF))
-
-# ASVs ------------------------
-seqtab_nochim_AMF <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_AMF/seqtabf.nochim.rds"
-) # Forward reads only
-
-# seqtab_nochim_AMF needs a sample name clean up to match metadata
-rownames(seqtab_nochim_AMF) <- gsub("_S.*", "", rownames(seqtab_nochim_AMF))
-
-# Remove "method" samples
-seqtab_nochim_AMF <- seqtab_nochim_AMF[
-  !grepl("^method([1-9]|10)$", rownames(seqtab_nochim_AMF)),
-]
-
-# Create ASV table
-## Cleaning ASV names for FASTA file
-
-asv_fasta <- seqtab2fasta(seqtab_nochim_AMF)
-
-seqtab_nochim_AMF <- t(seqtab_nochim_AMF) # Retaining sequences and asigning shorthand ASV names
-
-row.names(seqtab_nochim_AMF) <- sub(">", "", asv_fasta$asv_headers)
-
-asv_AMF <- otu_table(seqtab_nochim_AMF, taxa_are_rows = TRUE)
-
-
-## Save FASTA file
-dir.create("data/output/processed/sequences/", recursive = TRUE)
-write(
-  asv_fasta$asv_fasta,
-  file.path("data/output/processed/sequences/energy_farm_collab_AMF.fa")
-)
-
-# AMF Phyloseq object ------------------------
-# Checking that metadata and asvs have the same number of samples
-
-samples_missing_metadata <- base::setdiff(
-  colnames(seqtab_nochim_AMF),
-  rownames(ef_metadata)
-)
-# No missing samples
-
-ef_AMF_physeq <- phyloseq(asv_AMF, taxa_AMF, ef_metadata)
-
-otu_table(ef_AMF_physeq)
-tax_table(ef_AMF_physeq)
-sample_data(ef_AMF_physeq)
-
-# Any other missing or dropped sample?
-post_physeq_missing <- base::setdiff(
-  sample_names(ef_metadata),
-  sample_names(ef_AMF_physeq)
-)
-missing_sample <- post_physeq_missing %in% colnames(seqtab_nochim_AMF)
-# No missing samples
-
-# Save results ---------------------------------------------------
-
-# # Save phyloseq object as RDS file
-# Name change
-ef_physeq_list <- list(
-  ef_16S_physeq = ef_16S_physeq,
-  ef_AMF_physeq = ef_AMF_physeq
-)
-
-#dir.create("data/output/processed/rdata/phyloseq/", recursive = TRUE)
-save(
-  ef_physeq_list,
-  file = "data/output/processed/rdata/phyloseq/ef_physeq_list.rda"
-)
-
-# Save phyloseqs independently
-purrr::iwalk(
-  ef_physeq_list,
-  ~ {
-    assign(.y, .x)
-    save(
-      list = .y,
-      file = file.path(
-        "data/output/processed/rdata/phyloseq/",
-        paste0(.y, ".rda")
-      )
-    )
-  }
-)
-
-
-# =============================================================================
 # METADATA PROCESSING FOR LAMPS SEQUENCING DATA
 # =============================================================================
-
-# Updated metadata worlflow
-build_updated_metadata <- function(
-  csv,
-  xlsx,
-  .distinct = TRUE,
-  target_region,
-  rna = FALSE
-) {
-  # Read and clean CSV metadata
-  meta_csv <- read_csv(
-    csv,
-    col_types = cols(.default = col_character()),
-    show_col_types = TRUE
-  ) %>%
-    janitor::clean_names() %>%
-    select(sample_id, sample_date, soil_type) %>%
-    as_tibble()
-
-  # Read and clean Excel metadata
-  meta_xls <- read_xlsx(
-    xlsx,
-    sheet = "useful_metadata",
-    .name_repair = "unique",
-    col_types = "text"
-  ) %>%
-    janitor::clean_names() %>%
-    rename(sample_id = id) %>%
-    mutate(
-      # Standardize plant names to tokens
-      plant = case_when(
-        plant == "Corn" ~ "C",
-        plant == "Miscanthus" ~ "M",
-        TRUE ~ plant
-      ),
-      # Add prefixes to plot and nitrogen concentration
-      plot = paste0("P", plot),
-      nitrogen_conc = paste0("N", nitrogen_conc)
-    ) %>%
-    select(!samples)
-
-  # Join metadata and create sequence IDs
-  meta <- meta_xls %>%
-    left_join(., meta_csv, by = "sample_id") %>%
-    relocate(c(year:nitrogen_conc), .after = plant) %>%
-    relocate(sample_date, .after = replicate) %>%
-    mutate(
-      # Normalize re-extraction marker
-      sample_id = if_else(
-        str_starts(sample_id, "Reextracted-"),
-        str_replace(sample_id, "^Reextracted-", "re-"),
-        sample_id
-      ),
-      # For re- samples, copy sample_date from the original sample
-      sample_date = case_when(
-        str_starts(sample_id, "re-") & is.na(sample_date) ~
-          {
-            # Extract the number after "re-"
-            original_id <- str_extract(sample_id, "(?<=re-)\\d+")
-            # Find the sample_date from the matching original sample
-            sample_date[match(original_id, sample_id)]
-          },
-        TRUE ~ sample_date
-      ),
-      target_region = target_region
-    ) %>%
-    relocate(target_region, .after = nucleotide) %>%
-    tidyr::unite(
-      "sequence_id",
-      c(sample_id, plant, year, plot, nitrogen_conc, replicate, sample_date),
-      sep = "_",
-      remove = FALSE,
-      na.rm = TRUE
-    ) %>%
-    relocate(sequence_id, .before = sample_id)
-
-  # RNA-specific processing
-  if (rna) {
-    meta <- meta %>%
-      mutate(
-        # Fix potential typo in sequence file naming
-        sample_date = case_when(
-          str_equal(sample_date, "20180429") ~ "20180430",
-          TRUE ~ sample_date
-        )
-      ) %>%
-      tidyr::unite(
-        "sequence_id",
-        c(
-          sample_id,
-          plant,
-          year,
-          plot,
-          nitrogen_conc,
-          replicate,
-          sample_date
-        ),
-        sep = "_",
-        remove = FALSE,
-        na.rm = TRUE
-      ) %>%
-      relocate(sequence_id, .before = sample_id) %>%
-      mutate(
-        # Add RNA suffix to sequence_id
-        sequence_id = paste(sequence_id, "RNA", sep = "_")
-      )
-  }
-
-  # Remove duplicates if requested
-  if (.distinct) {
-    meta <- meta %>%
-      distinct(sequence_id, .keep_all = TRUE)
-  }
-
-  # Data validation checks
-  stopifnot(!any(is.na(meta$sample_id)))
-
-  if (anyDuplicated(meta$sample_id)) {
-    warning("Duplicate sample_id detected.")
-  }
-
-  if (any(is.na(meta$plant))) {
-    warning("Missing plant for some rows after join.")
-  }
-
-  return(meta)
-}
-
-
-regen_physeq <- function(physeq, sample_metadata, rownames = "sample_id") {
-  phyloseq(
-    otu_table(physeq),
-    tax_table(physeq),
-    sample_data(sample_metadata %>% column_to_rownames(., var = rownames))
-  )
-}
-
-
 #----------------------------------------------------------------------------
 # LAMPS: 2018
 #----------------------------------------------------------------------------
@@ -353,7 +34,8 @@ dna_updated_metadata <- build_updated_metadata(
   csv = csv_path,
   xlsx = xlsx_path,
   .distinct = FALSE,
-  target_region = "16S"
+  target_region = "16S",
+  .project = "LAMPS_2018"
 )
 
 # Get actual sequence file names
@@ -411,7 +93,8 @@ rna_updated_metadata <- build_updated_metadata(
   xlsx = xlsx_path,
   .distinct = FALSE,
   target_region = "16S",
-  rna = TRUE
+  rna = TRUE,
+  .project = "LAMPS_2018"
 )
 
 # Duplicate metadata rows to match R1/R2 paired-end files
@@ -466,7 +149,9 @@ write_csv(
 # Metadata update to LAMPS 2018 phyloseq object ----------------------------
 # --------------------------------------------------------------------------
 
-ps_16S_LAMPS <- readRDS("data/input/LAMPS/ps_16S_LAMP.rds")
+ps_16S_LAMPS <- readRDS(
+  "data/input/LAMPS/16S_rRNA_phyloseq_data/ps_16S_LAMP.rds"
+)
 
 #head(sample_data(ps_16S_LAMPS))
 
@@ -486,6 +171,16 @@ rna_updated_metadata <- rna_updated_metadata %>%
 
 complete_16S_metadata <- rbind(dna_updated_metadata, rna_updated_metadata)
 
+# Clean up to taxonomy table
+lamps_2018_tax <- tax_table(ps_16S_LAMPS) %>%
+  as.data.frame() %>%
+  rownames_to_column(., var = "sequence") %>%
+  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
+rownames(lamps_2018_tax) <- lamps_2018_tax %>%
+  pull(sequence)
+
+#TODO
+tax_table(ps_16S_LAMPS) <- tax_table(lamps_2018_tax)
 
 # Updated phyloseq
 
@@ -494,6 +189,7 @@ lamps_2018_16S_physeq <- regen_physeq(
   complete_16S_metadata,
   rownames = "rownames"
 )
+
 
 #head(sample_data(lamps_2018_physeq))
 
@@ -522,7 +218,8 @@ its_metadata <- read_xlsx(
       TRUE ~ plant
     ),
     nitrogen_conc = paste0("N", nitrogen_conc),
-    target_region = "ITS"
+    target_region = "ITS",
+    project = "LAMPS_2018"
   ) %>%
   select(!samples) %>%
   relocate(sequence_id, .before = sample_id) %>%
@@ -612,6 +309,168 @@ save(
 # Save phyloseqs independently
 purrr::iwalk(
   lamps_2022_physeq_list,
+  ~ {
+    assign(.y, .x)
+    save(
+      list = .y,
+      file = file.path(
+        "data/output/processed/rdata/phyloseq/",
+        paste0(.y, ".rda")
+      )
+    )
+  }
+)
+
+
+# =============================================================================
+# Files from Energy Farm Collab
+# =============================================================================
+
+# Metadata ---------------------------------------------------
+# For 16S and AMF
+# "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv" and
+# "data/input/energy_farm_collab/files_for_phyloseq_AMF/ef2024_sampledata.csv" are the same
+
+ef_metadata <- read.csv(
+  "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv"
+) %>%
+  janitor::clean_names(.) %>%
+  column_to_rownames(var = "label_id")
+
+ef_metadata <- sample_data(ef_metadata)
+
+#----------------------------------
+# 16S
+#----------------------------------
+
+# Taxonomy ------------------------
+taxa_16S <- readRDS(
+  "data/input/energy_farm_collab/files_for_phyloseq_16S/taxa.rds"
+) %>%
+  as.data.frame() %>%
+  rownames_to_column(., var = "sequence") %>%
+  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
+rownames(taxa_16S) <- taxa_16S %>%
+  pull(sequence)
+
+taxa_16S <- tax_table(as.matrix(taxa_16S))
+
+# ASVs ------------------------
+seqtab_nochim_16S <- readRDS(
+  "data/input/energy_farm_collab/files_for_phyloseq_16S/seqtab.nochim.rds"
+)
+# Create ASV table
+
+seqtab_nochim_16S <- t(seqtab_nochim_16S) # Retaining sequences and asigning shorthand ASV names
+
+asv_16S <- otu_table(seqtab_nochim_16S, taxa_are_rows = TRUE)
+
+
+# 16S Phyloseq object ------------------------
+# Checking that metadata and asvs have the same number of samples
+samples_missing_metadata <- base::setdiff(
+  colnames(seqtab_nochim_16S),
+  rownames(ef_metadata)
+)
+# We have 10 missing samples
+
+ef_16S_physeq <- phyloseq(asv_16S, taxa_16S, ef_metadata)
+
+otu_table(ef_16S_physeq)
+tax_table(ef_16S_physeq)
+sample_data(ef_16S_physeq)
+
+# Any other missing or dropped sample?
+post_physeq_missing <- base::setdiff(
+  sample_names(ef_metadata),
+  sample_names(ef_16S_physeq)
+)
+missing_sample <- post_physeq_missing %in% colnames(seqtab_nochim_16S)
+
+
+#----------------------------------
+# AMF (only forward reads)
+#----------------------------------
+
+# Taxonomy ------------------------
+taxa_AMF <- readRDS(
+  "data/input/energy_farm_collab/files_for_phyloseq_AMF/taxaf.rds"
+) %>%
+  as.data.frame() %>%
+  rownames_to_column(., var = "sequence") %>%
+  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
+
+rownames(taxa_AMF) <- taxa_AMF %>%
+  pull(sequence)
+
+taxa_AMF <- tax_table(as.matrix(taxa_AMF))
+
+# ASVs ------------------------
+seqtab_nochim_AMF <- readRDS(
+  "data/input/energy_farm_collab/files_for_phyloseq_AMF/seqtabf.nochim.rds"
+) # Forward reads only
+
+# seqtab_nochim_AMF needs a sample name clean up to match metadata
+rownames(seqtab_nochim_AMF) <- gsub("_S.*", "", rownames(seqtab_nochim_AMF))
+
+# Remove "method" samples
+seqtab_nochim_AMF <- seqtab_nochim_AMF[
+  !grepl("^method([1-9]|10)$", rownames(seqtab_nochim_AMF)),
+]
+
+# Create ASV table
+## Cleaning ASV names for FASTA file
+seqtab_nochim_AMF <- t(seqtab_nochim_AMF) # Retaining sequences and asigning shorthand ASV names
+
+asv_AMF <- otu_table(seqtab_nochim_AMF, taxa_are_rows = TRUE)
+
+
+# AMF Phyloseq object ------------------------
+# Checking that metadata and asvs have the same number of samples
+
+samples_missing_metadata <- base::setdiff(
+  colnames(seqtab_nochim_AMF),
+  rownames(ef_metadata)
+)
+
+non_matching_asvs <- base::setdiff(
+  rownames(asv_AMF),
+  rownames(taxa_AMF)
+)
+# No missing samples
+
+ef_AMF_physeq <- phyloseq(asv_AMF, taxa_AMF, ef_metadata)
+
+otu_table(ef_AMF_physeq)
+tax_table(ef_AMF_physeq)
+sample_data(ef_AMF_physeq)
+
+# Any other missing or dropped sample?
+post_physeq_missing <- base::setdiff(
+  sample_names(ef_metadata),
+  sample_names(ef_AMF_physeq)
+)
+missing_sample <- post_physeq_missing %in% colnames(seqtab_nochim_AMF)
+# No missing samples
+
+# Save results ---------------------------------------------------
+
+# # Save phyloseq object as RDS file
+# Name change
+ef_physeq_list <- list(
+  ef_16S_physeq = ef_16S_physeq,
+  ef_AMF_physeq = ef_AMF_physeq
+)
+
+#dir.create("data/output/processed/rdata/phyloseq/", recursive = TRUE)
+save(
+  ef_physeq_list,
+  file = "data/output/processed/rdata/phyloseq/ef_physeq_list.rda"
+)
+
+# Save phyloseqs independently
+purrr::iwalk(
+  ef_physeq_list,
   ~ {
     assign(.y, .x)
     save(

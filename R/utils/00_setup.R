@@ -33,8 +33,8 @@ invisible(
 
 
 # # List files and source each
-# list.files(here::here("R/functions"), pattern = "\\.R$", full.names = TRUE) %>%
-#   purrr::map(source)
+list.files(here::here("R/functions"), pattern = "\\.R$", full.names = TRUE) %>%
+  purrr::map(source)
 
 devtools::source_url(
   "https://github.com/germs-lab/lightSABR/raw/main/R/functions/seqtab2fasta.R"
