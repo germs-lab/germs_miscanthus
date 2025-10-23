@@ -52,3 +52,10 @@ rsconnect/
 # Genomic files
 *.fastq
 *.fastq.gz
+
+data/input/LAMPS/ITS_sequencing/qc_reports/qc_concat_R1/all_lamps_its_rawreads_R1.fastq
+data/input/LAMPS/ITS_sequencing/qc_reports/qc_concat_R2/all_lamps_its_rawreads_R2.fastq
+data/input/LAMPS/RNA_amplicon_sequencing/qc_reports/qc_concat_R1/all_lamps_rna_rawreads_R1.fastq
+data/input/LAMPS/RNA_amplicon_sequencing/qc_reports/qc_concat_R2/all_lamps_rna_rawreads_R2.fastq
+data/input/LAMPS/DNA_amplicon_sequencing/qc_reports/qc_concat_R1/all_lamps_rawreads_R1.fastq
+data/input/LAMPS/DNA_amplicon_sequencing/qc_reports/qc_concat_R2/all_lamps_rawreads_R2.fastq

@@ -41,14 +41,14 @@ devtools::source_url(
 )
 
 
-# # Objects
-# list.files(
-#   here::here("data/output/processed/rdata/"),
-#   full.names = TRUE,
-#   recursive = TRUE,
-#   pattern = "\\.rda$"
-# ) %>%
-#   purrr::walk(~ load(.x, envir = .GlobalEnv))
+# Objects
+list.files(
+  here::here("data/output/processed/rdata/phyloseq"),
+  full.names = TRUE,
+  recursive = TRUE,
+  pattern = "\\list\\.rda$"
+) %>%
+  purrr::walk(~ load(.x, envir = .GlobalEnv))
 
 # Solve known conflicts
 conflict_prefer("select", "dplyr")

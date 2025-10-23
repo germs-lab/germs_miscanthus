@@ -286,6 +286,10 @@ lamps_metadata_2022 <- read_xlsx(
   relocate(sequence_id, .before = sample_id)
 
 
+# Fix taxa names to be readable
+taxa_names(lamps_2022_16S) <- paste0("ASV_", seq(ntaxa(lamps_2022_16S)))
+taxa_names(lamps_2022_AMF) <- paste0("ASV_", seq(ntaxa(lamps_2022_AMF)))
+
 # Let's reconstruct the phyloseq object with simpler metadata
 
 nphyseq_lamps_2022_16S <- regen_physeq(
@@ -302,6 +306,7 @@ nphyseq_lamps_2022_AMF <- regen_physeq(
 )
 
 sample_names(nphyseq_lamps_2022_AMF)
+
 
 lamps_2022_physeq_list <- list(
   lamps_2022_16S_physeq = nphyseq_lamps_2022_16S,
