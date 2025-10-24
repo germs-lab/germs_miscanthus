@@ -39,16 +39,15 @@ dna_updated_metadata <- build_updated_metadata(
 )
 
 # Get actual sequence file names
-dna_seq_names <- readr::read_tsv(
-  "data/input/LAMPS/DNA_amplicon_sequencing/dna_seq_filenames.tsv",
-  col_types = readr::cols(.default = readr::col_character())
+dna_seq_names <- readr::read_lines(
+  "data/input/LAMPS/DNA_amplicon_sequencing/dna_seq_filenames.tsv"
 ) %>%
-  dplyr::pull(1)
-
+  stringr::str_trim() %>%
+  purrr::discard(~ .x == "dna_seq_filenames.tsv")
 
 # Clean sequence file names and correct inverted fields
 dna_seq_names_clean <- dna_seq_names %>%
-  str_remove("_CABBI\\.R[12]\\.fastq\\.gz$") %>%
+  str_remove("_CABBI\\.R[12]\\.fastq$") %>%
   # Correct BULK_DNA position: move from after date to before date
   ifelse(
     str_detect(., "_\\d{8}_BULK_DNA$"), # ends with date_BULK_DNA
@@ -104,11 +103,11 @@ rna_duplicated_df <- rna_updated_metadata %>%
   slice(rep(1:n(), each = 2))
 
 # Get actual RNA sequence file names
-rna_seq_names <- readr::read_tsv(
-  "data/input/LAMPS/RNA_amplicon_sequencing/rna_seq_filenames.tsv",
-  col_types = readr::cols(.default = readr::col_character())
+rna_seq_names <- readr::read_lines(
+  "data/input/LAMPS/RNA_amplicon_sequencing/rna_seq_filenames.tsv"
 ) %>%
-  dplyr::pull(1)
+  stringr::str_trim() %>%
+  purrr::discard(~ .x == "rna_seq_filenames.tsv")
 
 
 # Clean RNA sequence file names and correct inverted fields
@@ -241,11 +240,12 @@ its_metadata <- read_xlsx(
 
 
 # Sequence file names
-its_seq_names <- readr::read_tsv(
-  "data/input/LAMPS/ITS_sequencing/its_seq_filenames.tsv",
-  col_types = readr::cols(.default = readr::col_character())
+its_seq_names <- readr::read_lines(
+  "data/input/LAMPS/ITS_sequencing/its_seq_filenames.tsv"
 ) %>%
-  dplyr::pull(1)
+  stringr::str_trim() %>%
+  purrr::discard(~ .x == "its_seq_filenames.tsv")
+
 
 # Validate matches between cleaned file names and metadata
 its_seq_names_clean <- its_seq_names %>%
@@ -258,16 +258,18 @@ its_mismatches <- setdiff(its_seq_names_clean, {
 })
 
 # No mismatches
-
 write_csv(
   its_metadata,
   "data/input/LAMPS/ITS_sequencing/its_updated_metadata.csv",
   na = ""
 )
-#TODO
-load("data/input/LAMPS/ITS_sequencing/manuscript_all_data.rda")
 
-intersect(sample_names(ps.b), {
+# Matching metadata to Millican created phyloseq
+load("data/input/LAMPS/ITS_sequencing/manuscript_all_data.rda")
+rm(df.meta)
+
+# Mismatches
+base::setdiff(sample_names(ps.f), {
   its_seq_names_clean %>% str_remove("_(.+)$")
 })
 

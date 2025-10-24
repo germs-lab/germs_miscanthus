@@ -46,7 +46,7 @@ list.files(
   here::here("data/output/processed/rdata/phyloseq"),
   full.names = TRUE,
   recursive = TRUE,
-  pattern = "\\list\\.rda$"
+  pattern = "list\\.rda$"
 ) %>%
   purrr::walk(~ load(.x, envir = .GlobalEnv))
 
