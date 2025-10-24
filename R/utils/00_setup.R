@@ -51,15 +51,6 @@ list.files(
   purrr::walk(~ load(.x, envir = .GlobalEnv))
 
 
-list.files(
-  here::here("data/output/processed/rdata/phyloseq"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = "2018.*\\.rda$"
-) |>
-  load()
-
-
 # Solve known conflicts
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")

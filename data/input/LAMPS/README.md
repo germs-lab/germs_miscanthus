@@ -43,7 +43,8 @@ file = "/home/baponte/cybox/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequenc
 
 ### ITS (DNA and RNA)
 
-This is an interesting import. The files were previously worked on by M. Millican. Now we are going to use the phyloseq object he created. We have 152 samples. In his phyloseq we end up with 124. 
+This is an interesting import. The files were previously worked on by M. Millican. Now we are going to use the phyloseq object he created. We have 152 sequence samples with 127 being unique. In his phyloseq we end up with 124: "2032" "2040" "5108" as removed. 
+ 
   - **Metadata**: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/0.metadata.xlsx"
   - **Raw sequences**: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/Raw\ sequences"
 
