@@ -1,4 +1,9 @@
-refseq2fasta <- function(phyloseq_list, out_dir, out_ext = ".fa") {
+refseq2fasta <- function(
+  phyloseq_list,
+  out_dir,
+  extra_id = NULL,
+  out_ext = ".fa"
+) {
   # Names for files
   nms <- names(phyloseq_list)
   nms <- gsub("_physeq", "", nms)
@@ -11,7 +16,7 @@ refseq2fasta <- function(phyloseq_list, out_dir, out_ext = ".fa") {
       seqs <- phyloseq::refseq(.x)
 
       # build a safe output path
-      fname <- paste0(.y, out_ext)
+      fname <- paste0(.y, extra_id, out_ext)
       fname <- gsub("[[:space:]]+", "_", fname)
       fname <- gsub("[^A-Za-z0-9_\\-\\.]", "", fname)
 

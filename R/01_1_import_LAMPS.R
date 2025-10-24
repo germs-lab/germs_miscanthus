@@ -353,6 +353,21 @@ lamps_metadata_2022 <- read_xlsx(
   ) %>% # Sampling year
   relocate(sequence_id, .before = sample_id)
 
+# Fix taxa orientation and names
+otu_table(lamps_2022_16S) <- otu_table(t(otu_table(lamps_2022_16S)))
+otu_table(lamps_2022_AMF) <- otu_table(t(otu_table(lamps_2022_AMF)))
+
+# Update taxa names
+list(lamps_2022_16S, lamps_2022_AMF) %>%
+  purrr::map(
+    ~ {
+      taxa_names(.x) <- gsub("^ASV([0-9]+)$", "ASV_\\1", taxa_names(.x))
+      .x
+    }
+  ) %>%
+  set_names(c("lamps_2022_16S", "lamps_2022_AMF")) %>%
+  list2env(envir = .GlobalEnv)
+
 
 # Let's reconstruct the phyloseq object with simpler metadata
 nphyseq_lamps_2022_16S <- regen_physeq(

@@ -6,18 +6,55 @@
 
 source("R/utils/00_setup.R")
 
+
+# Subset phyloseq by plant type
+# To subset the actual phyloseq object
+mxg_lamps_2018 <- purrr::map(
+  lamps_2018_physeq_list,
+  ~ {
+    ps_subset <- subset_samples(.x, plant == "M")
+    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
+  }
+)
+
+mxg_lamps_2022 <- purrr::map(
+  lamps_2022_physeq_list,
+  ~ {
+    ps_subset <- subset_samples(.x, treatment == "Miscanthus")
+    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
+  }
+)
+
+mxg_ef <- purrr::map(
+  ef_physeq_list,
+  ~ {
+    ps_subset <- subset_samples(.x, crop == "MXG")
+    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
+  }
+)
+
 # Phyloseq to FASTA
 # create output dir
 
-# LAMPS 2022
+# LAMPS
 refseq2fasta(
-  lamps_2022_physeq_list,
+  mxg_lamps_2018,
+  extra_id = "_mxg",
+  out_dir = "data/output/processed/sequences"
+)
+refseq2fasta(
+  mxg_lamps_2022,
+  extra_id = "_mxg",
   out_dir = "data/output/processed/sequences"
 )
 
 
 # Energy Farm Collab
-refseq2fasta(ef_physeq_list, out_dir = "data/output/processed/sequences")
+refseq2fasta(
+  mxg_ef,
+  extra_id = "_mxg",
+  out_dir = "data/output/processed/sequences"
+)
 
 # rownames(taxa_16S) <- paste0("ASV_", 1:nrow(taxa_16S))
 
