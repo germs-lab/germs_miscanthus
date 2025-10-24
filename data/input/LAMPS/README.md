@@ -43,14 +43,14 @@ file = "/home/baponte/cybox/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequenc
 
 ### ITS (DNA and RNA)
 
-This is an interesting import. 
+This is an interesting import. The files were previously worked on by M. Millican. Now we are going to use the phyloseq object he created. We have 152 samples. In his phyloseq we end up with 124. 
   - **Metadata**: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/0.metadata.xlsx"
   - **Raw sequences**: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/Raw\ sequences"
 
   **To avoid downloading samples, a list of all the samples was imported to "~/germs_miscanthus/data/input/LAMPS/ITS_sequencing/raw_sequences" from where it was used for sample corroboration and analyses.**
 
+  - **.Rdata (phyloseq objects)**: "GERMS-DATAMAN/Millican_GERMS_Research/LAMPS_microbiome/manuscript_all_data.Rdata" ("ps.f")
 
-  - **.Rdata (phyloseq objects)**: "GERMS-DATAMAN/Millican_GERMS_Research/LAMPS_microbiome/manuscript_all_data.Rdata"
 
 
 ## Why two files?
