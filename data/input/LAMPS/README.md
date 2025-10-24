@@ -1,7 +1,10 @@
-# LAMPS 2018
-## Building proper metadata for 16S (DNA and RNA) and ITS (DNA and RNA) samples
+# Data Provenance and Preparation for "germs_miscanthus"
 
-This document explains how the final, “proper” metadata table for LAMPS 2018 data was built by combining two required inputs:
+
+# LAMPS 2018
+## Updating metadata for 16S (DNA and RNA) and ITS (DNA and RNA) samples
+
+This document explains how the final, “updated” metadata table for LAMPS 2018 data was built by combining two required inputs:
 
 Both files were necessary, although they had more or less the same data. Metadata and sequence files could very well have been matched using sample_id(id) since each is unique, but "replicate" information was important as well as "sample_date" which the RNA metadata was missing.
 
@@ -10,28 +13,44 @@ This applies to DNA (DNA amplicon sequencing) and RNA (RNA amplicon sequencing)s
 
 ## Data and Metadata provenance
 
-### 16S DNA and RNA
-- Lab analysis from Micheal Millican
-  - "GERMS-DATAMAN/Millican_GERMS_Research/LAMPS_microbiome/analysis_data/bacterial-metada.csv"
-- Sequencing master metadata (Box)
-  - "GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA amplicon sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
- or 
- "DOE-CABBI/bolivar/germs_miscanthus/data/input/LAMPS/DNA_amplicon_sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
+### 16S (DNA and RNA)
 
-**Imported to "~/germs_miscanthus/data/input/LAMPS" into their respective subdirectories "DNA_*" and "RNA_*"from where they'll be loaded for further analyses.**
+- **Metadata**:
+  - Lab analysis from Micheal Millican: "GERMS-DATAMAN/Millican_GERMS_Research/LAMPS_microbiome/analysis_data/bacterial-metadata.csv"
+  - Sequencing master metadata (Box): "GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA amplicon sequencing/0.metadata_CABBI_LAMPS_DNA.xlsx"
 
-## Phyloseq object
+- **Raw sequences**: 
+  - "GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequencing/Raw\ sequences"
+  - "GERMS-DATAMAN/DOE-CABBI/LAMPS/RNA\ amplicon\ sequencing/Raw\ sequences"
+  - "GERMS-DATAMAN/Millican_GERMS_Research/LAMPS_microbiome/raw_data/"
 
-The phyloseq object with both the 16S DNA and RNA is located in "GERMS-DATAMAN/DOE-CABBI/LAMPS/16S\ rRNA\ phyloseq\ data/ps_16S_LAMPS.rds". The metadata was updated to contain sequence_id, target_region and some other clean ups to increase readability for this project.
+**To avoid downloading samples, a list of all the samples was imported to "~/germs_miscanthus/data/input/LAMPS" into their respective subdirectories "DNA_*" and "RNA_*"from where it was used for sample corroboration and analyses.**
 
-**Now imported to "~germs_miscanthus/data/input/LAMPS/16S_rRNA_phyloseq_data"**
+```{r}
+its_seq_names <- fs::dir_ls(
+  "/home/baponte/cybox/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequencing/Raw sequences"
+) %>% # rclone Box config, this may break
+  basename() 
+
+write_tsv(
+  as.data.frame(its_seq_names),
+file = "/home/baponte/cybox/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequencing/dna_seq_filenames.tsv", col_names = FALSE
+)
+```
+
+- **.Rdata (phyloseq objects)**: "GERMS-DATAMAN/DOE-CABBI/LAMPS/16S\ rRNA\ phyloseq\ data/ps_16S_LAMPS.rds"
+**NOTE**: The metadata for this phyloseq object was updated to contain sequence_id, target_region and some other clean ups to increase readability for this project. **Now imported to "~germs_miscanthus/data/input/LAMPS/16S_rRNA_phyloseq_data"**
+
+### ITS (DNA and RNA)
+
+This is an interesting import. 
+  - **Metadata**: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/0.metadata.xlsx"
+  - **Raw sequences**: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/Raw\ sequences"
+
+  **To avoid downloading samples, a list of all the samples was imported to "~/germs_miscanthus/data/input/LAMPS/ITS_sequencing/raw_sequences" from where it was used for sample corroboration and analyses.**
 
 
-### ITS
-  - Metadata: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/0.metadata.xlsx"
-  - Raw sequences: "GERMS-DATAMAN/DOE-CABBI/LAMPS/ITS\ sequencing/Raw\ sequences"
-
-  **Now in "~germs_miscanthus/data/input/LAMPS/ITS_sequencing"**
+  - **.Rdata (phyloseq objects)**: "GERMS-DATAMAN/Millican_GERMS_Research/LAMPS_microbiome/manuscript_all_data.Rdata"
 
 
 ## Why two files?
@@ -80,7 +99,7 @@ The standardization process in "01_import.R" conditionally transforms only the i
 
 ## Outputs
 
-- A single, cleaned metadata table ("*_proper_metadata") suitable for downstream R analyses and consistent filename construction.
+- A single, cleaned metadata table ("*_updated_metadata") suitable for downstream R analyses and consistent filename construction.
 
 
 ## Reproducibility notes

@@ -39,13 +39,15 @@ dna_updated_metadata <- build_updated_metadata(
 )
 
 # Get actual sequence file names
-dna_seq_names <- fs::dir_ls(
-  "data/input/LAMPS/DNA_amplicon_sequencing/raw_sequences"
-)
+dna_seq_names <- readr::read_tsv(
+  "data/input/LAMPS/DNA_amplicon_sequencing/dna_seq_filenames.tsv",
+  col_types = readr::cols(.default = readr::col_character())
+) %>%
+  dplyr::pull(1)
+
 
 # Clean sequence file names and correct inverted fields
 dna_seq_names_clean <- dna_seq_names %>%
-  basename() %>%
   str_remove("_CABBI\\.R[12]\\.fastq\\.gz$") %>%
   # Correct BULK_DNA position: move from after date to before date
   ifelse(
@@ -102,13 +104,15 @@ rna_duplicated_df <- rna_updated_metadata %>%
   slice(rep(1:n(), each = 2))
 
 # Get actual RNA sequence file names
-rna_seq_names <- fs::dir_ls(
-  "data/input/LAMPS/RNA_amplicon_sequencing/raw_sequences"
-)
+rna_seq_names <- readr::read_tsv(
+  "data/input/LAMPS/RNA_amplicon_sequencing/rna_seq_filenames.tsv",
+  col_types = readr::cols(.default = readr::col_character())
+) %>%
+  dplyr::pull(1)
+
 
 # Clean RNA sequence file names and correct inverted fields
 rna_seq_names_clean <- rna_seq_names %>%
-  basename() %>%
   str_remove("_CABBI\\_L001\\_R[12]\\_001\\.fastq\\.gz$") %>%
   # Correct N/P field order: swap nitrogen (N) and plot (P) positions
   ifelse(
@@ -185,7 +189,6 @@ base::setdiff(
   rownames(lamps_2018_tax)
 )
 
-
 # Updated phyloseq
 # Check class for replacement
 class(tax_table(ps_16S_LAMPS))
@@ -238,13 +241,15 @@ its_metadata <- read_xlsx(
 
 
 # Sequence file names
-its_seq_names <- fs::dir_ls(
-  "data/input/LAMPS/ITS_sequencing/raw_sequences"
-)
+its_seq_names <- readr::read_tsv(
+  "data/input/LAMPS/ITS_sequencing/its_seq_filenames.tsv",
+  col_types = readr::cols(.default = readr::col_character())
+) %>%
+  dplyr::pull(1)
 
 # Validate matches between cleaned file names and metadata
 its_seq_names_clean <- its_seq_names %>%
-  basename() %>%
+  #basename() %>%
   str_remove("_S(.+)$")
 
 
@@ -259,7 +264,21 @@ write_csv(
   "data/input/LAMPS/ITS_sequencing/its_updated_metadata.csv",
   na = ""
 )
+#TODO
+load("data/input/LAMPS/ITS_sequencing/manuscript_all_data.rda")
 
+intersect(sample_names(ps.b), {
+  its_seq_names_clean %>% str_remove("_(.+)$")
+})
+
+
+# I think that Millican subseted the 16S data to only the samples that matched the ITS sampling effort.
+
+name_test <- its_metadata %>%
+  pull(sample_id) %>%
+  str_remove("_RNA")
+
+test <- prune_samples(sample_names(lamps_2018_16S_physeq), sample_names(ps.b))
 #----------------------------------------------------------------------------
 # LAMPS: 2022
 #----------------------------------------------------------------------------
