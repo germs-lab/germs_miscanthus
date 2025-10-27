@@ -56,19 +56,26 @@ refseq2fasta(
   out_dir = "data/output/processed/sequences"
 )
 
-# rownames(taxa_16S) <- paste0("ASV_", 1:nrow(taxa_16S))
 
-# asv_fasta <- seqtab2fasta(seqtab_nochim_16S)
+# Concatenate and export as single file
+fa_mxg_files <- fs::dir_ls("data/output/processed/sequences/") %>%
+  str_subset("_mxg.fa")
 
-# seqtab_nochim_16S <- t(seqtab_nochim_16S) # Retaining sequences and asigning shorthand ASV names
+main_fa_list <- purrr::map(fa_mxg_files, readr::read_lines) %>%
+  set_names(fs::path_file(fa_mxg_files))
 
-# row.names(seqtab_nochim_16S) <- sub(">", "", asv_fasta$asv_headers)
+all_sequences <- unlist(main_fa_list)
 
-# asv_16S <- otu_table(seqtab_nochim_16S, taxa_are_rows = TRUE)
+# Find header lines (start with ">")
+header_indices <- which(stringr::str_starts(all_sequences, ">"))
 
-# ## Save FASTA file
-# dir.create("data/output/processed/sequences/", recursive = TRUE)
-# write(
-#   asv_fasta$asv_fasta,
-#   file.path("data/output/processed/sequences/energy_farm_collab_16S.fa")
-# )
+new_asv_names <- paste0("ASV_", seq_along(header_indices))
+
+# Replace headers
+all_sequences[header_indices] <- paste0(">", new_asv_names)
+
+# Save to file
+readr::write_lines(
+  all_sequences,
+  "data/output/processed/sequences/combined_mxg_seqs_renamed.fa"
+)
