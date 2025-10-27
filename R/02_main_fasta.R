@@ -57,25 +57,98 @@ refseq2fasta(
 )
 
 
-# Concatenate and export as single file
-fa_mxg_files <- fs::dir_ls("data/output/processed/sequences/") %>%
-  str_subset("_mxg.fa")
+# Concatenate and export per target region
+target_regions <- c("16S", "ITS", "AMF")
 
-main_fa_list <- purrr::map(fa_mxg_files, readr::read_lines) %>%
-  set_names(fs::path_file(fa_mxg_files))
+process_fa <- function(region, .all = NULL) {
+  # Determine file selection logic
+  if (is.null(.all)) {
+    # Process specific region
+    fa_files <- fs::dir_ls("data/output/processed/sequences/") %>%
+      str_subset(paste0(region, "_mxg.fa"))
 
-all_sequences <- unlist(main_fa_list)
+    output_path <- paste0(
+      "data/output/processed/sequences/mxg_",
+      region,
+      "_combined_asv_renamed.fa"
+    )
+  } else {
+    # Process all regions combined
+    fa_files <- fs::dir_ls("data/output/processed/sequences/") %>%
+      str_subset("_mxg.fa")
 
-# Find header lines (start with ">")
-header_indices <- which(stringr::str_starts(all_sequences, ">"))
+    output_path <- paste0(
+      "data/output/processed/sequences/mxg_",
+      "all",
+      "_combined_asv_renamed.fa"
+    )
+  }
 
-new_asv_names <- paste0("ASV_", seq_along(header_indices))
+  # Read and combine sequences
+  fa_list <- purrr::map(fa_files, readr::read_lines) %>%
+    set_names(fs::path_file(fa_files))
 
-# Replace headers
-all_sequences[header_indices] <- paste0(">", new_asv_names)
+  all_sequences <- unlist(fa_list)
 
-# Save to file
-readr::write_lines(
-  all_sequences,
-  "data/output/processed/sequences/combined_mxg_seqs_renamed.fa"
-)
+  # Deduplicate sequences if processing all regions
+  if (!is.null(.all)) {
+    all_sequences <- deduplicate_sequences(all_sequences)
+  }
+
+  # Rename ASVs
+  header_indices <- which(stringr::str_starts(all_sequences, ">"))
+  new_asv_names <- paste0("ASV_", seq_along(header_indices))
+  all_sequences[header_indices] <- paste0(">", new_asv_names)
+
+  # Save to file
+  readr::write_lines(all_sequences, output_path)
+
+  # Return summary info
+  list(
+    region = if (is.null(.all)) region else "all",
+    n_files = length(fa_files),
+    n_sequences = length(header_indices),
+    output_path = output_path
+  )
+}
+
+# Helper function for deduplication
+deduplicate_sequences <- function(all_sequences) {
+  header_indices <- which(stringr::str_starts(all_sequences, ">"))
+
+  # Create data frame directly with sequence pairs
+  sequence_df <- data.frame(
+    header = character(length(header_indices)),
+    sequence = character(length(header_indices)),
+    stringsAsFactors = FALSE
+  )
+
+  sequence_pairs <- purrr::map_dfr(seq_along(header_indices), function(i) {
+    start_pos <- header_indices[i]
+    end_pos <- if (i < length(header_indices)) {
+      header_indices[i + 1] - 1
+    } else {
+      length(all_sequences)
+    }
+    sequence_df$header[i] <- all_sequences[start_pos]
+    sequence_df$sequence[i] <- paste(
+      all_sequences[(start_pos + 1):end_pos],
+      collapse = ""
+    )
+  })
+
+  unique_pairs <- sequence_pairs %>%
+    dplyr::distinct(sequence, .keep_all = TRUE)
+
+  as.vector(rbind(unique_pairs$header, unique_pairs$sequence))
+}
+
+# Export
+results <- purrr::map(target_regions, process_fa) %>%
+  set_names(target_regions)
+
+result2 <- list(all_regions = process_fa(region = target_regions, .all = "all"))
+purrr::map_dfr(result2, ~ data.frame(.x), .id = "region")
+
+# View summary
+purrr::map_dfr(result, ~ data.frame(.x), .id = "region")

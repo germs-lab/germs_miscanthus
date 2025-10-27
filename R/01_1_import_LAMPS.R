@@ -43,7 +43,7 @@ dna_updated_metadata <- build_updated_metadata(
 
 # Get actual sequence file names
 dna_seq_names <- readr::read_lines(
-  "data/input/LAMPS/DNA_amplicon_sequencing/dna_seq_filenames.tsv"
+  "data/input/LAMPS/DNA_amplicon_sequencing/raw_sequences/dna_seq_filenames.tsv"
 ) %>%
   stringr::str_trim() %>%
   purrr::discard(~ .x == "dna_seq_filenames.tsv")
@@ -107,7 +107,7 @@ rna_duplicated_df <- rna_updated_metadata %>%
 
 # Get actual RNA sequence file names
 rna_seq_names <- readr::read_lines(
-  "data/input/LAMPS/RNA_amplicon_sequencing/rna_seq_filenames.tsv"
+  "data/input/LAMPS/RNA_amplicon_sequencing/raw_sequences/rna_seq_filenames.tsv"
 ) %>%
   stringr::str_trim() %>%
   purrr::discard(~ .x == "rna_seq_filenames.tsv")
@@ -238,7 +238,7 @@ its_metadata <- read_xlsx(
 
 # Sequence file names
 its_seq_names <- readr::read_lines(
-  "data/input/LAMPS/ITS_sequencing/its_seq_filenames.tsv"
+  "data/input/LAMPS/ITS_sequencing/raw_sequences/its_seq_filenames.tsv"
 ) %>%
   stringr::str_trim() %>%
   purrr::discard(~ .x == "its_seq_filenames.tsv")
