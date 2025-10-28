@@ -48,7 +48,6 @@ refseq2fasta(
   out_dir = "data/output/processed/sequences"
 )
 
-
 # Energy Farm Collab
 refseq2fasta(
   mxg_ef,
@@ -84,64 +83,46 @@ process_fa <- function(region, .all = NULL) {
     )
   }
 
-  # Read and combine sequences
-  fa_list <- purrr::map(fa_files, readr::read_lines) %>%
-    set_names(fs::path_file(fa_files))
-
-  all_sequences <- unlist(fa_list)
+  # Read and combine sequences using read.fasta
+  all_sequences_df <- purrr::map_dfr(fa_files, function(file) {
+    phylotools::read.fasta(file) %>%
+      dplyr::mutate(source_file = fs::path_file(file))
+  })
 
   # Deduplicate sequences if processing all regions
   if (!is.null(.all)) {
-    all_sequences <- deduplicate_sequences(all_sequences)
+    all_sequences_df <- all_sequences_df %>%
+      dplyr::distinct(seq.text, .keep_all = TRUE)
   }
 
   # Rename ASVs
-  header_indices <- which(stringr::str_starts(all_sequences, ">"))
-  new_asv_names <- paste0("ASV_", seq_along(header_indices))
-  all_sequences[header_indices] <- paste0(">", new_asv_names)
+  all_sequences_df$seq.name <- paste0("ASV_", seq_len(nrow(all_sequences_df)))
 
-  # Save to file
-  readr::write_lines(all_sequences, output_path)
+  # Save to file using dat2fasta
+  phylotools::dat2fasta(all_sequences_df, outfile = output_path)
+
+  tryCatch(
+    Biostrings::writeXStringSet(
+      seqs,
+      filepath = outfile,
+      format = "fasta",
+      append = FALSE,
+      compress = FALSE
+    ),
+    error = function(e) {
+      message("Failed to write ", outfile, ": ", conditionMessage(e))
+    }
+  )
 
   # Return summary info
   list(
     region = if (is.null(.all)) region else "all",
     n_files = length(fa_files),
-    n_sequences = length(header_indices),
+    n_sequences = nrow(all_sequences_df),
     output_path = output_path
   )
 }
 
-# Helper function for deduplication
-deduplicate_sequences <- function(all_sequences) {
-  header_indices <- which(stringr::str_starts(all_sequences, ">"))
-
-  # Create data frame directly with sequence pairs
-  sequence_df <- data.frame(
-    header = character(length(header_indices)),
-    sequence = character(length(header_indices)),
-    stringsAsFactors = FALSE
-  )
-
-  sequence_pairs <- purrr::map_dfr(seq_along(header_indices), function(i) {
-    start_pos <- header_indices[i]
-    end_pos <- if (i < length(header_indices)) {
-      header_indices[i + 1] - 1
-    } else {
-      length(all_sequences)
-    }
-    sequence_df$header[i] <- all_sequences[start_pos]
-    sequence_df$sequence[i] <- paste(
-      all_sequences[(start_pos + 1):end_pos],
-      collapse = ""
-    )
-  })
-
-  unique_pairs <- sequence_pairs %>%
-    dplyr::distinct(sequence, .keep_all = TRUE)
-
-  as.vector(rbind(unique_pairs$header, unique_pairs$sequence))
-}
 
 # Export
 results <- purrr::map(target_regions, process_fa) %>%

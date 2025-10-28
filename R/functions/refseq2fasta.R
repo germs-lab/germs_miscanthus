@@ -22,14 +22,13 @@ refseq2fasta <- function(
 
       outfile <- file.path(out_dir, fname)
 
+      # Getting Biostring to talk to phylotools
+      new_seqs <- Biostrings::as.data.frame(seqs) %>%
+        tibble::rownames_to_column(., var = "seq.name") %>%
+        rename(seq.text = x)
+
       tryCatch(
-        Biostrings::writeXStringSet(
-          seqs,
-          filepath = outfile,
-          format = "fasta",
-          append = FALSE,
-          compress = FALSE
-        ),
+        phylotools::dat2fasta(new_seqs, outfile = outfile),
         error = function(e) {
           message("Failed to write ", outfile, ": ", conditionMessage(e))
         }
