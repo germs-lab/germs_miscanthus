@@ -110,34 +110,30 @@ process_fa <- function(region, .all = NULL) {
       dplyr::mutate(source_file = fs::path_file(file))
   })
 
-  # Deduplicate sequences if processing all regions
-  if (!is.null(.all)) {
-    all_sequences_df <- all_sequences_df %>%
-      dplyr::distinct(seq.text, .keep_all = TRUE)
-  }
+  # Deduplicate sequences
+  unique_df <- all_sequences_df[!duplicated(all_sequences_df$seq.text), ]
 
   # Rename ASVs
-  all_sequences_df$seq.name <- paste0("ASV_", seq_len(nrow(all_sequences_df)))
+  unique_df$seq.name <- paste0("ASV_", seq_len(nrow(unique_df)))
 
   # Save to file using dat2fasta
-  phylotools::dat2fasta(all_sequences_df, outfile = output_path)
+  phylotools::dat2fasta(unique_df, outfile = output_path)
 
   # Return summary info
   list(
     region = if (is.null(.all)) region else "all",
     n_files = length(fa_files),
-    n_sequences = nrow(all_sequences_df),
+    n_sequences = nrow(unique_df),
     output_path = output_path
   )
 }
 
 
-# Export
+# Export and summary
 results <- purrr::map(target_regions, process_fa) %>%
   set_names(target_regions)
+purrr::map_dfr(results, ~ data.frame(.x), .id = "region")
 
-result2 <- list(all_regions = process_fa(region = target_regions, .all = "all"))
-purrr::map_dfr(result2, ~ data.frame(.x), .id = "region")
-
-# View summary
+# All together
+result <- list(all_regions = process_fa(region = target_regions, .all = "all"))
 purrr::map_dfr(result, ~ data.frame(.x), .id = "region")
