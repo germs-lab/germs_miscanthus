@@ -37,11 +37,25 @@ mxg_ef <- purrr::map(
 # create output dir
 
 # LAMPS
+# Full
+refseq2fasta(
+  lamps_2018_physeq_list,
+  out_dir = "data/output/processed/sequences"
+)
+
+refseq2fasta(
+  lamps_2022_physeq_list,
+  out_dir = "data/output/processed/sequences"
+)
+
+
+# MXG
 refseq2fasta(
   mxg_lamps_2018,
   extra_id = "_mxg",
   out_dir = "data/output/processed/sequences"
 )
+
 refseq2fasta(
   mxg_lamps_2022,
   extra_id = "_mxg",
@@ -49,6 +63,13 @@ refseq2fasta(
 )
 
 # Energy Farm Collab
+# Full
+refseq2fasta(
+  ef_physeq_list,
+  out_dir = "data/output/processed/sequences"
+)
+
+# MXG
 refseq2fasta(
   mxg_ef,
   extra_id = "_mxg",
@@ -100,19 +121,6 @@ process_fa <- function(region, .all = NULL) {
 
   # Save to file using dat2fasta
   phylotools::dat2fasta(all_sequences_df, outfile = output_path)
-
-  tryCatch(
-    Biostrings::writeXStringSet(
-      seqs,
-      filepath = outfile,
-      format = "fasta",
-      append = FALSE,
-      compress = FALSE
-    ),
-    error = function(e) {
-      message("Failed to write ", outfile, ": ", conditionMessage(e))
-    }
-  )
 
   # Return summary info
   list(
