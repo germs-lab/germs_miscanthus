@@ -39,25 +39,26 @@ compute_diversity_nested <- function(
   drop,
   first_asv_col = NULL
 ) {
-  results <- list()
+  results <- purrr::imap(nested_list, function(level1_list, level1_name) {
+    # Level 1: project groups within each main category
 
-  # Level 1: project groups within each main category
-  purrr::iwalk(nested_list, function(level1_list, level1_name) {
-    # Level 2: individual phyloseq objects
-    purrr::iwalk(level1_list, function(dataset, level2_name) {
-      # Create unique name for flattened structure
-      result_name <- paste(level2_name, "df", sep = "_")
-      result_name <- gsub("_physeq", "", result_name) # clean up naming
+    purrr::imap(level1_list, function(dataset, level2_name) {
+      # Level 2: individual phyloseq objects
+
       # Phyloseq to DF
       physeq_df <- physeq2df(dataset)
-      # Apply diversity computation
-      results[[result_name]] <<- compute_diversity(
+
+      compute_diversity(
         dataset = physeq_df,
         drop = drop,
         first_asv_col = first_asv_col
       )
     })
   })
+
+  # Flatten the nested structure and set names
+  results <- purrr::list_flatten(results, name_spec = "{inner}_df") %>%
+    purrr::set_names(gsub("_physeq", "", names(.)))
 
   return(results)
 }
