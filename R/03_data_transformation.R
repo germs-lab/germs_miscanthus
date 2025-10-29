@@ -1,9 +1,12 @@
 ###################################################################
-# EDA for Microbiome of MIscanthus
+# Data Transformation for Microbiome of Miscanthus
 #
+# Transforming to Relative abundance and calculating
+# diversity indices. Output is dataframes with relative abundance
+# of AVS and observed, Shannon, Simpson's and Inv. Simpson
+# diversity indices.
 #
-#
-#Author: Bolívar Aponte Rolón
+# Author: Bolívar Aponte Rolón
 # Date: 2025-10-28#
 ###################################################################
 
@@ -98,7 +101,8 @@ main_relab_df_list <- compute_diversity_nested(
   first_asv_col = "ASV_1"
 )
 
-# main_dataframes <- imap(
-#   datasets,
-#   ~ compute_diversity(.x, drop = unwanted_cols, first_asv_col = "ASV_1")
-# )
+# Save
+save(
+  main_relab_df_list,
+  file = "data/output/processed/rdata/main_relab_df_list.rda"
+)
