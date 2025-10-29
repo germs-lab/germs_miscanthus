@@ -7,62 +7,17 @@
 # diversity indices.
 #
 # Author: Bolívar Aponte Rolón
-# Date: 2025-10-28#
+# Date: 2025-10-28
 ###################################################################
 
 source("R/utils/00_setup.R")
 
-
-# Summary statistics for datasets
+# Main list for downstream analyses
 main_physeq_list <- list(
   ef_physeq_list = ef_physeq_list,
   lamps_2018_physeq_list = lamps_2018_physeq_list,
   lamps_2022_physeq_list = lamps_2022_physeq_list
 )
-
-# Energy Farm Collab
-# Examine the structure of your phyloseq list
-str(main_physeq_list, max.level = 2)
-names(main_physeq_list)
-length(main_physeq_list)
-
-
-# Explore phyloseq
-purrr::iwalk(main_physeq_list, function(project_list, project_name) {
-  cat("### PROJECT:", project_name, "###\n")
-  purrr::iwalk(project_list, function(physeq_obj, region_name) {
-    full_name <- paste(project_name, region_name, sep = "_")
-    explore_phyloseq_list(physeq_obj, full_name)
-  })
-})
-
-# Summary table
-physeq_summary <- purrr::imap_dfr(
-  main_physeq_list,
-  function(project_list, project_name) {
-    purrr::imap_dfr(
-      project_list,
-      function(physeq_obj, region_name) {
-        data.frame(
-          #physeq_list = project_name,
-          region = gsub(".*_([^_]+)_physeq$", "\\1", region_name),
-          n_taxa = ntaxa(physeq_obj),
-          n_samples = nsamples(physeq_obj),
-          total_reads = sum(sample_sums(physeq_obj)),
-          min_reads_per_sample = min(sample_sums(physeq_obj)),
-          max_reads_per_sample = max(sample_sums(physeq_obj)),
-          mean_reads_per_sample = mean(sample_sums(physeq_obj)),
-          median_reads_per_sample = median(sample_sums(physeq_obj))
-        )
-      },
-      .id = "project_name"
-    )
-  },
-  .id = "project_list"
-)
-
-
-physeq_summary
 
 
 # Relative Abundace Transformation -----------------------------
@@ -96,13 +51,15 @@ purrr::map(main_physeq_relab_list, function(project_list) {
 # Calculate Diversity indices ---------------------------------
 
 main_relab_df_list <- compute_diversity_nested(
-  main_physeq_relab_list,
+  main_relab_physeq_list,
   drop = "ASV_",
   first_asv_col = "ASV_1"
 )
 
 # Save
 save(
+  main_physeq_list,
+  main_relab_physeq_list,
   main_relab_df_list,
-  file = "data/output/processed/rdata/main_relab_df_list.rda"
+  file = "data/output/processed/rdata/main_physeq_df_list.rda"
 )

@@ -43,9 +43,9 @@ devtools::source_url(
 
 # Objects
 list.files(
-  here::here("data/output/processed/rdata/phyloseq"),
+  here::here("data/output/processed/rdata"),
   full.names = TRUE,
-  recursive = TRUE,
+  recursive = FALSE,
   pattern = "list\\.rda$"
 ) %>%
   purrr::walk(~ load(.x, envir = .GlobalEnv))

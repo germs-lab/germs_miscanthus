@@ -1,0 +1,215 @@
+###########################################################################
+# Exploratory Data Analysis for Nested Phyloseq Objects
+#
+# This script performs EDA on nested phyloseq lists with the structure:
+# main_relab_physeq_list$project_list$sequencing_type_physeq
+#
+# Author: Bolívar Aponte Rolón
+# Date: 2025-10-29
+##########################################################################
+
+source("R/utils/00_setup.R")
+
+#--------------------------------------------------------
+# SECTION 1: Basic Exploration of Nested Dataset
+#--------------------------------------------------------
+
+# Energy Farm Collab
+# Examine the structure of your phyloseq list
+str(main_physeq_list, max.level = 2)
+names(main_physeq_list)
+length(main_physeq_list)
+
+
+# Explore phyloseq
+purrr::iwalk(main_physeq_list, function(project_list, project_name) {
+  cat("### PROJECT:", project_name, "###\n")
+  purrr::iwalk(project_list, function(physeq_obj, region_name) {
+    full_name <- paste(project_name, region_name, sep = "_")
+    explore_phyloseq_list(physeq_obj, full_name)
+  })
+})
+
+# Summary table
+physeq_summary <- purrr::imap_dfr(
+  main_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap_dfr(
+      project_list,
+      function(physeq_obj, region_name) {
+        data.frame(
+          #physeq_list = project_name,
+          region = gsub(".*_([^_]+)_physeq$", "\\1", region_name),
+          n_taxa = ntaxa(physeq_obj),
+          n_samples = nsamples(physeq_obj),
+          total_reads = sum(sample_sums(physeq_obj)),
+          min_reads_per_sample = min(sample_sums(physeq_obj)),
+          max_reads_per_sample = max(sample_sums(physeq_obj)),
+          mean_reads_per_sample = mean(sample_sums(physeq_obj)),
+          median_reads_per_sample = median(sample_sums(physeq_obj))
+        )
+      },
+      .id = "project_name"
+    )
+  },
+  .id = "project_list"
+)
+
+
+physeq_summary
+
+
+# Function to apply phyloseq summary to nested structure
+explore_nested_phyloseq <- function(nested_list) {
+  results <- purrr::imap(nested_list, function(project_list, project_name) {
+    cat("\n", rep("=", 60), "\n")
+    cat("PROJECT:", toupper(project_name), "\n")
+    cat(rep("=", 60), "\n")
+
+    purrr::imap(project_list, function(physeq_obj, seq_type) {
+      cat("\n", rep("-", 40), "\n")
+      cat("Sequencing Type:", toupper(seq_type), "\n")
+      cat(rep("-", 40), "\n")
+
+      # Basic phyloseq summaries
+      cat("Basic Summary:\n")
+      print(metagMisc::phyloseq_summary(
+        physeq_obj,
+        more_stats = FALSE,
+        long = FALSE
+      ))
+
+      cat("\nRead/Sequencing Summary:\n")
+      print(microbiome::summarize_phyloseq(physeq_obj))
+
+      # # Taxonomic distribution
+      # if ("phylum" %in% colnames(tax_table(physeq_obj))) {
+      #   cat("\nPhylum Distribution:\n")
+      #   phyla_dist <- phyloseq_ntaxa_by_tax(
+      #     physeq_obj,
+      #     TaxRank = "phylum",
+      #     relative = FALSE,
+      #     add_meta_data = FALSE
+      #   ) %>%
+      #     as.data.frame() %>%
+      #     mutate(sum = sum(N.OTU)) %>%
+      #     group_by(phylum) %>%
+      #     summarise(occurance_in_samples = n()) %>%
+      #     arrange(desc(occurance_in_samples))
+
+      #   print(phyla_dist)
+      # }
+
+      # Sample and taxa counts
+      list(
+        project = project_name,
+        region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type),
+        n_samples = nsamples(physeq_obj),
+        n_taxa = ntaxa(physeq_obj),
+        sample_vars = sample_variables(physeq_obj),
+        rank_names = rank_names(physeq_obj),
+        total_reads = sum(sample_sums(physeq_obj)),
+        min_reads_per_sample = min(sample_sums(physeq_obj)),
+        max_reads_per_sample = max(sample_sums(physeq_obj)),
+        mean_reads_per_sample = mean(sample_sums(physeq_obj)),
+        median_reads_per_sample = median(sample_sums(physeq_obj))
+      )
+    })
+  })
+
+  return(results)
+}
+
+
+nested_summary <- explore_nested_phyloseq(main_physeq_list)
+
+
+#--------------------------------------------------------
+# Read Count Analysis for Nested Structure
+#--------------------------------------------------------
+
+# Function to analyze read counts across nested phyloseq objects
+analyze_nested_read_counts <- function(nested_list) {
+  read_summaries <- purrr::imap(
+    nested_list,
+    function(project_list, project_name) {
+      purrr::imap(project_list, function(physeq_obj, seq_type) {
+        # Get read counts
+        reads <- readcount(physeq_obj) %>%
+          as.data.frame() %>%
+          rownames_to_column(var = "sample_id") %>%
+          rename(n_seqs = ".") %>%
+          mutate(
+            project = gsub("_physeq", "", seq_type),
+            region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
+          )
+
+        return(reads)
+      })
+    }
+  ) %>%
+    purrr::list_flatten(name_spec = "{outer}_{inner}") %>%
+    purrr::map_dfr(~.x)
+
+  return(read_summaries)
+}
+
+# Get read count data
+nested_read_counts <- analyze_nested_read_counts(main_physeq_list)
+
+
+# Visualize read counts by project and sequencing type
+read_count_plots <- list(
+  # Density plot
+  density = ggplot(nested_read_counts, aes(x = n_seqs, fill = project)) +
+    geom_density(alpha = 0.6, position = "identity") +
+    facet_wrap(~project, scales = "free") +
+    labs(
+      title = "Read Count Distribution by Project",
+      x = "Number of Sequences",
+      y = "Density"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none"),
+
+  # Box plot comparison
+  boxplot = ggplot(
+    nested_read_counts,
+    aes(x = project, y = n_seqs, fill = project)
+  ) +
+    geom_boxplot(alpha = 0.7) +
+    geom_jitter(width = 0.2, alpha = 0.5) +
+    scale_y_log10() +
+    labs(
+      title = "Read Count Comparison Across Projects",
+      x = "Project",
+      y = "Number of Sequences (log10)"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "none"
+    ),
+
+  # Summary line plot
+  summary_line = nested_read_counts %>%
+    group_by(project) %>%
+    arrange(n_seqs) %>%
+    mutate(sample_rank = row_number()) %>%
+    ggplot(aes(x = sample_rank, y = n_seqs, color = project)) +
+    geom_line(linewidth = 1) +
+    facet_wrap(~project, scales = "free") +
+    labs(
+      title = "Read Count Distribution (Ranked)",
+      x = "Sample Rank",
+      y = "Number of Sequences"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+)
+
+# Display plots
+print(read_count_plots)
+
+# TODO
+# Add rarefacttion curves
