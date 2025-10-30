@@ -13,6 +13,7 @@ source("R/utils/00_setup.R")
 #--------------------------------------------------------
 # SECTION 1: Basic Exploration of Nested Dataset
 #--------------------------------------------------------
+# Total abundance only
 
 # Energy Farm Collab
 # Examine the structure of your phyloseq list
@@ -59,7 +60,7 @@ physeq_summary <- purrr::imap_dfr(
 physeq_summary
 
 
-# Function to apply phyloseq summary to nested structure
+# Summary of nested phyloseq list
 explore_nested_phyloseq <- function(nested_list) {
   results <- purrr::imap(nested_list, function(project_list, project_name) {
     cat("\n", rep("=", 60), "\n")
@@ -129,7 +130,8 @@ nested_summary <- explore_nested_phyloseq(main_physeq_list)
 #--------------------------------------------------------
 
 # Function to analyze read counts across nested phyloseq objects
-analyze_nested_read_counts <- function(nested_list) {
+
+analyze_read_counts <- function(nested_list) {
   read_summaries <- purrr::imap(
     nested_list,
     function(project_list, project_name) {
@@ -139,12 +141,21 @@ analyze_nested_read_counts <- function(nested_list) {
           as.data.frame() %>%
           rownames_to_column(var = "sample_id") %>%
           rename(n_seqs = ".") %>%
+          group_by(sample_id) %>%
           mutate(
+            n_singletons = sum(n_seqs == 1),
+            goods = 1 - (n_singletons / n_seqs),
             project = gsub("_physeq", "", seq_type),
             region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
           )
 
-        return(reads)
+        metadata <- physeq_obj %>%
+          physeq2df() %>%
+          select(sample_id, crop)
+
+        new_df <- dplyr::left_join(reads, metadata, by = "sample_id")
+
+        return(new_df)
       })
     }
   ) %>%
@@ -154,8 +165,61 @@ analyze_nested_read_counts <- function(nested_list) {
   return(read_summaries)
 }
 
+
+reads <- main_physeq_list$ef_physeq_list$ef_16S_physeq %>%
+  physeq2df(.) %>%
+  as.data.table(.) %>%
+  .[, seq_type := "ef_AMF_physeq"] %>%
+  melt(
+    id.vars = c("sample_id", "seq_type"),
+    measure.vars = patterns("^ASV_"),
+    variable.name = "asv",
+    value.name = "abundance"
+  ) %>%
+  .[,
+    .(
+      abundance = sum(abundance, na.rm = TRUE),
+      n_seqs = sum(abundance),
+      n_singletons = sum(abundance == 1),
+      goods = 1 - (sum(abundance == 1) / sum(abundance)),
+      project = gsub("_physeq", "", seq_type),
+      region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
+    ),
+    by = .(asv, sample_id)
+  ]
+
+# Convert to data.table for more efficient operations
+# physeq_dt <- physeq_obj %>%
+#   physeq2df() %>%
+#   as.data.table()
+
+# # Melt (pivot_longer equivalent) is more memory efficient in data.table
+# reads <- physeq_dt %>%
+#   .[, seq_type := seq_type] %>%
+#   melt(
+#     id.vars = c("sample_id", "seq_type"),
+#     measure.vars = patterns("^ASV_"),
+#     variable.name = "asv",
+#     value.name = "abundance"
+#   ) %>%
+#   .[,
+#     .(
+#       abundance = sum(abundance, na.rm = TRUE),
+#       n_seqs = sum(abundance),
+#       n_singletons = sum(abundance == 1),
+#       goods = 1 - (sum(abundance == 1) / sum(abundance)),
+#       project = gsub("_physeq", "", seq_type),
+#       region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
+#     ),
+#     by = .(asv, sample_id)
+#   ]
+
+# ggplot <- cover_goods |>
+#   ggplot(aes(x = n_seqs, y = goods, color = crop)) +
+#   geom_point()
+
 # Get read count data
-nested_read_counts <- analyze_nested_read_counts(main_physeq_list)
+nested_read_counts <- analyze_read_counts(main_physeq_list)
 
 
 # Visualize read counts by project and sequencing type

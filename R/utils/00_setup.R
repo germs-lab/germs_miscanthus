@@ -17,6 +17,7 @@ invisible(
       "phyloseq",
       "vegan",
       "tidyverse",
+      "data.table",
       "janitor",
       #"mia",
       "microbiome",
