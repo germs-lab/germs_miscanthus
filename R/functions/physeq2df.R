@@ -1,8 +1,11 @@
 physeq2df <- function(physeq) {
-  conditional_df <- if ("sample_id" %in% names(sample_data(physeq))) {
-    sample_data(physeq)
+  conditional_df <- if ("sample_id" %in% names(phyloseq::sample_data(physeq))) {
+    physeq %>% phyloseq::sample_data() %>% data.frame()
   } else {
-    sample_data(physeq) %>% rownames_to_column(., var = "sample_id")
+    physeq %>%
+      phyloseq::sample_data() %>%
+      data.frame() %>%
+      rownames_to_column(var = "sample_id")
   }
 
   physeq_df <- physeq %>%
