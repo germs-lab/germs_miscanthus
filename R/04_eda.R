@@ -17,13 +17,13 @@ source("R/utils/00_setup.R")
 
 # Energy Farm Collab
 # Examine the structure of your phyloseq list
-str(main_physeq_list, max.level = 2)
-names(main_physeq_list)
-length(main_physeq_list)
+str(main_mxg_physeq_list, max.level = 2)
+names(main_mxg_physeq_list)
+length(main_mxg_physeq_list)
 
 
 # Explore phyloseq
-purrr::iwalk(main_physeq_list, function(project_list, project_name) {
+purrr::iwalk(main_mxg_physeq_list, function(project_list, project_name) {
   cat("### PROJECT:", project_name, "###\n")
   purrr::iwalk(project_list, function(physeq_obj, region_name) {
     full_name <- paste(project_name, region_name, sep = "_")
@@ -33,7 +33,7 @@ purrr::iwalk(main_physeq_list, function(project_list, project_name) {
 
 # Summary table
 physeq_summary <- purrr::imap_dfr(
-  main_physeq_list,
+  main_mxg_physeq_list,
   function(project_list, project_name) {
     purrr::imap_dfr(
       project_list,
@@ -122,7 +122,7 @@ explore_nested_phyloseq <- function(nested_list) {
 }
 
 
-nested_summary <- explore_nested_phyloseq(main_physeq_list)
+nested_summary <- explore_nested_phyloseq(main_mxg_physeq_list)
 
 
 #--------------------------------------------------------
@@ -165,61 +165,8 @@ analyze_read_counts <- function(nested_list) {
   return(read_summaries)
 }
 
-
-reads <- main_physeq_list$ef_physeq_list$ef_16S_physeq %>%
-  physeq2df(.) %>%
-  as.data.table(.) %>%
-  .[, seq_type := "ef_AMF_physeq"] %>%
-  melt(
-    id.vars = c("sample_id", "seq_type"),
-    measure.vars = patterns("^ASV_"),
-    variable.name = "asv",
-    value.name = "abundance"
-  ) %>%
-  .[,
-    .(
-      abundance = sum(abundance, na.rm = TRUE),
-      n_seqs = sum(abundance),
-      n_singletons = sum(abundance == 1),
-      goods = 1 - (sum(abundance == 1) / sum(abundance)),
-      project = gsub("_physeq", "", seq_type),
-      region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
-    ),
-    by = .(asv, sample_id)
-  ]
-
-# Convert to data.table for more efficient operations
-# physeq_dt <- physeq_obj %>%
-#   physeq2df() %>%
-#   as.data.table()
-
-# # Melt (pivot_longer equivalent) is more memory efficient in data.table
-# reads <- physeq_dt %>%
-#   .[, seq_type := seq_type] %>%
-#   melt(
-#     id.vars = c("sample_id", "seq_type"),
-#     measure.vars = patterns("^ASV_"),
-#     variable.name = "asv",
-#     value.name = "abundance"
-#   ) %>%
-#   .[,
-#     .(
-#       abundance = sum(abundance, na.rm = TRUE),
-#       n_seqs = sum(abundance),
-#       n_singletons = sum(abundance == 1),
-#       goods = 1 - (sum(abundance == 1) / sum(abundance)),
-#       project = gsub("_physeq", "", seq_type),
-#       region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
-#     ),
-#     by = .(asv, sample_id)
-#   ]
-
-# ggplot <- cover_goods |>
-#   ggplot(aes(x = n_seqs, y = goods, color = crop)) +
-#   geom_point()
-
 # Get read count data
-nested_read_counts <- analyze_read_counts(main_physeq_list)
+nested_read_counts <- analyze_read_counts(main_mxg_physeq_list)
 
 
 # Visualize read counts by project and sequencing type
@@ -269,11 +216,29 @@ read_count_plots <- list(
       y = "Number of Sequences"
     ) +
     theme_minimal() +
-    theme(legend.position = "none")
+    theme(legend.position = "none"),
+
+  # Goods coverage
+  goods_cov = nested_read_counts |>
+    ggplot(aes(x = n_seqs, y = goods, color = crop)) +
+    geom_point() +
+    geom_smooth(se = FALSE, color = "black") +
+    facet_wrap(~project)
 )
 
 # Display plots
 print(read_count_plots)
 
 # TODO
-# Add rarefacttion curves
+# Rarefacttion curves - all datasets
+rarecurve_results <- main_mxg_physeq_list %>%
+  purrr::map(function(project_list) {
+    purrr::map(project_list, function(physeq_obj) {
+      physeq_obj %>%
+        otu_table() %>%
+        data.frame() %>%
+        as.matrix() %>%
+        t() %>%
+        quickRareCurve(max.cores = FALSE, nCores = 4, label = FALSE)
+    })
+  })
