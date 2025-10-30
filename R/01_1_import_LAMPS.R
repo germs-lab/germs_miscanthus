@@ -39,7 +39,8 @@ dna_updated_metadata <- build_updated_metadata(
   .distinct = FALSE,
   target_region = "16S",
   .project = "LAMPS_2018"
-)
+) |>
+  rename(crop = plant)
 
 # Get actual sequence file names
 dna_seq_names <- readr::read_lines(
@@ -99,7 +100,8 @@ rna_updated_metadata <- build_updated_metadata(
   target_region = "16S",
   rna = TRUE,
   .project = "LAMPS_2018"
-)
+) |>
+  rename(crop = plant)
 
 # Duplicate metadata rows to match R1/R2 paired-end files
 rna_duplicated_df <- rna_updated_metadata %>%
@@ -215,14 +217,14 @@ its_metadata <- read_xlsx(
   col_types = "text"
 ) %>%
   janitor::clean_names() %>%
-  rename(sample_id = name_of_sequence) %>%
+  rename(sample_id = name_of_sequence, crop = plant) %>%
   mutate(
     sequence_id = sample_id,
     sample_id = str_remove(sample_id, "_(.+)$"),
-    plant = case_when(
-      plant == "Corn" ~ "C",
-      plant == "Miscanthus" ~ "M",
-      TRUE ~ plant
+    crop = case_when(
+      crop == "Corn" ~ "C",
+      crop == "Miscanthus" ~ "M",
+      TRUE ~ crop
     ),
     nitrogen_conc = paste0("N", nitrogen_conc),
     target_region = "ITS",
@@ -231,7 +233,7 @@ its_metadata <- read_xlsx(
   ) %>%
   select(!samples) %>%
   relocate(sequence_id, .before = sample_id) %>%
-  relocate(plant, .before = year) %>%
+  relocate(crop, .before = year) %>%
   relocate(plot, .before = nitrogen_conc) %>%
   relocate(target_region, .after = nucleotide)
 
@@ -351,7 +353,8 @@ lamps_metadata_2022 <- read_xlsx(
     sequence_id = sample_id,
     rownames = sample_id
   ) %>% # Sampling year
-  relocate(sequence_id, .before = sample_id)
+  relocate(sequence_id, .before = sample_id) |>
+  rename(crop = treatment)
 
 # Fix taxa orientation and names
 otu_table(lamps_2022_16S) <- otu_table(t(otu_table(lamps_2022_16S)))

@@ -1,4 +1,4 @@
-sequence_id,sample_id,plant,year,plot,nitrogen_conc,days_after_fertilization,nucleotide,target_region,project,rownames
+sequence_id,sample_id,crop,year,plot,nitrogen_conc,days_after_fertilization,nucleotide,target_region,project,rownames
 2028_DNA,2028,M,2015,P3,N400,-10,DNA,ITS,LAMPS_2018,2028
 2029_DNA,2029,M,2015,P3,N400,-10,DNA,ITS,LAMPS_2018,2029
 2029_RNA,2029,M,2015,P3,N400,-10,RNA,ITS,LAMPS_2018,2029
