@@ -64,7 +64,7 @@ quickRareCurve <- function(
 
   Nmax <- future_sapply(out, function(x) max(attr(x, "Subsample")))
   Smax <- future_sapply(out, max)
-  plot(
+  p <- plot(
     c(1, max(Nmax)),
     c(1, max(Smax)),
     xlab = xlab,
@@ -72,6 +72,7 @@ quickRareCurve <- function(
     type = "n",
     ...
   )
+
   if (!missing(sample)) {
     abline(v = sample)
     rare <- future_sapply(out, function(z) {
@@ -86,7 +87,11 @@ quickRareCurve <- function(
   if (label) {
     ordilabel(cbind(library_size, species_num), labels = rownames(x), ...)
   }
-  invisible(out)
+
+  return(list(
+    rarefy_calcs = out,
+    plots = p
+  ))
 
   plan(sequential) # Explicit closing of R sessions
 
