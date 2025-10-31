@@ -14,7 +14,10 @@ quickRareCurve <- function(
   nCores = 1,
   ...
 ) {
-  require(parallel)
+  require(future)
+  require(future.apply)
+
+  plan(multisession) # Initiating  background R sessions on CURRENT machine
 
   x <- as.matrix(x)
   if (!identical(all.equal(x, round(x)), TRUE)) {
@@ -26,32 +29,41 @@ quickRareCurve <- function(
   if (missing(lty)) {
     lty <- par("lty")
   }
-  tot <- rowSums(x) # calculates library sizes
-  S <- specnumber(x) # calculates n species for each sample
-  if (any(S <= 0)) {
+  library_size <- rowSums(x) # calculates library sizes
+  species_num <- specnumber(x) # calculates n species for each sample
+  if (any(species_num <= 0)) {
     message("empty rows removed")
-    x <- x[S > 0, , drop = FALSE]
-    tot <- tot[S > 0]
-    S <- S[S > 0]
+    x <- x[species_num > 0, , drop = FALSE]
+    library_size <- library_size[species_num > 0]
+    species_num <- species_num[species_num > 0]
   } # removes any empty rows
+
   nr <- nrow(x) # number of samples
   col <- rep(col, length.out = nr)
   lty <- rep(lty, length.out = nr)
 
-  # parallel mclapply
+  # Future_lapply
   # set number of cores
-  mc <- getOption("mc.cores", ifelse(max.cores, detectCores(), nCores))
-  message(paste("Using ", mc, " cores"))
+  mc <- ifelse(max.cores, parallelly::availableCores() - 1L, nCores)
 
-  out <- mclapply(seq_len(nr), mc.cores = mc, function(i) {
-    n <- seq(1, tot[i], by = step)
-    if (n[length(n)] != tot[i]) {
-      n <- c(n, tot[i])
+  message(paste(
+    "Using",
+    mc,
+    "cores.",
+    "Max cores available:",
+    parallelly::availableCores()
+  ))
+
+  out <- future_lapply(seq_len(nr), function(i) {
+    n <- seq(1, library_size[i], by = step)
+    if (n[length(n)] != library_size[i]) {
+      n <- c(n, library_size[i])
     }
     drop(rarefy(x[i, ], n))
   })
-  Nmax <- sapply(out, function(x) max(attr(x, "Subsample")))
-  Smax <- sapply(out, max)
+
+  Nmax <- future_sapply(out, function(x) max(attr(x, "Subsample")))
+  Smax <- future_sapply(out, max)
   plot(
     c(1, max(Nmax)),
     c(1, max(Smax)),
@@ -62,7 +74,7 @@ quickRareCurve <- function(
   )
   if (!missing(sample)) {
     abline(v = sample)
-    rare <- sapply(out, function(z) {
+    rare <- future_sapply(out, function(z) {
       approx(x = attr(z, "Subsample"), y = z, xout = sample, rule = 1)$y
     })
     abline(h = rare, lwd = 0.5)
@@ -72,7 +84,11 @@ quickRareCurve <- function(
     lines(N, out[[ln]], col = col[ln], lty = lty[ln], ...)
   }
   if (label) {
-    ordilabel(cbind(tot, S), labels = rownames(x), ...)
+    ordilabel(cbind(library_size, species_num), labels = rownames(x), ...)
   }
   invisible(out)
+
+  plan(sequential) # Explicit closing of R sessions
+
+  message("Concurrent R sessions closed")
 }
