@@ -234,11 +234,19 @@ gg_inext_custom <- function(
     y_label <- "Species diversity"
   }
 
-  observed_endpoint <- data %>% filter(Method == "Observed")
+  observed_endpoint <- data %>%
+    filter(Method == "Observed") %>%
+    mutate(
+      Order.q = as.factor(Order.q),
+      Method = factor(Method, levels = c("Rarefaction", "Extrapolation"))
+    )
 
   data <- data %>%
     filter(Method %in% c("Rarefaction", "Extrapolation")) %>%
-    mutate(Method = factor(Method, levels = c("Rarefaction", "Extrapolation")))
+    mutate(
+      Order.q = as.factor(Order.q),
+      Method = factor(Method, levels = c("Rarefaction", "Extrapolation"))
+    )
 
   # Colors
   # Check if the number of unique 'sample' is 8 or less
@@ -273,16 +281,27 @@ gg_inext_custom <- function(
   }
 
   # Determine color variable
-  if (color.var == "Assemblage") {
+  if (facet.var == "Order.q") {
     color_col <- "sample"
-  } else if (color.var == "Order.q") {
+  }
+  if (facet.var == "Assemblage") {
     color_col <- "Order.q"
-    data$Order.q <- factor(data$Order.q)
-  } else if (color.var == "Both") {
+  }
+  if (facet.var == "Both") {
     data$col <- paste(data$sample, data$Order.q, sep = "-")
     color_col <- "col"
-  } else {
-    color_col <- NULL
+  }
+  if (color.var == "Assemblage") {
+    color_col <- "sample"
+  }
+
+  if (color.var == "Order.q") {
+    color_col <- "Order.q"
+  }
+
+  if (color.var == "Both") {
+    data$col <- paste(data$sample, data$Order.q, sep = "-")
+    color_col <- "col"
   }
 
   # Base plot
@@ -348,9 +367,13 @@ gg_inext_custom <- function(
           Order.q = c(`q = 0` = "q = 0", `q = 1` = "q = 1", `q = 2` = "q = 2")
         )
       )
-  } else if (facet.var == "Assemblage") {
-    p <- p + facet_wrap(~sample)
-  } else if (facet.var == "Both") {
+  }
+
+  if (facet.var == "Assemblage") {
+    p <- p + facet_wrap(~sample, nrow = 1)
+  }
+
+  if (facet.var == "Both") {
     p <- p + facet_wrap(~ sample + Order.q)
   }
 
@@ -360,20 +383,3 @@ gg_inext_custom <- function(
 
   return(p)
 }
-
-
-# # Usage:
-gg_inext_custom(
-  inext_data,
-  type = 1,
-  color.var = "Assemblage"
-)
-ggiNEXT.iNEXT(inext_data, type = 1, facet.var = "Assemblage")
-
-# gg_inext_custom(
-#   inext_data,
-#   type = 2,
-#   facet.var = "None",
-#   color.var = "Assemblage",
-#   se = TRUE
-# )
