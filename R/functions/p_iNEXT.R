@@ -6,7 +6,7 @@ p_iNEXT <- function(
   knots = 40,
   conf = 0.95,
   nboot = 100,
-  type = 2,
+  type = 1,
   facet_var = "None",
   color_var = "Assemblage",
   col,
@@ -67,6 +67,7 @@ p_iNEXT <- function(
   out <- future_lapply(
     seq_len(nr),
     function(i) {
+      gc() # Force garbage collection in each worker
       iNEXT::iNEXT(
         x = x[i, ],
         q = q,
@@ -77,35 +78,23 @@ p_iNEXT <- function(
         nboot = nboot
       )
     },
-    future.seed = TRUE
+    future.seed = TRUE,
+    future.globals = list(
+      x = x,
+      q = q,
+      datatype = datatype,
+      endpoint = endpoint,
+      knots = knots,
+      conf = conf,
+      nboot = nboot
+    )
   )
 
   names(out) <- rownames(x)
 
-  # Create combined data frame for ggplot
-  inext_data <- purrr::map_dfr(
-    out,
-    function(result) {
-      result$iNextEst %>%
-        as.data.frame() %>%
-        rownames_to_column(var = "index")
-    },
-    .id = "sample"
-  )
-
-  # # Generate ggplot visualization
-  p <- gg_inext_custom(
-    inext_data,
-    type = type,
-    facet.var = facet_var,
-    color.var = facet_var
-  )
-
   #Output
   return(list(
-    inext_results = out,
-    inext_data = inext_data,
-    plot = p
+    inext_results = out
   ))
 
   plan(sequential) # Explicit closing of R sessions

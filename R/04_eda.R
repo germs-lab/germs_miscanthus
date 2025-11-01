@@ -239,46 +239,45 @@ test <- quickRareCurve(
   nCores = 4,
   label = FALSE
 )
-
-test2 <- iNEXT::iNEXT(
-  ant,
-  datatype = "incidence_freq"
+gg_inext_custom(
+  inext_data,
+  type = 3,
+  facet.var = "Order.q",
+  color.var = "Assemblage"
 )
 
 
-iNEXT::ggiNEXT(test2, type = 1) +
-  theme_bw(base_size = 18) +
-  theme(legend.position = "None")
+endpoints <- max(rowSums(t(as.matrix(data.frame(otu_table(
+  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
+))))))
 
-
-test3 <- p_iNEXT(
-  t(as.matrix(data.frame(otu_table(
+out <- iNEXT(
+  as.matrix(data.frame(otu_table(
     main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
-  )))),
+  ))),
+  q = c(0),
   datatype = "abundance",
-  max.cores = FALSE,
+  endpoint = endpoints
+)
+ggiNEXT(out, type = 1, facet.var = "None", color.var = "Assemblage")
+
+max_lib_size <- main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq %>%
+  otu_table() %>%
+  data.frame() %>%
+  as.matrix() %>%
+  t() %>%
+  rowSums() %>%
+  max()
+
+result <- p_iNEXT(
+  x = as.matrix(data.frame(otu_table(
+    main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
+  ))),
+  q = c(0),
+  endpoint = max_lib_size * 2,
+  max.cores = F,
   nCores = 4
 )
-
-out <- iNEXT(spider, q = c(0, 1, 2), datatype = "abundance", endpoint = 500)
-ggiNEXT(out, type = 1, facet.var = "Assemblage")
-
-# max_lib_size <- main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq %>%
-#   otu_table() %>%
-#   data.frame() %>%
-#   as.matrix() %>%
-#   rowSums() %>%
-#   max()
-
-# result <- p_iNEXT(
-#   x = t(as.matrix(data.frame(otu_table(
-#     main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
-#   )))),
-#   q = c(0),
-#   endpoint = max_lib_size * 2,
-#   max.cores = F,
-#   nCores = 4
-# )
 
 # rarecurve_results <- main_mxg_physeq_list %>%
 #   purrr::map(function(project_list) {
