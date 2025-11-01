@@ -6,12 +6,12 @@ p_iNEXT <- function(
   knots = 40,
   conf = 0.95,
   nboot = 100,
-  xlab = "Sample Size",
-  ylab = "Diversity",
-  label = TRUE,
+  type = 2,
+  facet_var = "None",
+  color_var = "Assemblage",
   col,
   lty,
-  max.cores = TRUE,
+  max.cores = FALSE,
   nCores = 1,
   ...
 ) {
@@ -21,9 +21,9 @@ p_iNEXT <- function(
   require(ggplot2)
 
   plan(multisession) # Initiating background R sessions on CURRENT machine
-  x = spider
-  x <- do.call(rbind, x)
-  # x <- as.matrix(x)
+  # x = spider
+  # x <- do.call(rbind, x)
+  x <- as.matrix(x)
   # if (!identical(all.equal(x, round(x)), TRUE)) {
   #   stop("function accepts only integers (counts)")
   # }
@@ -94,57 +94,22 @@ p_iNEXT <- function(
   )
 
   # # Generate ggplot visualization
-  # p <- ggplot(
-  #   inext_data,
-  #   aes(
-  #     x =coverage_based.m ,
-  #     y = coverage_based.qD,
-  #     color = sample,
-  #     linetype = factor(coverage_based.Method)
-  #   )
-  # ) +
-  #   geom_line(linewidth = 0.8) +
-  #   # facet_wrap(
-  #   #   ~q,
-  #   #   labeller = labeller(
-  #   #     q = c(
-  #   #       "0" = "Richness (q=0)",
-  #   #       "1" = "Shannon (q=1)",
-  #   #       "2" = "Simpson (q=2)"
-  #   #     )
-  #   #   )
-  #   # ) +
-  #   labs(
-  #     title = "iNEXT: Rarefaction/Extrapolation Curves",
-  #     x = xlab,
-  #     y = ylab,
-  #     color = "Sample",
-  #     linetype = "Method"
-  #   ) +
-  #   theme_minimal() +
-  #   theme(
-  #     legend.position = "bottom",
-  #     strip.text = element_text(face = "bold")
-  #   )
+  p <- gg_inext_custom(
+    inext_data,
+    type = type,
+    facet.var = facet_var,
+    color.var = facet_var
+  )
 
-  # # Optional: geom_ribbon for confidence intervals
-  # if (!is.na(conf)) {
-  #   p <- p +
-  #     geom_ribbon(
-  #       aes(ymin = qD.LCL, ymax = qD.UCL, fill = sample),
-  #       alpha = 0.1,
-  #       color = NA
-  #     )
-  # }
+  #Output
+  return(list(
+    inext_results = out,
+    inext_data = inext_data,
+    plot = p
+  ))
 
   plan(sequential) # Explicit closing of R sessions
   message("Concurrent R sessions closed")
-
-  return(list(
-    inext_results = out,
-    inext_data = combined_inext,
-    plot = p
-  ))
 }
 
 
@@ -279,31 +244,78 @@ gg_inext_custom <- function(
       ggplotColors(length(unique(inext_data$sample)) - 8)
     )
   }
+  endpoint_None_Both <- paste(
+    observed_endpoint$sample,
+    observed_endpoint$Order.q,
+    sep = "-"
+  )
+  data_None_Both <- paste(data$sample, data$Order.q, sep = "-")
 
-  # Determine color variable
+  # Apply facet.var -> color.var logic (from ggiNEXT)
   if (facet.var == "Order.q") {
-    color_col <- "sample"
+    color.var <- "Assemblage"
   }
   if (facet.var == "Assemblage") {
+    color.var <- "Order.q"
+  }
+
+  # Now handle color.var with proper warnings and col/shape creation
+  if (color.var == "None") {
+    # Check what variables exist in data
+    if (length(unique(data$sample)) > 1 & length(unique(data$Order.q)) > 1) {
+      warning(
+        "invalid color.var setting, data has multiple assemblages and orders, changing to 'Both'"
+      )
+      color.var <- "Both"
+      data$col <- paste(data$sample, data$Order.q, sep = "-")
+      observed_endpoint$col <- paste(
+        observed_endpoint$sample,
+        observed_endpoint$Order.q,
+        sep = "-"
+      )
+      color_col <- "col"
+    } else if (length(unique(data$sample)) > 1) {
+      warning(
+        "invalid color.var setting, data has multiple assemblages, changing to 'Assemblage'"
+      )
+      color.var <- "Assemblage"
+      color_col <- "sample"
+    } else if (length(unique(data$Order.q)) > 1) {
+      warning(
+        "invalid color.var setting, data has multiple orders, changing to 'Order.q'"
+      )
+      color.var <- "Order.q"
+      color_col <- "Order.q"
+    } else {
+      color_col <- "sample"
+    }
+  } else if (color.var == "Order.q") {
     color_col <- "Order.q"
+  } else if (color.var == "Assemblage") {
+    if (length(unique(data$sample)) == 1) {
+      warning(
+        "invalid color.var setting, data has only one assemblage, changing to 'Order.q'"
+      )
+      color_col <- "Order.q"
+    } else {
+      color_col <- "sample"
+    }
+  } else if (color.var == "Both") {
+    if (length(unique(data$sample)) == 1) {
+      warning(
+        "invalid color.var setting, data has only one assemblage, changing to 'Order.q'"
+      )
+      color_col <- "Order.q"
+    } else {
+      data$col <- paste(data$sample, data$Order.q, sep = "-")
+      observed_endpoint$col <- paste(
+        observed_endpoint$sample,
+        observed_endpoint$Order.q,
+        sep = "-"
+      )
+      color_col <- "col"
+    }
   }
-  if (facet.var == "Both") {
-    data$col <- paste(data$sample, data$Order.q, sep = "-")
-    color_col <- "col"
-  }
-  if (color.var == "Assemblage") {
-    color_col <- "sample"
-  }
-
-  if (color.var == "Order.q") {
-    color_col <- "Order.q"
-  }
-
-  if (color.var == "Both") {
-    data$col <- paste(data$sample, data$Order.q, sep = "-")
-    color_col <- "col"
-  }
-
   # Base plot
   if (type == 2) {
     p <- ggplot(
@@ -364,7 +376,7 @@ gg_inext_custom <- function(
       facet_wrap(
         ~Order.q,
         labeller = labeller(
-          Order.q = c(`q = 0` = "q = 0", `q = 1` = "q = 1", `q = 2` = "q = 2")
+          Order.q = c(`0` = "q = 0", `1` = "q = 1", `2` = "q = 2")
         )
       )
   }
