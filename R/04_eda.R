@@ -230,63 +230,38 @@ read_count_plots <- list(
 print(read_count_plots)
 
 # TODO
-# Rarefacttion curves - all datasets
-test <- quickRareCurve(
-  t(as.matrix(data.frame(otu_table(
-    main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
-  )))),
-  max.cores = F,
-  nCores = 4,
-  label = FALSE
-)
-gg_inext_custom(
-  inext_data,
-  type = 3,
-  facet.var = "Order.q",
-  color.var = "Assemblage"
-)
+# Rarefaction curves - all datasets
+# Agent_start_here
+rarecurve_results <- main_mxg_physeq_list %>%
+  purrr::map(function(project_list) {
+    purrr::map(project_list, function(physeq_obj) {
+      otu_mat <- physeq_obj %>%
+        otu_table() %>%
+        data.frame() %>%
+        as.matrix() %>%
+        t()
+      # Calculate endpoint
+      max_lib_size <- max(rowSums(otu_mat))
+      endpoint <- max_lib_size * 2
 
+      # Run parallel iNEXT
+      result <- p_iNEXT(
+        x = otu_mat,
+        q = c(0, 1, 2),
+        endpoint = endpoint,
+        nboot = 100,
+        nCores = 4,
+        combine = TRUE,
+        verbose = TRUE
+      )
 
-endpoints <- max(rowSums(t(as.matrix(data.frame(otu_table(
-  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
-))))))
-
-out <- iNEXT(
-  as.matrix(data.frame(otu_table(
-    main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
-  ))),
-  q = c(0),
-  datatype = "abundance",
-  endpoint = endpoints
-)
-ggiNEXT(out, type = 1, facet.var = "None", color.var = "Assemblage")
-
-max_lib_size <- main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq %>%
-  otu_table() %>%
-  data.frame() %>%
-  as.matrix() %>%
-  t() %>%
-  rowSums() %>%
-  max()
-
-result <- p_iNEXT(
-  x = as.matrix(data.frame(otu_table(
-    main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq
-  ))),
-  q = c(0),
-  endpoint = max_lib_size * 2,
-  max.cores = F,
-  nCores = 4
-)
-
-# rarecurve_results <- main_mxg_physeq_list %>%
-#   purrr::map(function(project_list) {
-#     purrr::map(project_list, function(physeq_obj) {
-#       physeq_obj %>%
-#         otu_table() %>%
-#         data.frame() %>%
-#         as.matrix() %>%
-#         t() %>%
-#         quickRareCurve(max.cores = FALSE, nCores = 4, label = FALSE)
-#     })
-#   })
+      ggiNEXT(
+        result,
+        type = 1,
+        facet.var = "Order.q",
+        color.var = "Assemblage"
+      ) +
+        theme_bw() +
+        labs(title = paste("Rarefaction Curves for", names(otu_mat)))
+    })
+  })

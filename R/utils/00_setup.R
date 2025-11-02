@@ -25,7 +25,8 @@ invisible(
       "ggtext",
       "readr",
       "readxl",
-      "stringr"
+      "stringr",
+      "iNEXT"
     ),
     library,
     character.only = TRUE

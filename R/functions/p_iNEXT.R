@@ -1,3 +1,60 @@
+#' Parallel iNEXT Computation
+#'
+#' @description
+#' Computes iNEXT diversity estimates in parallel across samples.
+#' This is a parallelized wrapper around iNEXT::iNEXT() that processes
+#' multiple samples simultaneously using the future framework.
+#'
+#' @param x A numeric matrix or data.frame where rows are samples and columns are species/OTUs.
+#'   Row names should be sample identifiers.
+#' @param q Numeric vector of diversity orders (default: c(0, 1, 2))
+#' @param datatype Type of data: "abundance" or "incidence_freq" (default: "abundance")
+#' @param endpoint Extrapolation endpoint (default: 2x maximum library size)
+#' @param knots Number of knots for rarefaction/extrapolation curve (default: 40)
+#' @param conf Confidence level for intervals (default: 0.95)
+#' @param nboot Number of bootstrap replicates (default: 100)
+#' @param max.cores Logical; if TRUE, uses all available cores minus 1 (default: FALSE)
+#' @param nCores Number of cores to use if max.cores=FALSE (default: 1)
+#' @param combine Logical; if TRUE, combines results into a single iNEXT object
+#'   compatible with ggiNEXT(). If FALSE, returns a list of individual iNEXT objects (default: TRUE)
+#' @param plan_strategy Future plan strategy: "multisession", "multicore", or "sequential" (default: "multisession")
+#' @param verbose Logical; print progress messages (default: TRUE)
+#' @param ... Additional arguments (currently unused)
+#'
+#' @return
+#' If combine=TRUE: A single iNEXT object that can be plotted with ggiNEXT()
+#' If combine=FALSE: A named list where each element is an iNEXT object for one sample
+#'
+#' @details
+#' This function parallelizes iNEXT computation at the sample level. Each sample
+#' is processed independently by a worker process. The bottleneck in iNEXT is
+#' the bootstrap computation (controlled by nboot), which runs within each worker.
+#'
+#' The function automatically:
+#' - Removes empty samples (rows with zero abundance)
+#' - Sets up parallel workers using the future framework
+#' - Manages memory with garbage collection
+#' - Combines results into a format compatible with ggiNEXT (if combine=TRUE)
+#'
+#' @examples
+#' \dontrun{
+#' library(phyloseq)
+#' library(iNEXT)
+#'
+#' # Extract OTU table from phyloseq object
+#' otu_mat <- as.matrix(otu_table(physeq_obj))
+#'
+#' # Run parallel iNEXT
+#' results <- p_iNEXT(otu_mat, q = c(0, 1, 2), nCores = 4)
+#'
+#' # Plot with ggiNEXT
+#' ggiNEXT(results, type = 1, facet.var = "Order.q")
+#'
+#' # Or get individual sample results
+#' results_list <- p_iNEXT(otu_mat, combine = FALSE, nCores = 4)
+#' }
+#'
+#' @export
 p_iNEXT <- function(
   x,
   q = c(0, 1, 2),
@@ -6,109 +63,353 @@ p_iNEXT <- function(
   knots = 40,
   conf = 0.95,
   nboot = 100,
-  type = 1,
-  facet_var = "None",
-  color_var = "Assemblage",
-  col,
-  lty,
   max.cores = FALSE,
   nCores = 1,
+  combine = TRUE,
+  plan_strategy = "multisession",
+  verbose = TRUE,
   ...
 ) {
-  require(future)
-  require(future.apply)
-  require(iNEXT)
-  require(ggplot2)
+  # Load required packages
+  if (!requireNamespace("future", quietly = TRUE)) {
+    stop("Package 'future' is required. Please install it.")
+  }
+  if (!requireNamespace("future.apply", quietly = TRUE)) {
+    stop("Package 'future.apply' is required. Please install it.")
+  }
+  if (!requireNamespace("iNEXT", quietly = TRUE)) {
+    stop("Package 'iNEXT' is required. Please install it.")
+  }
 
-  plan(multisession) # Initiating background R sessions on CURRENT machine
-  # x = spider
-  # x <- do.call(rbind, x)
+  # Input validation
+  if (!is.matrix(x) && !is.data.frame(x)) {
+    stop("x must be a matrix or data.frame")
+  }
+
+  # Convert to matrix
   x <- as.matrix(x)
-  # if (!identical(all.equal(x, round(x)), TRUE)) {
-  #   stop("function accepts only integers (counts)")
-  # }
 
-  library_size <- rowSums(x) # calculates library sizes
-  species_num <- vegan::specnumber(x) # calculates n species for each sample
+  # Ensure row names exist
+  if (is.null(rownames(x))) {
+    rownames(x) <- paste0("Sample", seq_len(nrow(x)))
+    if (verbose) {
+      message("No row names found. Assigning default names: Sample1, Sample2, ...")
+    }
+  }
+
+  # Calculate library sizes and species counts
+  library_size <- rowSums(x)
+  species_num <- apply(x, 1, function(row) sum(row > 0))
+
+  # Remove empty samples
   if (any(species_num <= 0)) {
-    message("empty rows removed")
+    empty_samples <- rownames(x)[species_num <= 0]
+    if (verbose) {
+      message(sprintf("Removing %d empty sample(s): %s",
+                     length(empty_samples),
+                     paste(empty_samples, collapse = ", ")))
+    }
     x <- x[species_num > 0, , drop = FALSE]
     library_size <- library_size[species_num > 0]
     species_num <- species_num[species_num > 0]
-  } # removes any empty rows
-
-  nr <- nrow(x) # number of samples
-  if (missing(col)) {
-    col <- par("col")
   }
-  if (missing(lty)) {
-    lty <- par("lty")
+
+  nr <- nrow(x)
+  if (nr == 0) {
+    stop("No samples remaining after removing empty samples")
   }
-  col <- rep(col, length.out = nr)
-  lty <- rep(lty, length.out = nr)
 
-  # Set number of cores
-  mc <- ifelse(max.cores, parallelly::availableCores() - 1L, nCores)
-
-  message(paste(
-    "Using",
-    mc,
-    "cores.",
-    "Max cores available:",
-    parallelly::availableCores()
-  ))
-
-  # Set endpoint for rarefaction/extrapolation
+  # Set endpoint if not specified
   if (is.null(endpoint)) {
-    endpoint <- max(library_size) * 2 # Default: 2x max library size
+    endpoint <- max(library_size) * 2
+    if (verbose) {
+      message(sprintf("Endpoint set to 2x max library size: %d", endpoint))
+    }
   }
 
-  # Parallel iNEXT computation
-  out <- future_lapply(
+  # Determine number of cores
+  available_cores <- parallelly::availableCores()
+  mc <- if (max.cores) {
+    max(1, available_cores - 1)
+  } else {
+    min(nCores, available_cores)
+  }
+
+  if (verbose) {
+    message(sprintf("Using %d core(s). Available cores: %d",
+                   mc, available_cores))
+    message(sprintf("Processing %d sample(s) with q = [%s]",
+                   nr, paste(q, collapse = ", ")))
+  }
+
+  # Set up parallel plan
+  if (mc > 1 && nr > 1) {
+    old_plan <- future::plan()
+    on.exit(future::plan(old_plan), add = TRUE)
+
+    if (plan_strategy == "multisession") {
+      future::plan(future::multisession, workers = mc)
+    } else if (plan_strategy == "multicore") {
+      future::plan(future::multicore, workers = mc)
+    } else if (plan_strategy == "sequential") {
+      future::plan(future::sequential)
+    } else {
+      stop("Invalid plan_strategy. Choose 'multisession', 'multicore', or 'sequential'")
+    }
+  } else {
+    if (verbose && (mc == 1 || nr == 1)) {
+      message("Running sequentially (only 1 core or 1 sample)")
+    }
+    future::plan(future::sequential)
+  }
+
+  # Parallel computation
+  if (verbose) {
+    message("Starting parallel iNEXT computation...")
+  }
+
+  out <- future.apply::future_lapply(
     seq_len(nr),
     function(i) {
-      gc() # Force garbage collection in each worker
-      iNEXT::iNEXT(
-        x = x[i, ],
-        q = q,
-        datatype = datatype,
-        endpoint = endpoint,
-        knots = knots,
-        conf = conf,
-        nboot = nboot
-      )
+      # Force garbage collection to free memory
+      gc(verbose = FALSE, full = FALSE)
+
+      # Run iNEXT for this sample
+      tryCatch({
+        iNEXT::iNEXT(
+          x = x[i, ],
+          q = q,
+          datatype = datatype,
+          endpoint = endpoint,
+          knots = knots,
+          conf = conf,
+          nboot = nboot
+        )
+      }, error = function(e) {
+        list(
+          error = TRUE,
+          sample_name = rownames(x)[i],
+          message = as.character(e)
+        )
+      })
     },
     future.seed = TRUE,
-    future.globals = list(
-      x = x,
-      q = q,
-      datatype = datatype,
-      endpoint = endpoint,
-      knots = knots,
-      conf = conf,
-      nboot = nboot
-    )
+    future.scheduling = 2.0  # Dynamic load balancing
   )
 
+  # Name the results
   names(out) <- rownames(x)
 
-  #Output
-  return(list(
-    inext_results = out
-  ))
+  # Check for errors
+  errors <- sapply(out, function(x) !is.null(x$error) && x$error)
+  if (any(errors)) {
+    error_samples <- names(out)[errors]
+    error_messages <- sapply(out[errors], function(x) x$message)
+    warning(sprintf("iNEXT failed for %d sample(s): %s\nMessages: %s",
+                   sum(errors),
+                   paste(error_samples, collapse = ", "),
+                   paste(error_messages, collapse = "; ")))
+    # Remove failed samples
+    out <- out[!errors]
+  }
 
-  plan(sequential) # Explicit closing of R sessions
-  message("Concurrent R sessions closed")
+  if (length(out) == 0) {
+    stop("iNEXT failed for all samples")
+  }
+
+  if (verbose) {
+    message(sprintf("Completed processing %d sample(s) successfully", length(out)))
+  }
+
+  # Return results
+  if (combine) {
+    if (verbose) {
+      message("Combining results into single iNEXT object...")
+    }
+    combined <- combine_iNEXT_list(out)
+    return(combined)
+  } else {
+    return(out)
+  }
+}
+
+
+#' Combine List of iNEXT Objects
+#'
+#' @description
+#' Combines a list of individual iNEXT objects (one per sample) into a single
+#' iNEXT object that is compatible with ggiNEXT() plotting.
+#'
+#' @param inext_list A named list of iNEXT objects
+#'
+#' @return A single iNEXT object combining all samples
+#'
+#' @details
+#' This function merges the size_based and coverage_based results from multiple
+#' iNEXT objects, preserving the structure expected by ggiNEXT().
+#'
+#' @keywords internal
+combine_iNEXT_list <- function(inext_list) {
+  if (!is.list(inext_list) || length(inext_list) == 0) {
+    stop("inext_list must be a non-empty list")
+  }
+
+  # Extract components from each iNEXT object
+  all_size_based <- lapply(names(inext_list), function(sample_name) {
+    obj <- inext_list[[sample_name]]
+    if (is.null(obj$iNextEst$size_based)) {
+      return(NULL)
+    }
+    # Update Assemblage name to sample name
+    df <- obj$iNextEst$size_based
+    df$Assemblage <- sample_name
+    return(df)
+  })
+  all_size_based <- do.call(rbind, all_size_based[!sapply(all_size_based, is.null)])
+
+  all_coverage_based <- lapply(names(inext_list), function(sample_name) {
+    obj <- inext_list[[sample_name]]
+    if (is.null(obj$iNextEst$coverage_based)) {
+      return(NULL)
+    }
+    df <- obj$iNextEst$coverage_based
+    df$Assemblage <- sample_name
+    return(df)
+  })
+  all_coverage_based <- do.call(rbind, all_coverage_based[!sapply(all_coverage_based, is.null)])
+
+  # Combine AsyEst (asymptotic estimates)
+  all_asy_est <- lapply(names(inext_list), function(sample_name) {
+    obj <- inext_list[[sample_name]]
+    if (is.null(obj$AsyEst)) {
+      return(NULL)
+    }
+    df <- obj$AsyEst
+    if (!"Assemblage" %in% colnames(df)) {
+      df$Assemblage <- sample_name
+    } else {
+      df$Assemblage <- sample_name
+    }
+    return(df)
+  })
+  all_asy_est <- do.call(rbind, all_asy_est[!sapply(all_asy_est, is.null)])
+
+  # Combine DataInfo
+  all_data_info <- lapply(names(inext_list), function(sample_name) {
+    obj <- inext_list[[sample_name]]
+    if (is.null(obj$DataInfo)) {
+      return(NULL)
+    }
+    df <- obj$DataInfo
+    df$Assemblage <- sample_name
+    return(df)
+  })
+  all_data_info <- do.call(rbind, all_data_info[!sapply(all_data_info, is.null)])
+  rownames(all_data_info) <- all_data_info$Assemblage
+
+  # Create combined iNEXT object
+  combined <- list(
+    DataInfo = all_data_info,
+    iNextEst = list(
+      size_based = all_size_based,
+      coverage_based = all_coverage_based
+    ),
+    AsyEst = all_asy_est
+  )
+
+  class(combined) <- "iNEXT"
+  return(combined)
+}
+
+
+#' Extract and Flatten iNEXT Results to Data Frame
+#'
+#' @description
+#' Extracts size-based and coverage-based results from iNEXT object(s)
+#' and returns a long-format data frame suitable for custom plotting.
+#'
+#' @param inext_obj Either a single iNEXT object or a list of iNEXT objects
+#'
+#' @return A data frame with columns for sample, diversity metrics, and metadata
+#'
+#' @details
+#' This function is useful when you want to create custom plots using ggplot2
+#' rather than using ggiNEXT() or gg_inext_custom().
+#'
+#' @examples
+#' \dontrun{
+#' results <- p_iNEXT(otu_mat, combine = FALSE)
+#' df <- flatten_iNEXT_results(results)
+#' # Now use df for custom ggplot2 plotting
+#' }
+#'
+#' @export
+flatten_iNEXT_results <- function(inext_obj) {
+  if ("iNEXT" %in% class(inext_obj)) {
+    # Single iNEXT object
+    size_based <- inext_obj$iNextEst$size_based
+    coverage_based <- inext_obj$iNextEst$coverage_based
+
+    # Add prefix to distinguish size vs coverage based
+    colnames(size_based) <- paste0("size_based.", colnames(size_based))
+    colnames(coverage_based) <- paste0("coverage_based.", colnames(coverage_based))
+
+    # Merge by Assemblage and Order.q
+    result <- merge(
+      size_based,
+      coverage_based,
+      by.x = c("size_based.Assemblage", "size_based.Order.q"),
+      by.y = c("coverage_based.Assemblage", "coverage_based.Order.q"),
+      all = TRUE,
+      suffixes = c("", "")
+    )
+
+    # Rename for clarity
+    result$sample <- result$size_based.Assemblage
+    result$size_based.Assemblage <- NULL
+
+    return(result)
+  } else if (is.list(inext_obj)) {
+    # List of iNEXT objects - combine first
+    combined <- combine_iNEXT_list(inext_obj)
+    return(flatten_iNEXT_results(combined))
+  } else {
+    stop("inext_obj must be an iNEXT object or list of iNEXT objects")
+  }
 }
 
 
 ##########################
+# Plotting functions
+##########################
+
+#' Generate ggplot2 Color Palette
+#'
+#' @param g Number of colors to generate
+#' @return Vector of hexadecimal color codes
+#' @keywords internal
 ggplotColors <- function(g) {
-  d <- 360 / g # Calculate the distance between colors in HCL color space
-  h <- cumsum(c(15, rep(d, g - 1))) # Create cumulative sums to define hue values
-  hcl(h = h, c = 100, l = 65) # Convert HCL values to hexadecimal color codes
+  d <- 360 / g
+  h <- cumsum(c(15, rep(d, g - 1)))
+  hcl(h = h, c = 100, l = 65)
 }
 
+#' Custom ggplot for iNEXT Results
+#'
+#' @description
+#' Custom plotting function for flattened iNEXT results.
+#' Similar to ggiNEXT but works with the flattened data frame format.
+#'
+#' @param inext_data Flattened iNEXT data frame (from flatten_iNEXT_results)
+#' @param type Plot type: 1 (size-based), 2 (sample completeness), 3 (coverage-based)
+#' @param se Show confidence intervals
+#' @param facet.var Faceting variable: "None", "Order.q", "Assemblage", "Both"
+#' @param color.var Color variable: "None", "Order.q", "Assemblage", "Both"
+#' @param grey Use grey theme
+#'
+#' @return A ggplot2 object
+#'
+#' @export
 gg_inext_custom <- function(
   inext_data,
   type = 1,
@@ -117,7 +418,15 @@ gg_inext_custom <- function(
   color.var = "Assemblage",
   grey = FALSE
 ) {
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Package 'ggplot2' is required")
+  }
+  if (!requireNamespace("dplyr", quietly = TRUE)) {
+    stop("Package 'dplyr' is required")
+  }
+
   require(ggplot2)
+  require(dplyr)
 
   # Select columns based on type
   if (type == 1) {
@@ -203,44 +512,23 @@ gg_inext_custom <- function(
     )
 
   # Colors
-  # Check if the number of unique 'sample' is 8 or less
   if (length(unique(inext_data$sample)) <= 8) {
     cbPalette <- rev(c(
-      "#999999",
-      "#E69F00",
-      "#56B4E9",
-      "#009E73",
-      "#330066",
-      "#CC79A7",
-      "#0072B2",
-      "#D55E00"
+      "#999999", "#E69F00", "#56B4E9", "#009E73",
+      "#330066", "#CC79A7", "#0072B2", "#D55E00"
     ))
   } else {
-    # If there are more than 8 assemblages, start with the same predefined color palette
-    # Then extend the palette by generating additional colors using the 'ggplotColors' function
     cbPalette <- rev(c(
-      "#999999",
-      "#E69F00",
-      "#56B4E9",
-      "#009E73",
-      "#330066",
-      "#CC79A7",
-      "#0072B2",
-      "#D55E00"
+      "#999999", "#E69F00", "#56B4E9", "#009E73",
+      "#330066", "#CC79A7", "#0072B2", "#D55E00"
     ))
     cbPalette <- c(
       cbPalette,
       ggplotColors(length(unique(inext_data$sample)) - 8)
     )
   }
-  endpoint_None_Both <- paste(
-    observed_endpoint$sample,
-    observed_endpoint$Order.q,
-    sep = "-"
-  )
-  data_None_Both <- paste(data$sample, data$Order.q, sep = "-")
 
-  # Apply facet.var -> color.var logic (from ggiNEXT)
+  # Apply facet.var -> color.var logic
   if (facet.var == "Order.q") {
     color.var <- "Assemblage"
   }
@@ -248,13 +536,10 @@ gg_inext_custom <- function(
     color.var <- "Order.q"
   }
 
-  # Now handle color.var with proper warnings and col/shape creation
+  # Handle color.var
   if (color.var == "None") {
-    # Check what variables exist in data
     if (length(unique(data$sample)) > 1 & length(unique(data$Order.q)) > 1) {
-      warning(
-        "invalid color.var setting, data has multiple assemblages and orders, changing to 'Both'"
-      )
+      warning("invalid color.var setting, changing to 'Both'")
       color.var <- "Both"
       data$col <- paste(data$sample, data$Order.q, sep = "-")
       observed_endpoint$col <- paste(
@@ -264,15 +549,11 @@ gg_inext_custom <- function(
       )
       color_col <- "col"
     } else if (length(unique(data$sample)) > 1) {
-      warning(
-        "invalid color.var setting, data has multiple assemblages, changing to 'Assemblage'"
-      )
+      warning("invalid color.var setting, changing to 'Assemblage'")
       color.var <- "Assemblage"
       color_col <- "sample"
     } else if (length(unique(data$Order.q)) > 1) {
-      warning(
-        "invalid color.var setting, data has multiple orders, changing to 'Order.q'"
-      )
+      warning("invalid color.var setting, changing to 'Order.q'")
       color.var <- "Order.q"
       color_col <- "Order.q"
     } else {
@@ -282,18 +563,14 @@ gg_inext_custom <- function(
     color_col <- "Order.q"
   } else if (color.var == "Assemblage") {
     if (length(unique(data$sample)) == 1) {
-      warning(
-        "invalid color.var setting, data has only one assemblage, changing to 'Order.q'"
-      )
+      warning("invalid color.var setting, changing to 'Order.q'")
       color_col <- "Order.q"
     } else {
       color_col <- "sample"
     }
   } else if (color.var == "Both") {
     if (length(unique(data$sample)) == 1) {
-      warning(
-        "invalid color.var setting, data has only one assemblage, changing to 'Order.q'"
-      )
+      warning("invalid color.var setting, changing to 'Order.q'")
       color_col <- "Order.q"
     } else {
       data$col <- paste(data$sample, data$Order.q, sep = "-")
@@ -305,6 +582,7 @@ gg_inext_custom <- function(
       color_col <- "col"
     }
   }
+
   # Base plot
   if (type == 2) {
     p <- ggplot(
