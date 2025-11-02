@@ -111,8 +111,9 @@ alpha_diversity_plots <- purrr::imap(alpha_diversity_results, function(project_l
   })
 })
 
-# Display all alpha diversity plots
-print(alpha_diversity_plots)
+# Alpha diversity plots are stored in the nested list
+# Access individual plots with: alpha_diversity_plots$project$physeq_name$plot_type
+# Example: alpha_diversity_plots$mxg_ef$ef_16S_physeq$shannon
 
 #--------------------------------------------------------
 # SECTION 3: Beta Diversity Analysis
@@ -165,14 +166,16 @@ beta_diversity_plots <- purrr::imap(beta_diversity_results, function(project_lis
   })
 })
 
-# Display all beta diversity plots
-print(beta_diversity_plots)
+# Beta diversity plots are stored in the nested list
+# Access individual plots with: beta_diversity_plots$project$physeq_name
+# Example: beta_diversity_plots$mxg_ef$ef_16S_physeq
 
 #--------------------------------------------------------
 # SECTION 5: PERMANOVA Analysis
 #--------------------------------------------------------
 
 # Perform PERMANOVA for each phyloseq object
+set.seed(123)  # Set seed once for reproducibility
 permanova_results <- purrr::imap(main_mxg_physeq_list, function(project_list, project_name) {
   purrr::imap(project_list, function(physeq_obj, physeq_name) {
     
@@ -183,7 +186,6 @@ permanova_results <- purrr::imap(main_mxg_physeq_list, function(project_list, pr
     sampledf <- data.frame(sample_data(physeq_obj))
     
     # Run PERMANOVA (adonis2)
-    set.seed(123)
     perm_result <- vegan::adonis2(dist_matrix ~ crop, data = sampledf, permutations = 999)
     
     # Return results with metadata

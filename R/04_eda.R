@@ -235,8 +235,10 @@ print(read_count_plots)
 rarecurve_results <- main_mxg_physeq_list %>%
   purrr::imap(function(project_list, project_name) {
     purrr::imap(project_list, function(physeq_obj, physeq_name) {
-      # Get phyloseq object name for plot title
-      plot_title <- physeq_name
+      # Get phyloseq object name for plot title (clean up formatting)
+      plot_title <- gsub("_physeq$", "", physeq_name) %>%
+        gsub("_", " ", .) %>%
+        tools::toTitleCase(.)
       
       otu_mat <- physeq_obj %>%
         otu_table() %>%
