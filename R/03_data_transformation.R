@@ -40,18 +40,9 @@ purrr::map(main_mxg_relab_psq_list, function(project_list) {
 #   }
 # )
 
-# Calculate Diversity indices ---------------------------------
-
-main_mxg_relab_df_list <- compute_diversity_nested(
-  main_mxg_relab_psq_list,
-  drop = "ASV_",
-  first_asv_col = "ASV_1"
-)
-
 # Save
 save(
   main_mxg_physeq_list,
   main_mxg_relab_psq_list,
-  main_mxg_relab_df_list,
   file = "data/output/processed/rdata/main_mxg_psq_df_list.rda"
 )
