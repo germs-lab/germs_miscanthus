@@ -233,19 +233,25 @@ print(read_count_plots)
 # Rarefaction curves - all datasets
 # Agent_start_here
 rarecurve_results <- main_mxg_physeq_list %>%
-  purrr::map(function(project_list) {
-    purrr::map(project_list, function(physeq_obj) {
+  purrr::imap(function(project_list, project_name) {
+    purrr::imap(project_list, function(physeq_obj, physeq_name) {
+      # Get phyloseq object name for plot title (clean up formatting)
+      plot_title <- gsub("_physeq$", "", physeq_name) %>%
+        gsub("_", " ", .) %>%
+        tools::toTitleCase(.)
+      
       otu_mat <- physeq_obj %>%
         otu_table() %>%
         data.frame() %>%
         as.matrix() %>%
         t()
+      
       # Calculate endpoint
       max_lib_size <- max(rowSums(otu_mat))
       endpoint <- max_lib_size * 2
 
       # Run parallel iNEXT
-      result <- p_iNEXT(
+      inext_result <- p_iNEXT(
         x = otu_mat,
         q = c(0, 1, 2),
         endpoint = endpoint,
@@ -255,13 +261,20 @@ rarecurve_results <- main_mxg_physeq_list %>%
         verbose = TRUE
       )
 
-      ggiNEXT(
-        result,
+      # Create ggiNEXT plot with phyloseq object name as title
+      inext_plot <- ggiNEXT(
+        inext_result,
         type = 1,
         facet.var = "Order.q",
         color.var = "Assemblage"
       ) +
         theme_bw() +
-        labs(title = paste("Rarefaction Curves for", names(otu_mat)))
+        labs(title = plot_title)
+
+      # Return both iNEXT result and plot
+      list(
+        inext_result = inext_result,
+        inext_plot = inext_plot
+      )
     })
   })
