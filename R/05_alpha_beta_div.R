@@ -16,7 +16,7 @@ source("R/utils/00_setup.R")
 
 # Calculate alpha diversity
 alpha_diversity_results <- calculate_alpha_diversity_nested(
-  main_mxg_physeq_list
+  main_physeq_list
 )
 
 # Flatten the nested list for easier plotting
@@ -39,20 +39,80 @@ summary(alpha_diversity_df[, c(
 # SECTION 2: Alpha Diversity Plots
 #--------------------------------------------------------
 
+# Define comparison mappings
+comparison_map <- list(
+  crop = list(
+    lamps_2018_physeq = list(treatment = list(c("C", "M"))),
+    lamps_2022_physeq = list(
+      plant_type = list(
+        c("Miscanthus", "Grass"),
+        c("Miscanthus", "Maize"),
+        c("Maize", "Grass")
+      )
+    ),
+    ef_physeq = list(
+      genotype = list(c("MXG", "SB"), c("MXG", "ZM"), c("ZM", "SB"))
+    )
+  )
+)
+get_comparisons <- function(data, physeq_name, comparison_map) {
+  # Extract project/dataset identifier from physeq_name
+  dataset_key <- gsub(".*_([^_]+)_physeq$", "\\1", physeq_name)
+
+  # Get comparisons for this dataset if they exist
+  if (!is.null(comparison_map$crop[[dataset_key]])) {
+    # Find which variable exists in the data
+    available_vars <- names(data)[
+      names(data) %in% names(comparison_map$crop[[dataset_key]])
+    ]
+
+    if (length(available_vars) > 0) {
+      return(comparison_map$crop[[dataset_key]][[available_vars[1]]])
+    }
+  }
+
+  return(NULL)
+}
+
 # Create alpha diversity plots for each phyloseq object
 alpha_diversity_plots <- purrr::imap(
   alpha_diversity_results,
   function(project_list, project_name) {
     purrr::imap(project_list, function(alpha_data, physeq_name) {
+      # Get appropriate comparisons for this dataset
+      comparisons <- get_comparisons(alpha_data, physeq_name, comparison_map)
+      # Determine grouping variable
+      group_var <- names(alpha_data)[
+        names(alpha_data) %in% names(comparison_map)
+      ][1]
+
+      comparison_setting <- {
+        if (is.null(comparisons)) {
+          ggpubr::stat_compare_means(
+            aes(label = after_stat(p.signif)),
+            comparisons = comparisons,
+            method = "anova",
+            symnum.args = list(
+              cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
+              symbols = c("****", "***", "**", "*", "ns")
+            )
+          )
+        }
+      }
       # Shannon diversity plot
-      p_shannon <- ggplot(alpha_data, aes(x = crop, y = shannon, fill = crop)) +
+      p_shannon <- ggplot(
+        alpha_data,
+        aes(x = .data[[group_var]], y = shannon, fill = .data[[group_var]])
+      ) +
         geom_boxplot(alpha = 0.7) +
         geom_jitter(width = 0.2, alpha = 0.5) +
         labs(
-          title = paste("Shannon Diversity -", physeq_name),
-          x = "Crop",
+          title = "Shannon Diversity",
+          subtitle = physeq_name,
+          x = group_var,
           y = "Shannon Index"
         ) +
+        comparison_setting +
         theme_minimal() +
         theme(
           axis.text.x = element_text(angle = 45, hjust = 1),
@@ -62,15 +122,17 @@ alpha_diversity_plots <- purrr::imap(
       # Observed richness plot
       p_observed <- ggplot(
         alpha_data,
-        aes(x = crop, y = observed, fill = crop)
+        aes(x = .data[[group_var]], y = observed, fill = .data[[group_var]])
       ) +
         geom_boxplot(alpha = 0.7) +
         geom_jitter(width = 0.2, alpha = 0.5) +
         labs(
-          title = paste("Observed Richness -", physeq_name),
-          x = "Crop",
+          title = "Observed Richness",
+          subtitle = physeq_name,
+          x = group_var,
           y = "Observed ASVs"
         ) +
+        comparison_setting +
         theme_minimal() +
         theme(
           axis.text.x = element_text(angle = 45, hjust = 1),
@@ -78,14 +140,19 @@ alpha_diversity_plots <- purrr::imap(
         )
 
       # Simpson diversity plot
-      p_simpson <- ggplot(alpha_data, aes(x = crop, y = simpson, fill = crop)) +
+      p_simpson <- ggplot(
+        alpha_data,
+        aes(x = .data[[group_var]], y = simpson, fill = .data[[group_var]])
+      ) +
         geom_boxplot(alpha = 0.7) +
         geom_jitter(width = 0.2, alpha = 0.5) +
         labs(
-          title = paste("Simpson Diversity -", physeq_name),
-          x = "Crop",
+          title = "Simpson Diversity",
+          subtitle = physeq_name,
+          x = group_var,
           y = "Simpson Index"
         ) +
+        comparison_setting +
         theme_minimal() +
         theme(
           axis.text.x = element_text(angle = 45, hjust = 1),
@@ -108,36 +175,20 @@ alpha_diversity_plots <- purrr::imap(
     })
   }
 )
-
 # Alpha diversity plots are stored in the nested list
 print(alpha_diversity_plots)
-
+# TODO
+# Fix comparisons in alpha diversity
 
 #--------------------------------------------------------
 # SECTION 3: Beta Diversity Analysis
 #--------------------------------------------------------
 
-# Calculate beta diversity (ordination) for nested phyloseq objects
-calculate_beta_diversity_nested <- function(nested_list, method = "bray") {
-  purrr::imap(nested_list, function(project_list, project_name) {
-    purrr::imap(project_list, function(physeq_obj, physeq_name) {
-      # Calculate ordination
-      ord <- ordinate(physeq_obj, method = "PCoA", distance = method)
-
-      # Return both ordination and phyloseq object for plotting
-      list(
-        ordination = ord,
-        physeq = physeq_obj,
-        physeq_name = physeq_name
-      )
-    })
-  })
-}
-
 # Calculate beta diversity (Bray-Curtis dissimilarity)
 beta_diversity_results <- calculate_beta_diversity_nested(
   main_mxg_physeq_list,
-  method = "bray"
+  method = "PCoA",
+  distance = "bray"
 )
 
 #--------------------------------------------------------
@@ -170,15 +221,15 @@ beta_diversity_plots <- purrr::imap(
 )
 
 # Beta diversity plots are stored in the nested list
-# Access individual plots with: beta_diversity_plots$project$physeq_name
-# Example: beta_diversity_plots$mxg_ef$ef_16S_physeq
+
+print(beta_diversity_plots)
 
 #--------------------------------------------------------
 # SECTION 5: PERMANOVA Analysis
 #--------------------------------------------------------
 
 # Perform PERMANOVA for each phyloseq object
-set.seed(123) # Set seed once for reproducibility
+set.seed(123)
 permanova_results <- purrr::imap(
   main_mxg_physeq_list,
   function(project_list, project_name) {
@@ -232,12 +283,12 @@ alpha_summary <- alpha_diversity_df %>%
   group_by(project, region, crop) %>%
   summarise(
     n = n(),
-    mean_observed = mean(Observed, na.rm = TRUE),
-    sd_observed = sd(Observed, na.rm = TRUE),
-    mean_shannon = mean(Shannon, na.rm = TRUE),
-    sd_shannon = sd(Shannon, na.rm = TRUE),
-    mean_simpson = mean(Simpson, na.rm = TRUE),
-    sd_simpson = sd(Simpson, na.rm = TRUE),
+    mean_observed = mean(observed, na.rm = TRUE),
+    sd_observed = sd(observed, na.rm = TRUE),
+    mean_shannon = mean(shannon, na.rm = TRUE),
+    sd_shannon = sd(shannon, na.rm = TRUE),
+    mean_simpson = mean(simpson, na.rm = TRUE),
+    sd_simpson = sd(simpson, na.rm = TRUE),
     .groups = "drop"
   )
 
