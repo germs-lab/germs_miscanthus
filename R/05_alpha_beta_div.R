@@ -186,7 +186,7 @@ print(alpha_diversity_plots)
 
 # Calculate beta diversity (Bray-Curtis dissimilarity)
 beta_diversity_results <- calculate_beta_diversity_nested(
-  main_mxg_physeq_list,
+  main_physeq_list,
   method = "PCoA",
   distance = "bray"
 )
@@ -224,55 +224,66 @@ beta_diversity_plots <- purrr::imap(
 
 print(beta_diversity_plots)
 
+
+# Checkpooint
+alpha_beta_plots <- list(
+  alpha_diversity_plots = alpha_diversity_plots,
+  beta_diversity_plots = beta_diversity_plots
+)
+save(
+  alpha_beta_plots,
+  file = "data/output/processed/rdata/alpha_beta_plots.rda"
+)
+
 #--------------------------------------------------------
 # SECTION 5: PERMANOVA Analysis
 #--------------------------------------------------------
 
-# Perform PERMANOVA for each phyloseq object
-set.seed(123)
-permanova_results <- purrr::imap(
-  main_mxg_physeq_list,
-  function(project_list, project_name) {
-    purrr::imap(project_list, function(physeq_obj, physeq_name) {
-      # Get distance matrix
-      dist_matrix <- phyloseq::distance(physeq_obj, method = "bray")
+# # Perform PERMANOVA for each phyloseq object
+# set.seed(123)
+# permanova_results <- purrr::imap(
+#   main_mxg_physeq_list,
+#   function(project_list, project_name) {
+#     purrr::imap(project_list, function(physeq_obj, physeq_name) {
+#       # Get distance matrix
+#       dist_matrix <- phyloseq::distance(physeq_obj, method = "bray")
 
-      # Get sample data
-      sampledf <- data.frame(sample_data(physeq_obj))
+#       # Get sample data
+#       sampledf <- data.frame(sample_data(physeq_obj))
 
-      # Run PERMANOVA (adonis2)
-      perm_result <- vegan::adonis2(
-        dist_matrix ~ crop,
-        data = sampledf,
-        permutations = 999
-      )
+#       # Run PERMANOVA (adonis2)
+#       perm_result <- vegan::adonis2(
+#         dist_matrix ~ crop,
+#         data = sampledf,
+#         permutations = 999
+#       )
 
-      # Return results with metadata
-      list(
-        physeq_name = physeq_name,
-        project = project_name,
-        permanova = perm_result,
-        n_samples = nsamples(physeq_obj)
-      )
-    })
-  }
-)
+#       # Return results with metadata
+#       list(
+#         physeq_name = physeq_name,
+#         project = project_name,
+#         permanova = perm_result,
+#         n_samples = nsamples(physeq_obj)
+#       )
+#     })
+#   }
+# )
 
-# Display PERMANOVA results
-cat("\n", rep("=", 60), "\n")
-cat("PERMANOVA Results Summary\n")
-cat(rep("=", 60), "\n\n")
+# # Display PERMANOVA results
+# cat("\n", rep("=", 60), "\n")
+# cat("PERMANOVA Results Summary\n")
+# cat(rep("=", 60), "\n\n")
 
-purrr::iwalk(permanova_results, function(project_list, project_name) {
-  cat("\nPROJECT:", toupper(project_name), "\n")
-  cat(rep("-", 40), "\n")
+# purrr::iwalk(permanova_results, function(project_list, project_name) {
+#   cat("\nPROJECT:", toupper(project_name), "\n")
+#   cat(rep("-", 40), "\n")
 
-  purrr::iwalk(project_list, function(result, physeq_name) {
-    cat("\n", physeq_name, "(n =", result$n_samples, "samples)\n")
-    print(result$permanova)
-    cat("\n")
-  })
-})
+#   purrr::iwalk(project_list, function(result, physeq_name) {
+#     cat("\n", physeq_name, "(n =", result$n_samples, "samples)\n")
+#     print(result$permanova)
+#     cat("\n")
+#   })
+# })
 
 #--------------------------------------------------------
 # SECTION 6: Summary Statistics
