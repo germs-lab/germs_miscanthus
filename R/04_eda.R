@@ -2,7 +2,7 @@
 # Exploratory Data Analysis for Nested Phyloseq Objects
 #
 # This script performs EDA on nested phyloseq lists with the structure:
-# main_relab_physeq_list$project_list$sequencing_type_physeq
+# main_physeq_list$project_list$sequencing_type_physeq
 #
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-29
@@ -11,7 +11,7 @@
 source("R/utils/00_setup.R")
 
 #--------------------------------------------------------
-# SECTION 1: Basic Exploration of Nested Dataset
+# SECTION 1: Basic Exploration of Nested Phyloseq
 #--------------------------------------------------------
 # Total abundance only
 
@@ -31,7 +31,7 @@ purrr::iwalk(main_mxg_physeq_list, function(project_list, project_name) {
   })
 })
 
-# Summary table
+# Summary tables
 physeq_summary <- purrr::imap_dfr(
   main_mxg_physeq_list,
   function(project_list, project_name) {
@@ -59,115 +59,16 @@ physeq_summary <- purrr::imap_dfr(
 
 physeq_summary
 
-
-# Summary of nested phyloseq list
-explore_nested_phyloseq <- function(nested_list) {
-  results <- purrr::imap(nested_list, function(project_list, project_name) {
-    cat("\n", rep("=", 60), "\n")
-    cat("PROJECT:", toupper(project_name), "\n")
-    cat(rep("=", 60), "\n")
-
-    purrr::imap(project_list, function(physeq_obj, seq_type) {
-      cat("\n", rep("-", 40), "\n")
-      cat("Sequencing Type:", toupper(seq_type), "\n")
-      cat(rep("-", 40), "\n")
-
-      # Basic phyloseq summaries
-      cat("Basic Summary:\n")
-      print(metagMisc::phyloseq_summary(
-        physeq_obj,
-        more_stats = FALSE,
-        long = FALSE
-      ))
-
-      cat("\nRead/Sequencing Summary:\n")
-      print(microbiome::summarize_phyloseq(physeq_obj))
-
-      # # Taxonomic distribution
-      # if ("phylum" %in% colnames(tax_table(physeq_obj))) {
-      #   cat("\nPhylum Distribution:\n")
-      #   phyla_dist <- phyloseq_ntaxa_by_tax(
-      #     physeq_obj,
-      #     TaxRank = "phylum",
-      #     relative = FALSE,
-      #     add_meta_data = FALSE
-      #   ) %>%
-      #     as.data.frame() %>%
-      #     mutate(sum = sum(N.OTU)) %>%
-      #     group_by(phylum) %>%
-      #     summarise(occurance_in_samples = n()) %>%
-      #     arrange(desc(occurance_in_samples))
-
-      #   print(phyla_dist)
-      # }
-
-      # Sample and taxa counts
-      list(
-        project = project_name,
-        region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type),
-        n_samples = nsamples(physeq_obj),
-        n_taxa = ntaxa(physeq_obj),
-        sample_vars = sample_variables(physeq_obj),
-        rank_names = rank_names(physeq_obj),
-        total_reads = sum(sample_sums(physeq_obj)),
-        min_reads_per_sample = min(sample_sums(physeq_obj)),
-        max_reads_per_sample = max(sample_sums(physeq_obj)),
-        mean_reads_per_sample = mean(sample_sums(physeq_obj)),
-        median_reads_per_sample = median(sample_sums(physeq_obj))
-      )
-    })
-  })
-
-  return(results)
-}
-
-
+# Details for each phyloseq object in list
 nested_summary <- explore_nested_phyloseq(main_mxg_physeq_list)
 
 
 #--------------------------------------------------------
-# Read Count Analysis for Nested Structure
+# Read Count Analysis for Nested Phyloseq
 #--------------------------------------------------------
-
-# Function to analyze read counts across nested phyloseq objects
-
-analyze_read_counts <- function(nested_list) {
-  read_summaries <- purrr::imap(
-    nested_list,
-    function(project_list, project_name) {
-      purrr::imap(project_list, function(physeq_obj, seq_type) {
-        # Get read counts
-        reads <- readcount(physeq_obj) %>%
-          as.data.frame() %>%
-          rownames_to_column(var = "sample_id") %>%
-          rename(n_seqs = ".") %>%
-          group_by(sample_id) %>%
-          mutate(
-            n_singletons = sum(n_seqs == 1),
-            goods = 1 - (n_singletons / n_seqs),
-            project = gsub("_physeq", "", seq_type),
-            region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
-          )
-
-        metadata <- physeq_obj %>%
-          physeq2df() %>%
-          select(sample_id, crop)
-
-        new_df <- dplyr::left_join(reads, metadata, by = "sample_id")
-
-        return(new_df)
-      })
-    }
-  ) %>%
-    purrr::list_flatten(name_spec = "{outer}_{inner}") %>%
-    purrr::map_dfr(~.x)
-
-  return(read_summaries)
-}
 
 # Get read count data
 nested_read_counts <- analyze_read_counts(main_mxg_physeq_list)
-
 
 # Visualize read counts by project and sequencing type
 read_count_plots <- list(
@@ -239,13 +140,13 @@ rarecurve_results <- main_mxg_physeq_list %>%
       plot_title <- gsub("_physeq$", "", physeq_name) %>%
         gsub("_", " ", .) %>%
         tools::toTitleCase(.)
-      
+
       otu_mat <- physeq_obj %>%
         otu_table() %>%
         data.frame() %>%
         as.matrix() %>%
         t()
-      
+
       # Calculate endpoint
       max_lib_size <- max(rowSums(otu_mat))
       endpoint <- max_lib_size * 2
