@@ -2,13 +2,16 @@
 # Import of R objects, .csv and .xlsx for Miscanthus overview
 #
 # Import sequence, phyloseqs and metadata files from:
-# - Energy Farm Collab project
 # - LAMPS: 2018
-#   - 16S
-#     - DNA
-#     - RNA
-# For LAMPS metadata: Clean and standardize metadata to match sequence file  names. See README in ~/data/input/LAMPS/README.md
-
+#   - 16S (DNA & RNA)
+#   - ITS (DNA & RNA)
+# - LAMPS: 2022
+#   - 16S (DNA & RNA)
+#   - ITS (DNA & RNA)
+#
+# For LAMPS metadata: Clean and standardize metadata to match
+# sequence file  names. See README in ~/data/input/LAMPS/README.md
+#
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-01
 ###################################################################
@@ -36,11 +39,12 @@ dna_updated_metadata <- build_updated_metadata(
   .distinct = FALSE,
   target_region = "16S",
   .project = "LAMPS_2018"
-)
+) |>
+  rename(crop = plant)
 
 # Get actual sequence file names
 dna_seq_names <- readr::read_lines(
-  "data/input/LAMPS/DNA_amplicon_sequencing/dna_seq_filenames.tsv"
+  "data/input/LAMPS/DNA_amplicon_sequencing/raw_sequences/dna_seq_filenames.tsv"
 ) %>%
   stringr::str_trim() %>%
   purrr::discard(~ .x == "dna_seq_filenames.tsv")
@@ -96,7 +100,8 @@ rna_updated_metadata <- build_updated_metadata(
   target_region = "16S",
   rna = TRUE,
   .project = "LAMPS_2018"
-)
+) |>
+  rename(crop = plant)
 
 # Duplicate metadata rows to match R1/R2 paired-end files
 rna_duplicated_df <- rna_updated_metadata %>%
@@ -104,7 +109,7 @@ rna_duplicated_df <- rna_updated_metadata %>%
 
 # Get actual RNA sequence file names
 rna_seq_names <- readr::read_lines(
-  "data/input/LAMPS/RNA_amplicon_sequencing/rna_seq_filenames.tsv"
+  "data/input/LAMPS/RNA_amplicon_sequencing/raw_sequences/rna_seq_filenames.tsv"
 ) %>%
   stringr::str_trim() %>%
   purrr::discard(~ .x == "rna_seq_filenames.tsv")
@@ -175,25 +180,25 @@ rna_updated_metadata <- rna_updated_metadata %>%
 complete_16S_metadata <- rbind(dna_updated_metadata, rna_updated_metadata)
 
 # Clean up to taxonomy table
-lamps_2018_tax <- tax_table(ps_16S_LAMPS) %>%
+lamps_2018_16S_tax <- tax_table(ps_16S_LAMPS) %>%
   as.data.frame() %>%
   rownames_to_column(., var = "sequence") %>%
   rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
-rownames(lamps_2018_tax) <- lamps_2018_tax %>%
+rownames(lamps_2018_16S_tax) <- lamps_2018_16S_tax %>%
   pull(sequence)
 
 
 base::setdiff(
   rownames(otu_table(ps_16S_LAMPS)),
-  rownames(lamps_2018_tax)
+  rownames(lamps_2018_16S_tax)
 )
 
 # Updated phyloseq
 # Check class for replacement
 class(tax_table(ps_16S_LAMPS))
-class(tax_table(as.matrix(lamps_2018_tax)))
+class(tax_table(as.matrix(lamps_2018_16S_tax)))
 
-tax_table(ps_16S_LAMPS) <- tax_table(as.matrix(lamps_2018_tax))
+tax_table(ps_16S_LAMPS) <- tax_table(as.matrix(lamps_2018_16S_tax))
 
 lamps_2018_16S_physeq <- regen_physeq(
   ps_16S_LAMPS,
@@ -201,13 +206,6 @@ lamps_2018_16S_physeq <- regen_physeq(
   rownames = "rownames"
 )
 
-# Add refseq
-lamps_2018_16S_physeq <- add_refseq(lamps_2018_16S_physeq, tag = "ASV_")
-
-save(
-  lamps_2018_16S_physeq,
-  file = "data/output/processed/rdata/phyloseq/lamps_2018_16S_physeq.rda"
-)
 
 # ITS -----------------------------------------------------------------------
 
@@ -219,29 +217,30 @@ its_metadata <- read_xlsx(
   col_types = "text"
 ) %>%
   janitor::clean_names() %>%
-  rename(sample_id = name_of_sequence) %>%
+  rename(sample_id = name_of_sequence, crop = plant) %>%
   mutate(
     sequence_id = sample_id,
     sample_id = str_remove(sample_id, "_(.+)$"),
-    plant = case_when(
-      plant == "Corn" ~ "C",
-      plant == "Miscanthus" ~ "M",
-      TRUE ~ plant
+    crop = case_when(
+      crop == "Corn" ~ "C",
+      crop == "Miscanthus" ~ "M",
+      TRUE ~ crop
     ),
     nitrogen_conc = paste0("N", nitrogen_conc),
     target_region = "ITS",
-    project = "LAMPS_2018"
+    project = "LAMPS_2018",
+    rownames = sample_id
   ) %>%
   select(!samples) %>%
   relocate(sequence_id, .before = sample_id) %>%
-  relocate(plant, .before = year) %>%
+  relocate(crop, .before = year) %>%
   relocate(plot, .before = nitrogen_conc) %>%
   relocate(target_region, .after = nucleotide)
 
 
 # Sequence file names
 its_seq_names <- readr::read_lines(
-  "data/input/LAMPS/ITS_sequencing/its_seq_filenames.tsv"
+  "data/input/LAMPS/ITS_sequencing/raw_sequences/its_seq_filenames.tsv"
 ) %>%
   stringr::str_trim() %>%
   purrr::discard(~ .x == "its_seq_filenames.tsv")
@@ -269,18 +268,67 @@ load("data/input/LAMPS/ITS_sequencing/manuscript_all_data.rda")
 rm(df.meta)
 
 # Mismatches
-base::setdiff(sample_names(ps.f), {
-  its_seq_names_clean %>% str_remove("_(.+)$")
-})
+base::setdiff(
+  {
+    unique(its_seq_names_clean %>% str_remove("_[^_]+$"))
+  },
+  sample_names(ps.f)
+)
 
 
-# I think that Millican subseted the 16S data to only the samples that matched the ITS sampling effort.
+# Remaking the phyloseq object like we want to
+ps.f_otu_transposed <- phyloseq::phyloseq(
+  tax_table(ps.f),
+  t(as.matrix(otu_table(ps.f, taxa_are_rows = TRUE)))
+)
+# Clean up to taxonomy table
+lamps_2018_ITS_tax <- tax_table(ps.f_otu_transposed) %>%
+  as.data.frame() %>%
+  rownames_to_column(., var = "sequence") %>%
+  rename_with(str_to_lower, .cols = everything())
+rownames(lamps_2018_ITS_tax) <- lamps_2018_ITS_tax %>%
+  pull(sequence)
 
-name_test <- its_metadata %>%
-  pull(sample_id) %>%
-  str_remove("_RNA")
 
-test <- prune_samples(sample_names(lamps_2018_16S_physeq), sample_names(ps.b))
+tax_table(ps.f_otu_transposed) <- tax_table(as.matrix(lamps_2018_ITS_tax))
+
+# Meta clean
+its_meta_distinct <- its_metadata %>%
+  distinct(sample_id, .keep_all = TRUE)
+
+
+lamps_2018_ITS_physeq <- regen_physeq(
+  ps.f_otu_transposed,
+  its_meta_distinct,
+  rownames = "rownames"
+)
+
+# Saving
+lamps_2018_physeq_list <- list(
+  lamps_2018_16S_physeq = lamps_2018_16S_physeq,
+  lamps_2018_ITS_physeq = lamps_2018_ITS_physeq
+)
+
+
+save(
+  lamps_2018_physeq_list,
+  file = "data/output/processed/rdata/phyloseq/lamps_2018_physeq_list.rda"
+)
+
+# Save phyloseqs independently
+purrr::iwalk(
+  lamps_2018_physeq_list,
+  ~ {
+    assign(.y, .x)
+    save(
+      list = .y,
+      file = file.path(
+        "data/output/processed/rdata/phyloseq/",
+        paste0(.y, ".rda")
+      )
+    )
+  }
+)
 #----------------------------------------------------------------------------
 # LAMPS: 2022
 #----------------------------------------------------------------------------
@@ -302,20 +350,33 @@ lamps_metadata_2022 <- read_xlsx(
   mutate(
     replicate = as.character(replicate),
     year = "2022",
-    sequence_id = sample_id
+    sequence_id = sample_id,
+    rownames = sample_id
   ) %>% # Sampling year
-  relocate(sequence_id, .before = sample_id)
+  relocate(sequence_id, .before = sample_id) |>
+  rename(crop = treatment)
 
+# Fix taxa orientation and names
+otu_table(lamps_2022_16S) <- otu_table(t(otu_table(lamps_2022_16S)))
+otu_table(lamps_2022_AMF) <- otu_table(t(otu_table(lamps_2022_AMF)))
 
-# Fix taxa names to be readable
-taxa_names(lamps_2022_16S) <- paste0("ASV_", seq(ntaxa(lamps_2022_16S)))
-taxa_names(lamps_2022_AMF) <- paste0("ASV_", seq(ntaxa(lamps_2022_AMF)))
+# Update taxa names
+list(lamps_2022_16S, lamps_2022_AMF) %>%
+  purrr::map(
+    ~ {
+      taxa_names(.x) <- gsub("^ASV([0-9]+)$", "ASV_\\1", taxa_names(.x))
+      .x
+    }
+  ) %>%
+  set_names(c("lamps_2022_16S", "lamps_2022_AMF")) %>%
+  list2env(envir = .GlobalEnv)
+
 
 # Let's reconstruct the phyloseq object with simpler metadata
-
 nphyseq_lamps_2022_16S <- regen_physeq(
   lamps_2022_16S,
   sample_metadata = lamps_metadata_2022,
+  rownames = "rownames"
 )
 
 sample_names(nphyseq_lamps_2022_16S)
@@ -323,7 +384,8 @@ sample_names(nphyseq_lamps_2022_16S)
 
 nphyseq_lamps_2022_AMF <- regen_physeq(
   lamps_2022_AMF,
-  sample_metadata = lamps_metadata_2022
+  sample_metadata = lamps_metadata_2022,
+  rownames = "rownames"
 )
 
 sample_names(nphyseq_lamps_2022_AMF)
@@ -334,7 +396,6 @@ lamps_2022_physeq_list <- list(
   lamps_2022_AMF_physeq = nphyseq_lamps_2022_AMF
 )
 
-
 save(
   lamps_2022_physeq_list,
   file = "data/output/processed/rdata/phyloseq/lamps_2022_physeq_list.rda"
@@ -344,174 +405,6 @@ save(
 # Save phyloseqs independently
 purrr::iwalk(
   lamps_2022_physeq_list,
-  ~ {
-    assign(.y, .x)
-    save(
-      list = .y,
-      file = file.path(
-        "data/output/processed/rdata/phyloseq/",
-        paste0(.y, ".rda")
-      )
-    )
-  }
-)
-
-
-# =============================================================================
-# Files from Energy Farm Collab
-# =============================================================================
-
-# Metadata ---------------------------------------------------
-# For 16S and AMF
-# "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv" and
-# "data/input/energy_farm_collab/files_for_phyloseq_AMF/ef2024_sampledata.csv" are the same
-
-ef_metadata <- read.csv(
-  "data/input/energy_farm_collab/files_for_phyloseq_16S/ef2024_sampledata.csv"
-) %>%
-  janitor::clean_names(.) %>%
-  column_to_rownames(var = "label_id")
-
-ef_metadata <- sample_data(ef_metadata)
-
-#----------------------------------
-# 16S
-#----------------------------------
-
-# Taxonomy ------------------------
-taxa_16S <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_16S/taxa.rds"
-) %>%
-  as.data.frame() %>%
-  rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
-rownames(taxa_16S) <- taxa_16S %>%
-  pull(sequence)
-
-taxa_16S <- tax_table(as.matrix(taxa_16S))
-
-# ASVs ------------------------
-seqtab_nochim_16S <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_16S/seqtab.nochim.rds"
-)
-# Create ASV table
-
-seqtab_nochim_16S <- t(seqtab_nochim_16S) # Retaining sequences and asigning shorthand ASV names
-
-asv_16S <- otu_table(seqtab_nochim_16S, taxa_are_rows = TRUE)
-
-# 16S Phyloseq object ------------------------
-# Checking that metadata and asvs have the same number of samples
-samples_missing_metadata <- base::setdiff(
-  colnames(seqtab_nochim_16S),
-  rownames(ef_metadata)
-)
-# We have 10 missing samples
-
-ef_16S_physeq <- phyloseq(asv_16S, taxa_16S, ef_metadata)
-
-otu_table(ef_16S_physeq)
-tax_table(ef_16S_physeq)
-sample_data(ef_16S_physeq)
-
-# Add refseq
-ef_16S_physeq <- add_refseq(ef_16S_physeq, tag = "ASV_")
-
-# Any other missing or dropped sample?
-post_physeq_missing <- base::setdiff(
-  sample_names(ef_metadata),
-  sample_names(ef_16S_physeq)
-)
-missing_sample <- post_physeq_missing %in% colnames(seqtab_nochim_16S)
-
-
-#----------------------------------
-# AMF (only forward reads)
-#----------------------------------
-
-# Taxonomy ------------------------
-taxa_AMF <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_AMF/taxaf.rds"
-) %>%
-  as.data.frame() %>%
-  rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
-
-rownames(taxa_AMF) <- taxa_AMF %>%
-  pull(sequence)
-
-taxa_AMF <- tax_table(as.matrix(taxa_AMF))
-
-# ASVs ------------------------
-seqtab_nochim_AMF <- readRDS(
-  "data/input/energy_farm_collab/files_for_phyloseq_AMF/seqtabf.nochim.rds"
-) # Forward reads only
-
-# seqtab_nochim_AMF needs a sample name clean up to match metadata
-rownames(seqtab_nochim_AMF) <- gsub("_S.*", "", rownames(seqtab_nochim_AMF))
-
-# Remove "method" samples
-seqtab_nochim_AMF <- seqtab_nochim_AMF[
-  !grepl("^method([1-9]|10)$", rownames(seqtab_nochim_AMF)),
-]
-
-# Create ASV table
-## Cleaning ASV names for FASTA file
-seqtab_nochim_AMF <- t(seqtab_nochim_AMF) # Retaining sequences and asigning shorthand ASV names
-
-asv_AMF <- otu_table(seqtab_nochim_AMF, taxa_are_rows = TRUE)
-
-
-# AMF Phyloseq object ------------------------
-# Checking that metadata and asvs have the same number of samples
-
-samples_missing_metadata <- base::setdiff(
-  colnames(seqtab_nochim_AMF),
-  rownames(ef_metadata)
-)
-
-non_matching_asvs <- base::setdiff(
-  rownames(asv_AMF),
-  rownames(taxa_AMF)
-)
-# No missing samples
-
-ef_AMF_physeq <- phyloseq(asv_AMF, taxa_AMF, ef_metadata)
-
-otu_table(ef_AMF_physeq)
-tax_table(ef_AMF_physeq)
-sample_data(ef_AMF_physeq)
-
-# Add refseq
-ef_AMF_physeq <- add_refseq(ef_AMF_physeq, tag = "ASV_")
-
-
-# Any other missing or dropped sample?
-post_physeq_missing <- base::setdiff(
-  sample_names(ef_metadata),
-  sample_names(ef_AMF_physeq)
-)
-missing_sample <- post_physeq_missing %in% colnames(seqtab_nochim_AMF)
-# No missing samples
-
-# Save results ---------------------------------------------------
-
-# # Save phyloseq object as RDS file
-# Name change
-ef_physeq_list <- list(
-  ef_16S_physeq = ef_16S_physeq,
-  ef_AMF_physeq = ef_AMF_physeq
-)
-
-#dir.create("data/output/processed/rdata/phyloseq/", recursive = TRUE)
-save(
-  ef_physeq_list,
-  file = "data/output/processed/rdata/phyloseq/ef_physeq_list.rda"
-)
-
-# Save phyloseqs independently
-purrr::iwalk(
-  ef_physeq_list,
   ~ {
     assign(.y, .x)
     save(

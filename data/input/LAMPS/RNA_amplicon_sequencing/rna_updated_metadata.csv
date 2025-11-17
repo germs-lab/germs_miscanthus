@@ -1,4 +1,4 @@
-sequence_id,sample_id,plant,year,plot,nitrogen_conc,replicate,sample_date,days_after_fertilization,nucleotide,target_region,fertilization,soil_type,project
+sequence_id,sample_id,crop,year,plot,nitrogen_conc,replicate,sample_date,days_after_fertilization,nucleotide,target_region,fertilization,soil_type,project
 2001_C_2018_P3_N300_A_20180430_RNA,2001,C,2018,P3,N300,A,20180430,-10,RNA,16S,no,rhizosphere,LAMPS_2018
 2002_C_2018_P3_N300_B_20180430_RNA,2002,C,2018,P3,N300,B,20180430,-10,RNA,16S,no,rhizosphere,LAMPS_2018
 2003_C_2018_P3_N300_C_20180430_RNA,2003,C,2018,P3,N300,C,20180430,-10,RNA,16S,no,rhizosphere,LAMPS_2018

@@ -17,6 +17,7 @@ invisible(
       "phyloseq",
       "vegan",
       "tidyverse",
+      "data.table",
       "janitor",
       #"mia",
       "microbiome",
@@ -24,7 +25,8 @@ invisible(
       "ggtext",
       "readr",
       "readxl",
-      "stringr"
+      "stringr",
+      "iNEXT"
     ),
     library,
     character.only = TRUE
@@ -43,21 +45,12 @@ devtools::source_url(
 
 # Objects
 list.files(
-  here::here("data/output/processed/rdata/phyloseq"),
+  here::here("data/output/processed/rdata"),
   full.names = TRUE,
-  recursive = TRUE,
+  recursive = FALSE,
   pattern = "list\\.rda$"
 ) %>%
   purrr::walk(~ load(.x, envir = .GlobalEnv))
-
-
-list.files(
-  here::here("data/output/processed/rdata/phyloseq"),
-  full.names = TRUE,
-  recursive = TRUE,
-  pattern = "2018.*\\.rda$"
-) |>
-  load()
 
 
 # Solve known conflicts
