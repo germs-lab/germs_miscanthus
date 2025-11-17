@@ -130,9 +130,9 @@ read_count_plots <- list(
 # Display plots
 print(read_count_plots)
 
-# TODO
+
 # Rarefaction curves - all datasets
-# Agent_start_here
+options(future.globals.maxSize = 1500 * 1024^2)
 rarecurve_results <- main_mxg_physeq_list %>%
   purrr::imap(function(project_list, project_name) {
     purrr::imap(project_list, function(physeq_obj, physeq_name) {
@@ -157,7 +157,7 @@ rarecurve_results <- main_mxg_physeq_list %>%
         q = c(0, 1, 2),
         endpoint = endpoint,
         nboot = 100,
-        nCores = 4,
+        nCores = 6,
         combine = TRUE,
         verbose = TRUE
       )
@@ -179,3 +179,80 @@ rarecurve_results <- main_mxg_physeq_list %>%
       )
     })
   })
+
+p_iNEXt_list <- function(physeq_obj, nCores = 1, type = 1) {
+  # Get phyloseq object name for plot title (clean up formatting)
+  plot_title <- as_label(enexpr(physeq_obj)) %>% #
+    str_replace_all(".*\\$", "") %>%
+    str_remove("_physeq$") %>%
+    str_to_upper()
+
+  otu_mat <- physeq_obj %>%
+    otu_table() %>%
+    data.frame() %>%
+    as.matrix() %>%
+    t()
+
+  # Calculate endpoint
+  max_lib_size <- max(rowSums(otu_mat))
+  endpoint <- max_lib_size * 2
+
+  # Run parallel iNEXT
+  inext_result <- p_iNEXT(
+    x = otu_mat,
+    q = c(0, 1, 2),
+    endpoint = endpoint,
+    nboot = 100,
+    nCores = nCores,
+    combine = TRUE,
+    verbose = TRUE
+  )
+
+  # Create ggiNEXT plot with phyloseq object name as title
+  inext_plot <- ggiNEXT(
+    inext_result,
+    type = type,
+    facet.var = "Order.q",
+    color.var = "Assemblage"
+  ) +
+    theme_bw() +
+    labs(title = plot_title, x = "Number of sequences") +
+    guides(color = "none", shape = "none", fill = "none")
+
+  # Return both iNEXT result and plot
+  list(
+    inext_result = inext_result,
+    inext_plot = inext_plot
+  )
+}
+
+ef_16S_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
+  nCores = 4,
+  type = 1
+)
+ef_16S_iNEXT$inext_plot
+
+ef_AMF_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
+  nCores = 4,
+  type = 1
+)
+
+ef_AMF_iNEXT$inext_plot
+
+rarecurve_results <- list(
+  mxg_ef = list(ef_16S_iNEXT = ef_16S_iNEXT, ef_AMF_iNEXT = ef_AMF_iNEXT)
+)
+
+# ggiNEXT(
+#   test$inext_result,
+#   type = 1,
+#   facet.var = "Order.q",
+#   color.var = "Assemblage"
+# ) +
+#   theme_bw() +
+#   labs(title = "VVV", x = "Number of sequences")
+#   guides(color = "none", shape = "none", fill = "none")
+
+save(rarecurve_results, file = "data/output/processed/rdata/rarecurves.rda")
