@@ -55,6 +55,7 @@ comparison_map <- list(
     )
   )
 )
+# Helper
 get_comparisons <- function(data, physeq_name, comparison_map) {
   # Extract project/dataset identifier from physeq_name
   dataset_key <- gsub(".*_([^_]+)_physeq$", "\\1", physeq_name)
@@ -99,6 +100,16 @@ alpha_diversity_plots <- purrr::imap(
           )
         }
       }
+
+      theme_settings <- list(
+        theme_minimal(),
+        theme(
+          plot.title = element_text(size = 12),
+          plot.subtitle = element_text(size = 10),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "none"
+        )
+      )
       # Shannon diversity plot
       p_shannon <- ggplot(
         alpha_data,
@@ -113,11 +124,7 @@ alpha_diversity_plots <- purrr::imap(
           y = "Shannon Index"
         ) +
         comparison_setting +
-        theme_minimal() +
-        theme(
-          axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "none"
-        )
+        theme_settings
 
       # Observed richness plot
       p_observed <- ggplot(
@@ -133,11 +140,7 @@ alpha_diversity_plots <- purrr::imap(
           y = "Observed ASVs"
         ) +
         comparison_setting +
-        theme_minimal() +
-        theme(
-          axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "none"
-        )
+        theme_settings
 
       # Simpson diversity plot
       p_simpson <- ggplot(
@@ -153,11 +156,7 @@ alpha_diversity_plots <- purrr::imap(
           y = "Simpson Index"
         ) +
         comparison_setting +
-        theme_minimal() +
-        theme(
-          axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "none"
-        )
+        theme_settings
 
       all_div_plots <- ggpubr::ggarrange(
         p_observed,
@@ -225,6 +224,10 @@ alpha_diversity_plots <- purrr::imap(
 #   )
 
 #   p_shannon
+
+cat("\n", rep("=", 40), "\n")
+cat("Alpha Diversity by Project and Crop\n")
+cat(rep("=", 40), "\n")
 print(alpha_diversity_plots)
 # TODO
 # Fix comparisons in alpha diversity
@@ -249,6 +252,8 @@ beta_diversity_plots <- purrr::imap(
   beta_diversity_results,
   function(project_list, project_name) {
     purrr::imap(project_list, function(beta_data, physeq_name) {
+      plot_title <- gsub("_physeq$", " ", physeq_name) %>%
+        str_to_upper(.)
       # PCoA plot colored by crop
       p_pcoa <- plot_ordination(
         beta_data$physeq,
@@ -258,7 +263,7 @@ beta_diversity_plots <- purrr::imap(
       ) +
         geom_point(size = 3, alpha = 0.7) +
         labs(
-          title = paste("PCoA (Bray-Curtis) -", beta_data$physeq_name),
+          title = paste("PCoA (Bray-Curtis) -", plot_title),
           color = "Crop"
         ) +
         theme_bw() +
@@ -271,6 +276,9 @@ beta_diversity_plots <- purrr::imap(
 
 # Beta diversity plots are stored in the nested list
 
+cat("\n", rep("=", 40), "\n")
+cat("Beta Diversity Project and Crop\n")
+cat(rep("=", 40), "\n")
 print(beta_diversity_plots)
 
 
@@ -279,12 +287,11 @@ alpha_beta_plots <- list(
   alpha_diversity_plots = alpha_diversity_plots,
   beta_diversity_plots = beta_diversity_plots
 )
-save(
-  alpha_beta_plots,
-  file = "data/output/rdata/alpha_beta_plots.rda"
-)
-load("data/output/rdata/alpha_beta_plots.rda")
-alpha_beta_plots
+# save(
+#   alpha_beta_plots,
+#   file = "data/output/rdata/alpha_beta_plots.rda"
+# )
+
 #--------------------------------------------------------
 # SECTION 5: PERMANOVA Analysis
 #--------------------------------------------------------
@@ -353,7 +360,7 @@ alpha_summary <- alpha_diversity_df %>%
     .groups = "drop"
   )
 
-cat("\n", rep("=", 60), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("Alpha Diversity Summary by Project and Crop\n")
-cat(rep("=", 60), "\n")
+cat(rep("=", 40), "\n")
 print(alpha_summary)

@@ -20,9 +20,9 @@ explore_phyloseq_list <- function(physeq_obj, obj_name) {
 
 explore_nested_phyloseq <- function(nested_list) {
   results <- purrr::imap(nested_list, function(project_list, project_name) {
-    cat("\n", rep("=", 60), "\n")
+    cat("\n", rep("=", 40), "\n")
     cat("PROJECT:", toupper(project_name), "\n")
-    cat(rep("=", 60), "\n")
+    cat(rep("=", 40), "\n")
 
     purrr::imap(project_list, function(physeq_obj, seq_type) {
       cat("\n", rep("-", 40), "\n")

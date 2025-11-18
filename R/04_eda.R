@@ -62,6 +62,7 @@ physeq_summary
 # Details for each phyloseq object in list
 nested_summary <- explore_nested_phyloseq(main_mxg_physeq_list)
 
+nested_summary
 
 #--------------------------------------------------------
 # Read Count Analysis for Nested Phyloseq
@@ -249,62 +250,82 @@ p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
 }
 
 # Individual rarefaction curves for each dataset
-ef_16S_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
-  q = 0,
-  nCores = 4,
-  type = 1
-)
+# This was complete block by block and saving to .rda object to avoid running again if failed
 
-ef_AMF_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
-  q = 0,
-  nCores = 4,
-  type = 1
-)
+# ef_16S_iNEXT <- p_iNEXt_list(
+#   main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
+#   q = 0,
+#   nCores = 4,
+#   type = 1
+# )
+# ef_AMF_iNEXT <- p_iNEXt_list(
+#   main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
+#   q = 0,
+#   nCores = 4,
+#   type = 1
+# )
+# options(future.globals.maxSize = 1000 * 1024^2)
+# lamps_16S_2018_iNEXT <- p_iNEXt_list(
+#   main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
+#   q = 0,
+#   nCores = 4,
+#   type = 1
+# )
+# lamps_ITS_2018_iNEXT <- p_iNEXt_list(
+#   main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_ITS_physeq,
+#   q = 0,
+#   nCores = 4,
+#   type = 1
+# )
+# lamps_16S_2022_iNEXT <- p_iNEXt_list(
+#   main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
+#   q = 0,
+#   nCores = 1,
+#   type = 1
+# )
+# lamps_AMF_2022_iNEXT <- p_iNEXt_list(
+#   main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
+#   q = 0,
+#   nCores = 1,
+#   type = 1
+# )
 
-options(future.globals.maxSize = 1000 * 1024^2)
-lamps_16S_2018_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
-  q = 0,
-  nCores = 4,
-  type = 1
-)
+# rarecurve_results <- list(
+#   mxg_ef = list(
+#     ef_16S_iNEXT = ef_16S_iNEXT,
+#     ef_AMF_iNEXT = ef_AMF_iNEXT
+#   ),
+#   mxg_lamps_2018 = list(
+#     lamps_16S_2018 = lamps_16S_2018_iNEXT,
+#     lamps_ITS_2018 = lamps_ITS_2018_iNEXT
+#   ),
+#   mxg_lamps_2022 = list(
+#     lamps_16S_2022 = lamps_16S_2022_iNEXT,
+#     lamps_AMF_2022 = lamps_AMF_2022_iNEXT
+#   )
+# )
 
-lamps_ITS_2018_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_ITS_physeq,
-  q = 0,
-  nCores = 4,
-  type = 1
-)
-#TODO 2025-11-18
-lamps_16S_2022_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
-  q = 0,
-  nCores = 1,
-  type = 1
-)
+# save(rarecurve_results, file = "data/output/rdata/rarecurves.rda")
+load("data/output/rdata/rarecurves.rda")
 
-lamps_AMF_2022_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
-  q = 0,
-  nCores = 1,
-  type = 1
-)
+cat("\n", rep("=", 40), "\n")
+cat("Rarefaction curves\n")
+cat(rep("=", 40), "\n")
 
-rarecurve_results <- list(
-  mxg_ef = list(
-    ef_16S_iNEXT = ef_16S_iNEXT,
-    ef_AMF_iNEXT = ef_AMF_iNEXT
-  ),
-  mxg_lamps_2018 = list(
-    lamps_16S_2018 = lamps_16S_2018_iNEXT,
-    lamps_ITS_2018 = lamps_ITS_2018_iNEXT
-  ),
-  mxg_lamps_2022 = list(
-    lamps_16S_2022 = lamps_16S_2022_iNEXT,
-    lamps_AMF_2022 = lamps_AMF_2022_iNEXT
-  )
-)
+# Printing nicely ---------------------------
+rarecurve_results %>%
+  purrr::imap(function(project_list, project_name) {
+    # Level 1: project_name = "mxg_ef"
 
-save(rarecurve_results, file = "data/output/rdata/rarecurves.rda")
+    purrr::imap(project_list, function(inext_results, inext_name) {
+      # Level 2: physeq_name = "ef_16S_iNEXT" or "ef_AMF_iNEXT"
+
+      # Extract the plot and clean the title
+      plot_title <- gsub("_|_physeq$|_iNEXT$", " ", inext_name) %>%
+        str_to_upper(.)
+
+      # Return the plot with modified title
+      inext_results$inext_plot +
+        ggplot2::labs(title = plot_title)
+    })
+  })
