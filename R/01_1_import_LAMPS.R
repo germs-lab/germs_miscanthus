@@ -312,7 +312,7 @@ lamps_2018_physeq_list <- list(
 
 save(
   lamps_2018_physeq_list,
-  file = "data/output/processed/rdata/phyloseq/lamps_2018_physeq_list.rda"
+  file = "data/output/rdata/phyloseq/lamps_2018_physeq_list.rda"
 )
 
 # Save phyloseqs independently
@@ -323,7 +323,7 @@ purrr::iwalk(
     save(
       list = .y,
       file = file.path(
-        "data/output/processed/rdata/phyloseq/",
+        "data/output/rdata/phyloseq/",
         paste0(.y, ".rda")
       )
     )
@@ -398,7 +398,7 @@ lamps_2022_physeq_list <- list(
 
 save(
   lamps_2022_physeq_list,
-  file = "data/output/processed/rdata/phyloseq/lamps_2022_physeq_list.rda"
+  file = "data/output/rdata/phyloseq/lamps_2022_physeq_list.rda"
 )
 
 
@@ -410,7 +410,7 @@ purrr::iwalk(
     save(
       list = .y,
       file = file.path(
-        "data/output/processed/rdata/phyloseq/",
+        "data/output/rdata/phyloseq/",
         paste0(.y, ".rda")
       )
     )

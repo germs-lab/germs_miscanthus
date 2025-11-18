@@ -1,10 +1,7 @@
 ###################################################################
 # Data Transformation for Microbiome of Miscanthus
 #
-# Transforming to Relative abundance and calculating
-# diversity indices. Output is dataframes with relative abundance
-# of AVS and observed, Shannon, Simpson's and Inv. Simpson
-# diversity indices.
+# Transforming to Relative abundance.
 #
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-28
@@ -44,5 +41,5 @@ purrr::map(main_mxg_relab_psq_list, function(project_list) {
 save(
   main_mxg_physeq_list,
   main_mxg_relab_psq_list,
-  file = "data/output/processed/rdata/main_mxg_psq_df_list.rda"
+  file = "data/output/rdata/main_mxg_psq_list.rda"
 )

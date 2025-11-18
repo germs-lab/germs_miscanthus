@@ -130,9 +130,13 @@ read_count_plots <- list(
 # Display plots
 print(read_count_plots)
 
+# Rarafection curves ---------------------------------
 
-# Rarefaction curves - all datasets
-# options(future.globals.maxSize = 1500 * 1024^2)
+# Mapping for rarefaction curves - all datasets
+# This errors out with:
+# The total size of the 8 globals exported for future expression (‘FUN()’) is 600.41 MiB. This exceeds the maximum allowed size 100.00 MiB per by R option "future.globals.maxSize".
+
+# options(future.globals.maxSize = 1000 * 1024^2)
 # rarecurve_results <- main_mxg_physeq_list %>%
 #   purrr::imap(function(project_list, project_name) {
 #     purrr::imap(project_list, function(physeq_obj, physeq_name) {
@@ -180,8 +184,9 @@ print(read_count_plots)
 #     })
 #   })
 
+# Individual plotting of rare curves to avoid error on future.globals.maxSize
 p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
-  # Get phyloseq object name for plot title (clean up formatting)
+  # Get phyloseq object name for plot title
 
   plot_title <- as_label(enexpr(physeq_obj)) %>% #
     str_replace_all(".*\\$", "") %>%
@@ -243,13 +248,13 @@ p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
   )
 }
 
+# Individual rarefaction curves for each dataset
 ef_16S_iNEXT <- p_iNEXt_list(
   main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
   q = 0,
   nCores = 4,
   type = 1
 )
-
 
 ef_AMF_iNEXT <- p_iNEXt_list(
   main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
@@ -258,6 +263,7 @@ ef_AMF_iNEXT <- p_iNEXt_list(
   type = 1
 )
 
+options(future.globals.maxSize = 1000 * 1024^2)
 lamps_16S_2018_iNEXT <- p_iNEXt_list(
   main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
   q = 0,
@@ -271,7 +277,20 @@ lamps_ITS_2018_iNEXT <- p_iNEXt_list(
   nCores = 4,
   type = 1
 )
+#TODO 2025-11-18
+lamps_16S_2022_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
 
+lamps_AMF_2022_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
 
 rarecurve_results <- list(
   mxg_ef = list(
@@ -281,6 +300,10 @@ rarecurve_results <- list(
   mxg_lamps_2018 = list(
     lamps_16S_2018 = lamps_16S_2018_iNEXT,
     lamps_ITS_2018 = lamps_ITS_2018_iNEXT
+  ),
+  mxg_lamps_2022 = list(
+    lamps_16S_2022 = lamps_16S_2022_iNEXT,
+    lamps_AMF_2022 = lamps_AMF_2022_iNEXT
   )
 )
 
@@ -294,5 +317,5 @@ rarecurve_results <- list(
 #   labs(title = "VVV", x = "Number of sequences")
 #   guides(color = "none", shape = "none", fill = "none")
 
-save(rarecurve_results, file = "data/output/processed/rdata/rarecurves.rda")
-load("data/output/processed/rdata/rarecurves.rda")
+save(rarecurve_results, file = "data/output/rdata/rarecurves.rda")
+load("data/output/rdata/rarecurves.rda")

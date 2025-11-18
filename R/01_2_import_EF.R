@@ -156,10 +156,10 @@ ef_physeq_list <- list(
   ef_AMF_physeq = ef_AMF_physeq
 )
 
-#dir.create("data/output/processed/rdata/phyloseq/", recursive = TRUE)
+#dir.create("data/output/rdata/phyloseq/", recursive = TRUE)
 save(
   ef_physeq_list,
-  file = "data/output/processed/rdata/phyloseq/ef_physeq_list.rda"
+  file = "data/output/rdata/phyloseq/ef_physeq_list.rda"
 )
 
 # Save phyloseqs independently
@@ -170,7 +170,7 @@ purrr::iwalk(
     save(
       list = .y,
       file = file.path(
-        "data/output/processed/rdata/phyloseq/",
+        "data/output/rdata/phyloseq/",
         paste0(.y, ".rda")
       )
     )

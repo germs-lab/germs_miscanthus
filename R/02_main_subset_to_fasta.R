@@ -34,7 +34,6 @@ mxg_ef <- purrr::map(
 )
 
 # Main list for downstream analyses
-# Main list for downstream analyses
 main_physeq_list <- list(
   ef_physeq_list = ef_physeq_list,
   lamps_2018_physeq_list = lamps_2018_physeq_list,
@@ -43,7 +42,7 @@ main_physeq_list <- list(
 
 save(
   main_physeq_list,
-  file = "data/output/processed/rdata/main_physeq_list.rda"
+  file = "data/output/rdata/main_physeq_list.rda"
 )
 
 main_mxg_physeq_list <- list(
@@ -54,7 +53,7 @@ main_mxg_physeq_list <- list(
 
 save(
   main_mxg_physeq_list,
-  file = "data/output/processed/rdata/main_mxg_physeq_list.rda"
+  file = "data/output/rdata/main_mxg_physeq_list.rda"
 )
 
 # Phyloseq to FASTA
@@ -64,39 +63,39 @@ save(
 # Full
 refseq2fasta(
   lamps_2018_physeq_list,
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 refseq2fasta(
   lamps_2022_physeq_list,
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 # MXG
 refseq2fasta(
   mxg_lamps_2018,
   extra_id = "_mxg",
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 refseq2fasta(
   mxg_lamps_2022,
   extra_id = "_mxg",
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 # Energy Farm Collab
 # Full
 refseq2fasta(
   ef_physeq_list,
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 # MXG
 refseq2fasta(
   mxg_ef,
   extra_id = "_mxg",
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 

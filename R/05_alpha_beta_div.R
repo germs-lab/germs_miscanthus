@@ -89,13 +89,13 @@ alpha_diversity_plots <- purrr::imap(
       comparison_setting <- {
         if (is.null(comparisons)) {
           ggpubr::stat_compare_means(
-            aes(label = after_stat(p.signif)),
             comparisons = comparisons,
-            method = "anova",
-            symnum.args = list(
-              cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
-              symbols = c("****", "***", "**", "*", "ns")
-            )
+            method = "wilcox.test",
+            label = "p.signif"
+            # symnum.args = list(
+            #   cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
+            #   symbols = c("****", "***", "**", "*", "ns")
+            # )
           )
         }
       }
@@ -175,7 +175,56 @@ alpha_diversity_plots <- purrr::imap(
     })
   }
 )
-# Alpha diversity plots are stored in the nested list
+# Alpha diversity plots
+# my_comparisons <- list(c("MXG", "SB"), c("MXG", "ZM"), c("ZM", "SB"))
+
+# # Determine grouping variable
+# group_var <- names(alpha_diversity_results$ef_physeq_list$ef_16S_physeq)[
+#   names(alpha_diversity_results$ef_physeq_list$ef_16S_physeq) %in%
+#     names(comparison_map)
+# ][1]
+
+# comparison_setting <- {
+#   if (is.null(comparisons)) {
+#     ggpubr::stat_compare_means(
+#       comparisons = comparisons,
+#       method = "anova",
+#       label = "p.signif"
+#       # symnum.args = list(
+#       #   cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
+#       #   symbols = c("****", "***", "**", "*", "ns")
+#       # )
+#     )
+#   }
+# }
+# p_shannon <- ggplot(
+#   alpha_diversity_results$ef_physeq_list$ef_16S_physeq,
+#   aes(x = .data[[group_var]], y = shannon, fill = .data[[group_var]])
+# ) +
+#   geom_boxplot(alpha = 0.7) +
+#   geom_jitter(width = 0.2, alpha = 0.5) +
+#   labs(
+#     title = "Shannon Diversity",
+#     #subtitle = physeq_name,
+#     x = group_var,
+#     y = "Shannon Index"
+#   ) +
+#   theme_minimal() +
+#   theme(
+#     axis.text.x = element_text(angle = 45, hjust = 1),
+#     legend.position = "none"
+#   ) +
+#   ggpubr::stat_compare_means(
+#     comparisons = my_comparisons,
+#     method = "anova",
+#     label = "p.signif"
+#     # symnum.args = list(
+#     #   cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
+#     #   symbols = c("****", "***", "**", "*", "ns")
+#     # )
+#   )
+
+#   p_shannon
 print(alpha_diversity_plots)
 # TODO
 # Fix comparisons in alpha diversity
@@ -225,16 +274,17 @@ beta_diversity_plots <- purrr::imap(
 print(beta_diversity_plots)
 
 
-# Checkpooint
+# Checkpoint
 alpha_beta_plots <- list(
   alpha_diversity_plots = alpha_diversity_plots,
   beta_diversity_plots = beta_diversity_plots
 )
 save(
   alpha_beta_plots,
-  file = "data/output/processed/rdata/alpha_beta_plots.rda"
+  file = "data/output/rdata/alpha_beta_plots.rda"
 )
-
+load("data/output/rdata/alpha_beta_plots.rda")
+alpha_beta_plots
 #--------------------------------------------------------
 # SECTION 5: PERMANOVA Analysis
 #--------------------------------------------------------
