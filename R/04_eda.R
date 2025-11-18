@@ -132,56 +132,57 @@ print(read_count_plots)
 
 
 # Rarefaction curves - all datasets
-options(future.globals.maxSize = 1500 * 1024^2)
-rarecurve_results <- main_mxg_physeq_list %>%
-  purrr::imap(function(project_list, project_name) {
-    purrr::imap(project_list, function(physeq_obj, physeq_name) {
-      # Get phyloseq object name for plot title (clean up formatting)
-      plot_title <- gsub("_physeq$", "", physeq_name) %>%
-        gsub("_", " ", .) %>%
-        tools::toTitleCase(.)
+# options(future.globals.maxSize = 1500 * 1024^2)
+# rarecurve_results <- main_mxg_physeq_list %>%
+#   purrr::imap(function(project_list, project_name) {
+#     purrr::imap(project_list, function(physeq_obj, physeq_name) {
+#       # Get phyloseq object name for plot title (clean up formatting)
+#       plot_title <- gsub("_physeq$", "", physeq_name) %>%
+#         gsub("_", " ", .) %>%
+#         tools::toTitleCase(.)
 
-      otu_mat <- physeq_obj %>%
-        otu_table() %>%
-        data.frame() %>%
-        as.matrix() %>%
-        t()
+#       otu_mat <- physeq_obj %>%
+#         otu_table() %>%
+#         data.frame() %>%
+#         as.matrix() %>%
+#         t()
 
-      # Calculate endpoint
-      max_lib_size <- max(rowSums(otu_mat))
-      endpoint <- max_lib_size * 2
+#       # Calculate endpoint
+#       max_lib_size <- max(rowSums(otu_mat))
+#       endpoint <- max_lib_size * 2
 
-      # Run parallel iNEXT
-      inext_result <- p_iNEXT(
-        x = otu_mat,
-        q = c(0, 1, 2),
-        endpoint = endpoint,
-        nboot = 100,
-        nCores = 6,
-        combine = TRUE,
-        verbose = TRUE
-      )
+#       # Run parallel iNEXT
+#       inext_result <- p_iNEXT(
+#         x = otu_mat,
+#         q = c(0, 1, 2),
+#         endpoint = endpoint,
+#         nboot = 100,
+#         nCores = 6,
+#         combine = TRUE,
+#         verbose = TRUE
+#       )
 
-      # Create ggiNEXT plot with phyloseq object name as title
-      inext_plot <- ggiNEXT(
-        inext_result,
-        type = 1,
-        facet.var = "Order.q",
-        color.var = "Assemblage"
-      ) +
-        theme_bw() +
-        labs(title = plot_title)
+#       # Create ggiNEXT plot with phyloseq object name as title
+#       inext_plot <- ggiNEXT(
+#         inext_result,
+#         type = 1,
+#         facet.var = "Order.q",
+#         color.var = "Assemblage"
+#       ) +
+#         theme_bw() +
+#         labs(title = plot_title)
 
-      # Return both iNEXT result and plot
-      list(
-        inext_result = inext_result,
-        inext_plot = inext_plot
-      )
-    })
-  })
+#       # Return both iNEXT result and plot
+#       list(
+#         inext_result = inext_result,
+#         inext_plot = inext_plot
+#       )
+#     })
+#   })
 
-p_iNEXt_list <- function(physeq_obj, nCores = 1, type = 1) {
+p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
   # Get phyloseq object name for plot title (clean up formatting)
+
   plot_title <- as_label(enexpr(physeq_obj)) %>% #
     str_replace_all(".*\\$", "") %>%
     str_remove("_physeq$") %>%
@@ -195,12 +196,20 @@ p_iNEXt_list <- function(physeq_obj, nCores = 1, type = 1) {
 
   # Calculate endpoint
   max_lib_size <- max(rowSums(otu_mat))
-  endpoint <- max_lib_size * 2
+  endpoint <- max_lib_size * 1.25
+
+  # Helper function to make norrow lines
+  set_layer_param <- function(plot, i, param, value) {
+    if (!is.null(plot$layers[[i]]$aes_params)) {
+      plot$layers[[i]]$aes_params[[param]] <- value
+    }
+    plot
+  }
 
   # Run parallel iNEXT
   inext_result <- p_iNEXT(
     x = otu_mat,
-    q = c(0, 1, 2),
+    q = q,
     endpoint = endpoint,
     nboot = 100,
     nCores = nCores,
@@ -211,6 +220,7 @@ p_iNEXt_list <- function(physeq_obj, nCores = 1, type = 1) {
   # Create ggiNEXT plot with phyloseq object name as title
   inext_plot <- ggiNEXT(
     inext_result,
+    se = FALSE,
     type = type,
     facet.var = "Order.q",
     color.var = "Assemblage"
@@ -218,6 +228,13 @@ p_iNEXt_list <- function(physeq_obj, nCores = 1, type = 1) {
     theme_bw() +
     labs(title = plot_title, x = "Number of sequences") +
     guides(color = "none", shape = "none", fill = "none")
+
+  # We want narrow lines and no shape
+  narrow <- set_layer_param(inext_plot, 1, "size", 0)
+  narrow <- set_layer_param(inext_plot, 2, "linewidth", 0.5)
+
+  # assign back into your results list
+  inext_plot_narrow <- narrow
 
   # Return both iNEXT result and plot
   list(
@@ -228,21 +245,43 @@ p_iNEXt_list <- function(physeq_obj, nCores = 1, type = 1) {
 
 ef_16S_iNEXT <- p_iNEXt_list(
   main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
+  q = 0,
   nCores = 4,
   type = 1
 )
-ef_16S_iNEXT$inext_plot
+
 
 ef_AMF_iNEXT <- p_iNEXt_list(
   main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
+  q = 0,
   nCores = 4,
   type = 1
 )
 
-ef_AMF_iNEXT$inext_plot
+lamps_16S_2018_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
+
+lamps_ITS_2018_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_ITS_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
+
 
 rarecurve_results <- list(
-  mxg_ef = list(ef_16S_iNEXT = ef_16S_iNEXT, ef_AMF_iNEXT = ef_AMF_iNEXT)
+  mxg_ef = list(
+    ef_16S_iNEXT = ef_16S_iNEXT,
+    ef_AMF_iNEXT = ef_AMF_iNEXT
+  ),
+  mxg_lamps_2018 = list(
+    lamps_16S_2018 = lamps_16S_2018_iNEXT,
+    lamps_ITS_2018 = lamps_ITS_2018_iNEXT
+  )
 )
 
 # ggiNEXT(
@@ -256,3 +295,4 @@ rarecurve_results <- list(
 #   guides(color = "none", shape = "none", fill = "none")
 
 save(rarecurve_results, file = "data/output/processed/rdata/rarecurves.rda")
+load("data/output/processed/rdata/rarecurves.rda")
