@@ -45,7 +45,7 @@ devtools::source_url(
 
 # Objects
 list.files(
-  here::here("data/output/processed/rdata"),
+  here::here("data/output/rdata"),
   full.names = TRUE,
   recursive = FALSE,
   pattern = "list\\.rda$"

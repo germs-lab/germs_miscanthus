@@ -281,14 +281,14 @@ lamps_ITS_2018_iNEXT <- p_iNEXt_list(
 lamps_16S_2022_iNEXT <- p_iNEXt_list(
   main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
   q = 0,
-  nCores = 4,
+  nCores = 1,
   type = 1
 )
 
 lamps_AMF_2022_iNEXT <- p_iNEXt_list(
   main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
   q = 0,
-  nCores = 4,
+  nCores = 1,
   type = 1
 )
 
@@ -307,15 +307,4 @@ rarecurve_results <- list(
   )
 )
 
-# ggiNEXT(
-#   test$inext_result,
-#   type = 1,
-#   facet.var = "Order.q",
-#   color.var = "Assemblage"
-# ) +
-#   theme_bw() +
-#   labs(title = "VVV", x = "Number of sequences")
-#   guides(color = "none", shape = "none", fill = "none")
-
 save(rarecurve_results, file = "data/output/rdata/rarecurves.rda")
-load("data/output/rdata/rarecurves.rda")
