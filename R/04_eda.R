@@ -252,61 +252,61 @@ p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
 # Individual rarefaction curves for each dataset
 # This was complete block by block and saving to .rda object to avoid running again if failed
 
-# ef_16S_iNEXT <- p_iNEXt_list(
-#   main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
-#   q = 0,
-#   nCores = 4,
-#   type = 1
-# )
-# ef_AMF_iNEXT <- p_iNEXt_list(
-#   main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
-#   q = 0,
-#   nCores = 4,
-#   type = 1
-# )
-# options(future.globals.maxSize = 1000 * 1024^2)
-# lamps_16S_2018_iNEXT <- p_iNEXt_list(
-#   main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
-#   q = 0,
-#   nCores = 4,
-#   type = 1
-# )
-# lamps_ITS_2018_iNEXT <- p_iNEXt_list(
-#   main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_ITS_physeq,
-#   q = 0,
-#   nCores = 4,
-#   type = 1
-# )
-# lamps_16S_2022_iNEXT <- p_iNEXt_list(
-#   main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
-#   q = 0,
-#   nCores = 1,
-#   type = 1
-# )
-# lamps_AMF_2022_iNEXT <- p_iNEXt_list(
-#   main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
-#   q = 0,
-#   nCores = 1,
-#   type = 1
-# )
+ef_16S_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
+ef_AMF_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
+options(future.globals.maxSize = 1000 * 1024^2)
+lamps_16S_2018_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
+lamps_ITS_2018_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_ITS_physeq,
+  q = 0,
+  nCores = 4,
+  type = 1
+)
+lamps_16S_2022_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
+  q = 0,
+  nCores = 1,
+  type = 1
+)
+lamps_AMF_2022_iNEXT <- p_iNEXt_list(
+  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
+  q = 0,
+  nCores = 1,
+  type = 1
+)
 
-# rarecurve_results <- list(
-#   mxg_ef = list(
-#     ef_16S_iNEXT = ef_16S_iNEXT,
-#     ef_AMF_iNEXT = ef_AMF_iNEXT
-#   ),
-#   mxg_lamps_2018 = list(
-#     lamps_16S_2018 = lamps_16S_2018_iNEXT,
-#     lamps_ITS_2018 = lamps_ITS_2018_iNEXT
-#   ),
-#   mxg_lamps_2022 = list(
-#     lamps_16S_2022 = lamps_16S_2022_iNEXT,
-#     lamps_AMF_2022 = lamps_AMF_2022_iNEXT
-#   )
-# )
+rarecurve_results <- list(
+  mxg_ef = list(
+    ef_16S_iNEXT = ef_16S_iNEXT,
+    ef_AMF_iNEXT = ef_AMF_iNEXT
+  ),
+  mxg_lamps_2018 = list(
+    lamps_16S_2018 = lamps_16S_2018_iNEXT,
+    lamps_ITS_2018 = lamps_ITS_2018_iNEXT
+  ),
+  mxg_lamps_2022 = list(
+    lamps_16S_2022 = lamps_16S_2022_iNEXT,
+    lamps_AMF_2022 = lamps_AMF_2022_iNEXT
+  )
+)
 
 # save(rarecurve_results, file = "data/output/rdata/rarecurves.rda")
-load("data/output/rdata/rarecurves.rda")
+#load("data/output/rdata/rarecurves.rda")
 
 cat("\n", rep("=", 40), "\n")
 cat("Rarefaction curves\n")
