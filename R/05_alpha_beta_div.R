@@ -75,7 +75,7 @@ get_comparisons <- function(data, physeq_name, comparison_map) {
   return(NULL)
 }
 
-# Create alpha diversity plots for each phyloseq object
+# Alpha diversity plots for each phyloseq object
 alpha_diversity_plots <- purrr::imap(
   alpha_diversity_results,
   function(project_list, project_name) {
@@ -104,57 +104,46 @@ alpha_diversity_plots <- purrr::imap(
       theme_settings <- list(
         theme_minimal(),
         theme(
-          plot.title = element_text(size = 12),
-          plot.subtitle = element_text(size = 10),
+          plot.title = element_text(size = 8),
+          plot.subtitle = element_text(size = 6),
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "none"
         )
       )
-      # Shannon diversity plot
-      p_shannon <- ggplot(
+
+      # Observed richness plot
+      p_observed <- create_alpha_plot(
         alpha_data,
-        aes(x = .data[[group_var]], y = shannon, fill = .data[[group_var]])
+        group_var = "crop",
+        "observed",
+        title = "Observed Richness",
+        subtitle = physeq_name,
+        y_title_add = "index"
       ) +
-        geom_boxplot(alpha = 0.7) +
-        geom_jitter(width = 0.2, alpha = 0.5) +
-        labs(
-          title = "Shannon Diversity",
-          subtitle = physeq_name,
-          x = group_var,
-          y = "Shannon Index"
-        ) +
         comparison_setting +
         theme_settings
 
-      # Observed richness plot
-      p_observed <- ggplot(
+      # Shannon diversity plot
+      p_shannon <- create_alpha_plot(
         alpha_data,
-        aes(x = .data[[group_var]], y = observed, fill = .data[[group_var]])
+        group_var = "crop",
+        "shannon",
+        title = "Shannon Diversity",
+        subtitle = physeq_name,
+        y_title_add = "index"
       ) +
-        geom_boxplot(alpha = 0.7) +
-        geom_jitter(width = 0.2, alpha = 0.5) +
-        labs(
-          title = "Observed Richness",
-          subtitle = physeq_name,
-          x = group_var,
-          y = "Observed ASVs"
-        ) +
         comparison_setting +
         theme_settings
 
       # Simpson diversity plot
-      p_simpson <- ggplot(
+      p_simpson <- create_alpha_plot(
         alpha_data,
-        aes(x = .data[[group_var]], y = simpson, fill = .data[[group_var]])
+        group_var = "crop",
+        "simpson",
+        title = "Simpson Diversity",
+        subtitle = physeq_name,
+        y_title_add = "index"
       ) +
-        geom_boxplot(alpha = 0.7) +
-        geom_jitter(width = 0.2, alpha = 0.5) +
-        labs(
-          title = "Simpson Diversity",
-          subtitle = physeq_name,
-          x = group_var,
-          y = "Simpson Index"
-        ) +
         comparison_setting +
         theme_settings
 
@@ -174,56 +163,6 @@ alpha_diversity_plots <- purrr::imap(
     })
   }
 )
-# Alpha diversity plots
-# my_comparisons <- list(c("MXG", "SB"), c("MXG", "ZM"), c("ZM", "SB"))
-
-# # Determine grouping variable
-# group_var <- names(alpha_diversity_results$ef_physeq_list$ef_16S_physeq)[
-#   names(alpha_diversity_results$ef_physeq_list$ef_16S_physeq) %in%
-#     names(comparison_map)
-# ][1]
-
-# comparison_setting <- {
-#   if (is.null(comparisons)) {
-#     ggpubr::stat_compare_means(
-#       comparisons = comparisons,
-#       method = "anova",
-#       label = "p.signif"
-#       # symnum.args = list(
-#       #   cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
-#       #   symbols = c("****", "***", "**", "*", "ns")
-#       # )
-#     )
-#   }
-# }
-# p_shannon <- ggplot(
-#   alpha_diversity_results$ef_physeq_list$ef_16S_physeq,
-#   aes(x = .data[[group_var]], y = shannon, fill = .data[[group_var]])
-# ) +
-#   geom_boxplot(alpha = 0.7) +
-#   geom_jitter(width = 0.2, alpha = 0.5) +
-#   labs(
-#     title = "Shannon Diversity",
-#     #subtitle = physeq_name,
-#     x = group_var,
-#     y = "Shannon Index"
-#   ) +
-#   theme_minimal() +
-#   theme(
-#     axis.text.x = element_text(angle = 45, hjust = 1),
-#     legend.position = "none"
-#   ) +
-#   ggpubr::stat_compare_means(
-#     comparisons = my_comparisons,
-#     method = "anova",
-#     label = "p.signif"
-#     # symnum.args = list(
-#     #   cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
-#     #   symbols = c("****", "***", "**", "*", "ns")
-#     # )
-#   )
-
-#   p_shannon
 
 cat("\n", rep("=", 40), "\n")
 cat("Alpha Diversity by Project and Crop\n")
