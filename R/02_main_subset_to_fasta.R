@@ -34,6 +34,7 @@ mxg_ef <- purrr::map(
 )
 
 # Main list for downstream analyses
+# All projects/datasets with all target regions
 main_physeq_list <- list(
   ef_physeq_list = ef_physeq_list,
   lamps_2018_physeq_list = lamps_2018_physeq_list,
@@ -45,6 +46,7 @@ save(
   file = "data/output/rdata/main_physeq_list.rda"
 )
 
+# Only MXG data from projects with all target regions
 main_mxg_physeq_list <- list(
   mxg_ef = mxg_ef,
   mxg_lamps_2018 = mxg_lamps_2018,
@@ -54,6 +56,18 @@ main_mxg_physeq_list <- list(
 save(
   main_mxg_physeq_list,
   file = "data/output/rdata/main_mxg_physeq_list.rda"
+)
+
+# Only 16S data for all projects
+# Subset to oly 16S data
+main_16S_physeq_list <- list(
+  ef_16S = ef_physeq_list$ef_16S_physeq,
+  lamps_2018_16S = lamps_2018_physeq_list$lamps_2018_16S_physeq,
+  lamps_2022_16S = lamps_2022_physeq_list$lamps_2022_16S_physeq
+)
+save(
+  main_16S_physeq_list,
+  file = "data/output/rdata/main_16S_physeq_list.rda"
 )
 
 # Phyloseq to FASTA
