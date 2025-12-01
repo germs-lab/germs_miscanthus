@@ -1,0 +1,79 @@
+---
+title: "Miscanthus: Abundance-Occupancy Report"
+author:
+  - "Bolívar Aponte Rolón"
+date: last-modified
+format:
+#  html:
+#    theme: cosmo
+#    toc: true
+#    toc-depth: 3
+#    number-sections: true
+#    code-fold: true
+#    df-print: paged
+  pdf:
+    documentclass: scrartcl
+    papersize: letter
+
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: false
+  freeze: auto
+  # fig-width: 10
+  # fig-height: 7
+  # fig-dpi: 300
+  # fig-format: "png"
+---
+
+# About this report
+
+This Quarto report executes two existing analysis scripts:
+
+-   `06_abund_occupancy.R` — Abudnace-Coccupancy Analyses
+
+Both scripts assume project-root working directory (for sourcing `R/utils/00_setup.R`). Place this `.qmd` at the repository root so relative paths resolve as expected.
+
+If your environment needs it, ensure all packages used by the scripts are installed before rendering.
+
+::: callout-note
+Render from the repository root:
+
+-   CLI: `quarto render mxg_abun_occu_report.qmd --execute-dir .`
+-   R: `quarto::quarto_render("mxg_abun_occu_report.qm")`
+:::
+
+```{r}
+#| label: setup
+#| include: false
+# Keep objects in the global knit environment so both scripts can share state if needed
+knitr::knit_hooks$set(document = function(x) x)
+# sets the working directory for code execution to the repo root
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+# Section 1 — Abundace-Occupancy Analyses
+
+This section runs the full workflow in [06_abund_occupancy.R](R/06_abund_occupancy.R), including:
+
+- Abundance-Occupancy plots
+```{r}
+#| label: run-abundance-occupancy
+#| results: 'markup'
+#| fig-cap-location: bottom
+source(
+  "R/06_abund_occupancy.R",
+  local = knitr::knit_global(),
+  echo = TRUE,
+  print.eval = TRUE
+)
+```
+
+
+# Session information
+
+```{r}
+#| label: session-info
+sessionInfo()
+```

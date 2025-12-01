@@ -59,7 +59,7 @@ abundance_occ_plots <- purrr::imap(
               physeq_name,
               " - ",
               crop_name,
-              "(threshold:",
+              " (threshold:",
               threshold,
               ")"
             )
@@ -76,7 +76,17 @@ abundance_occ_plots <- purrr::imap(
     ))
   }
 )
-abundance_occ_plots$ef_16S$overall_plots$threshold_0.5
-abundance_occ_plots$ef_16S$by_crop_plots$MXG$threshold_0.5
-abundance_occ_plots$lamps_2018_16S$abund_occ_plot
-abundance_occ_plots$lamps_2022_16S$abund_occ_plot
+
+abundance_occ_plots$ef_16S$overall_plots$threshold_0.6
+abundance_occ_plots$ef_16S$by_crop_plots$MXG$threshold_0.6
+abundance_occ_plots$ef_16S$by_crop_plots$SB$threshold_0.6
+abundance_occ_plots$ef_16S$by_crop_plots$ZM$threshold_0.6
+
+abundance_occ_plots$lamps_2018_16S$overall_plots$threshold_0.6
+abundance_occ_plots$lamps_2018_16S$by_crop_plots$M$threshold_0.6
+abundance_occ_plots$lamps_2018_16S$by_crop_plots$C$threshold_0.6
+
+abundance_occ_plots$lamps_2022_16S$overall_plots$threshold_0.6
+abundance_occ_plots$lamps_2022_16S$by_crop_plots$Miscanthus$threshold_0.6
+abundance_occ_plots$lamps_2022_16S$by_crop_plots$Maize$threshold_0.6
+abundance_occ_plots$lamps_2022_16S$by_crop_plots$Grass$threshold_0.6
