@@ -1,14 +1,25 @@
 ###################################################################
 # From Phyloseq to FASTA
+#
+# Script for building main phyloseq objest used throughout the project. Use of lists to organize phyloseq objects and projects.
+
+# It also extracts and concatenates sequences and exports them to FASTA. In the process, the renamed and concatenated sequences are reassigned to the phyloseq object.
+
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-23
 ###################################################################
 
 source("R/utils/00_setup.R")
 
+load("data/output/rdata/phyloseq/lamps_2018_physeq_list.rda")
+load("data/output/rdata/phyloseq/lamps_2022_physeq_list.rda")
+load("data/output/rdata/phyloseq/ef_physeq_list.rda")
 
+# ---------------------------------------------------
 # Subset phyloseq by plant type
-# To subset the actual phyloseq object
+# ---------------------------------------------------
+
+# To subset the actual phyloseq object by MXG
 mxg_lamps_2018 <- purrr::map(
   lamps_2018_physeq_list,
   ~ {
@@ -45,8 +56,10 @@ save(
   main_physeq_list,
   file = "data/output/rdata/main_physeq_list.rda"
 )
-
+# ---------------------------------------------------
 # Only MXG data from projects with all target regions
+# ---------------------------------------------------
+
 main_mxg_physeq_list <- list(
   mxg_ef = mxg_ef,
   mxg_lamps_2018 = mxg_lamps_2018,
@@ -58,12 +71,20 @@ save(
   file = "data/output/rdata/main_mxg_physeq_list.rda"
 )
 
+# ---------------------------------------------------
 # Only 16S data for all projects
-# Subset to oly 16S data
+# ---------------------------------------------------
+
+# Subset to only 16S DNA data
+lamps_2018_16S_DNA <- lamps_2018_physeq_list$lamps_2018_16S_physeq %>%
+  subset_samples(., nucleotide == "DNA") %>%
+  filter_taxa(., function(x) sum(x > 0) > 0, TRUE)
+
+
 main_16S_physeq_list <- list(
-  ef_16S = ef_physeq_list$ef_16S_physeq,
-  lamps_2018_16S = lamps_2018_physeq_list$lamps_2018_16S_physeq,
-  lamps_2022_16S = lamps_2022_physeq_list$lamps_2022_16S_physeq
+  ef_16S_DNA = ef_physeq_list$ef_16S_physeq,
+  lamps_2018_16S_DNA = lamps_2018_16S_DNA,
+  lamps_2022_16S_DNA = lamps_2022_physeq_list$lamps_2022_16S_physeq
 )
 save(
   main_16S_physeq_list,
@@ -73,8 +94,8 @@ save(
 # Phyloseq to FASTA
 # create output dir
 
-# LAMPS
-# Full
+# LAMPS --------------------------
+# Full with all target regions
 refseq2fasta(
   lamps_2018_physeq_list,
   out_dir = "data/output/sequences"
@@ -85,7 +106,7 @@ refseq2fasta(
   out_dir = "data/output/sequences"
 )
 
-# MXG
+# MXG with all target regions
 refseq2fasta(
   mxg_lamps_2018,
   extra_id = "_mxg",
@@ -98,14 +119,14 @@ refseq2fasta(
   out_dir = "data/output/sequences"
 )
 
-# Energy Farm Collab
-# Full
+# Energy Farm Collab --------------------------
+# Fullwith all target regions
 refseq2fasta(
   ef_physeq_list,
   out_dir = "data/output/sequences"
 )
 
-# MXG
+# MXG with all target regions
 refseq2fasta(
   mxg_ef,
   extra_id = "_mxg",
@@ -113,14 +134,65 @@ refseq2fasta(
 )
 
 
+# Only 16S DNA data --------------------------
+refseq2fasta(
+  main_16S_physeq_list,
+  out_dir = "data/output/sequences"
+)
+# In the case of ef_16S.fa = ef_16S_DNA.fa and lamps_2022_16S = lamps_16S_DNA.fa, the resulting files with the "_DNA" suffix should be the same as when output with "all target regions" since they only contain 1 nucleotide.
+
+# ---------------------------------------------------
 # Concatenate and export per target region
+# ---------------------------------------------------
+
 target_regions <- c("16S", "ITS", "AMF")
 
+
 # Export and summary
-results <- purrr::map(target_regions, process_fa) %>%
+# MXG, regions and nucleotides together, exported as individual files
+results <- purrr::map(
+  target_regions,
+  function(region) {
+    process_fa(
+      region,
+      path = "data/output/sequences/",
+      primary_suffix = "_combined_asv_renamed.fa",
+      prefix = "mxg_",
+      secondary_suffix = "_mxg.fa"
+    )
+  }
+) %>%
   set_names(target_regions)
 purrr::map_dfr(results, ~ data.frame(.x), .id = "region")
 
-# All together
-result <- list(all_regions = process_fa(region = target_regions, .all = "all"))
+
+# MXG, target regions and nucleotides together exported as combined file
+result <- list(
+  all_regions = process_fa(
+    region = target_regions,
+    path = "data/output/sequences/",
+    combined_suffix = "_combined_asv_renamed.fa",
+    prefix = "mxg_",
+    target_suffix = "_mxg.fa",
+    .all = "all"
+  )
+)
 purrr::map_dfr(result, ~ data.frame(.x), .id = "region")
+
+
+# 16S region and DNA nucleotide - all crops
+results_16S_DNA <- purrr::map(
+  "16S",
+  function(region) {
+    process_fa(
+      region,
+      path = "data/output/sequences/",
+      combined_suffix = "_DNA_combined_asv_renamed.fa",
+      prefix = "all_",
+      target_suffix = "_DNA.fa",
+      .all = "16S"
+    )
+  }
+) %>%
+  set_names("16S")
+purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
