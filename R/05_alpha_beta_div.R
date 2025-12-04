@@ -169,7 +169,7 @@ cat("Alpha Diversity by Project and Crop\n")
 cat(rep("=", 40), "\n")
 print(alpha_diversity_plots)
 # TODO
-# Fix comparisons in alpha diversity
+# Fix comparisons in alpha diversity - priority: normal
 
 #--------------------------------------------------------
 # SECTION 3: Beta Diversity Analysis
@@ -177,8 +177,8 @@ print(alpha_diversity_plots)
 
 # Calculate beta diversity (Bray-Curtis dissimilarity)
 beta_diversity_results <- calculate_beta_diversity_nested(
-  main_physeq_list,
-  method = "PCoA",
+  main_hellgr_physeq_list,
+  method = "NMDS",
   distance = "bray"
 )
 

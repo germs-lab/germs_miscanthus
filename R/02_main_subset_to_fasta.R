@@ -201,4 +201,68 @@ results_16S_DNA <- purrr::map(
   set_names("16S")
 purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
 
-# Concatenating all sequences and otu tables
+# -----------------------------------------------------------------
+# Concatenating all otu tables for 16S DNA phyloseqs
+# -----------------------------------------------------------------
+ef_otu_table <- main_16S_physeq_list$ef_16S_DNA %>%
+  otu_table() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(., var = "sample_id")
+
+lamps_2018_otu_table <- main_16S_physeq_list$lamps_2018_16S_DNA %>%
+  otu_table() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(., var = "sample_id")
+
+lamps_2022_otu_table <- main_16S_physeq_list$lamps_2022_16S_DNA %>%
+  otu_table() %>%
+  as.data.frame() %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(., var = "sample_id")
+
+
+combined_seqtab <- full_join(
+  {
+    full_join(
+      ef_otu_table,
+      lamps_2018_otu_table,
+      join_by("sample_id")
+    )
+  },
+  lamps_2022_otu_table,
+  join_by("sample_id")
+)
+
+
+# Replace resulting NAs
+combined_seqtab_DT <- data.table::as.data.table(combined_seqtab)
+for (j in seq_len(ncol(combined_seqtab_DT))) {
+  data.table::set(
+    combined_seqtab_DT,
+    which(is.na(combined_seqtab_DT[[j]])),
+    j,
+    0
+  )
+}
+
+# Ensuring types
+combined_seqtab_DT[,
+  (names(combined_seqtab_DT)) := lapply(.SD, function(x) {
+    if (is.numeric(x)) as.integer(x) else x
+  })
+]
+
+new_16S_DNA_seqtab <- combined_seqtab_DT %>%
+  column_to_rownames(., var = "sample_id") %>%
+  as.matrix()
+
+save(new_16S_DNA_seqtab, file = "data/output/rdata/new_16S_DNS_seqtab.rda")
+# TODO
+# This new seqtab matrix is meant to be used to reassign taxonomy. Another approach is to take the taxonomy tables and reassing sequence ID to a concatenated table of all projects then subset by project.
+
+!duplicated(colnames(new_16S_DNA_seqtab))
