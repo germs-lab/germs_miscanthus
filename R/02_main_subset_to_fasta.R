@@ -149,6 +149,8 @@ target_regions <- c("16S", "ITS", "AMF")
 
 
 # Export and summary
+# process_fa() takes preexisting FASTA files when given file names, combines and reassigns sequence tags.
+
 # MXG, regions and nucleotides together, exported as individual files
 results <- purrr::map(
   target_regions,
@@ -156,9 +158,10 @@ results <- purrr::map(
     process_fa(
       region,
       path = "data/output/sequences/",
-      primary_suffix = "_combined_asv_renamed.fa",
+      combined_suffix = "_combined_asv_renamed.fa",
       prefix = "mxg_",
-      secondary_suffix = "_mxg.fa"
+      target_suffix = "_mxg.fa",
+      new_headers = FALSE
     )
   }
 ) %>%
@@ -174,6 +177,7 @@ result <- list(
     combined_suffix = "_combined_asv_renamed.fa",
     prefix = "mxg_",
     target_suffix = "_mxg.fa",
+    new_headers = FALSE,
     .all = "all"
   )
 )
@@ -196,3 +200,5 @@ results_16S_DNA <- purrr::map(
 ) %>%
   set_names("16S")
 purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
+
+# Concatenating all sequences and otu tables

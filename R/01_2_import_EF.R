@@ -68,7 +68,7 @@ tax_table(ef_16S_physeq)
 sample_data(ef_16S_physeq)
 
 # Add refseq
-ef_16S_physeq <- add_refseq(ef_16S_physeq, tag = "ASV_")
+ef_16S_physeq <- add_refseq(ef_16S_physeq, tag = NA, seq_to_name = TRUE)
 
 # Any other missing or dropped sample?
 post_physeq_missing <- base::setdiff(
@@ -136,8 +136,7 @@ tax_table(ef_AMF_physeq)
 sample_data(ef_AMF_physeq)
 
 # Add refseq
-ef_AMF_physeq <- add_refseq(ef_AMF_physeq, tag = "ASV_")
-
+ef_AMF_physeq <- add_refseq(ef_AMF_physeq, tag = NA, seq_to_name = TRUE)
 
 # Any other missing or dropped sample?
 post_physeq_missing <- base::setdiff(

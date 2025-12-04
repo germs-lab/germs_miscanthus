@@ -4,7 +4,8 @@ process_fa <- function(
   combined_suffix = "_combined_asv_renamed.fa",
   prefix = NULL,
   target_suffix = NULL,
-  .all = NULL
+  .all = NULL,
+  new_headers = TRUE
 ) {
   # Determine file selection logic
   if (is.null(.all)) {
@@ -41,8 +42,9 @@ process_fa <- function(
   unique_df <- all_sequences_df[!duplicated(all_sequences_df$seq.text), ]
 
   # Rename ASVs
-  unique_df$seq.name <- paste0("ASV_", seq_len(nrow(unique_df)))
-
+  if (new_headers) {
+    unique_df$seq.name <- paste0("ASV_", seq_len(nrow(unique_df)))
+  }
   # Save to file using dat2fasta
   phylotools::dat2fasta(unique_df, outfile = output_path)
 

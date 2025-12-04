@@ -264,7 +264,7 @@ write_csv(
 )
 
 # Matching metadata to Millican created phyloseq
-load("data/input/LAMPS/ITS_sequencing/manuscript_all_data.rda")
+load("data/input/LAMPS/ITS_sequencing/manuscript_all_data.rda") # This is where ps.f comes from.
 rm(df.meta)
 
 # Mismatches
@@ -360,12 +360,17 @@ lamps_metadata_2022 <- read_xlsx(
 otu_table(lamps_2022_16S) <- otu_table(t(otu_table(lamps_2022_16S)))
 otu_table(lamps_2022_AMF) <- otu_table(t(otu_table(lamps_2022_AMF)))
 
-# Update taxa names
+# Update taxa names back to sequences
 list(lamps_2022_16S, lamps_2022_AMF) %>%
   purrr::map(
     ~ {
-      taxa_names(.x) <- gsub("^ASV([0-9]+)$", "ASV_\\1", taxa_names(.x))
-      .x
+      seqs <- phyloseq::refseq(.x)
+      new_seqs <- Biostrings::as.data.frame(seqs) %>%
+        tibble::rownames_to_column(., var = "seq.name") %>%
+        rename(seq.text = x)
+
+      taxa_names(.x) <- new_seqs$seq.text
+      return(.x)
     }
   ) %>%
   set_names(c("lamps_2022_16S", "lamps_2022_AMF")) %>%
