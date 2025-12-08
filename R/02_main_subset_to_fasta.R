@@ -228,17 +228,29 @@ lamps_2022_otu_table <- main_16S_physeq_list$lamps_2022_16S_DNA %>%
   as.data.frame() %>%
   rownames_to_column(., var = "sample_id")
 
+## Do we have shared ASV sequences? ----
+
+ef_seq_names <- colnames(ef_otu_table)
+lamps_2018_seq_names <- colnames(lamps_2018_otu_table)
+lamps_2022_seq_names <- colnames(lamps_2022_otu_table)
+
+## Use the intersection to by = NULL. From the documentation: If NULL, the default, *_join() will perform a natural join, using all variables in common across x and y.
+seq_intersection <- intersect(ef_seq_names, lamps_2018_seq_names)
+seq_intersection2 <- intersect(ef_seq_names, lamps_2022_seq_names)
+seq_intersection3 <- intersect(lamps_2018_seq_names, lamps_2022_seq_names)
+
+# The combined DT should be the union of all three OTU tables (21833+40189+5132) - minus their intersection (10759)
 
 combined_seqtab_DT <- full_join(
   {
     full_join(
       ef_otu_table,
       lamps_2018_otu_table,
-      join_by("sample_id")
+      by = NULL
     )
   },
   lamps_2022_otu_table,
-  join_by("sample_id")
+  by = NULL
 ) %>%
   data.table::as.data.table(.) # We need some speed with this big data
 

@@ -1,30 +1,29 @@
-BiocManager::install("dada2", force = TRUE)
+library("Rcpp")
+library("dada2") #v1.38.0
 
+load("data/output/rdata/new_16S_DNS_seqtab.rda")
 
 set.seed(755) # random number generator for reproducibility
-silva.ref <- file.path(
-    out_dir,
-    "processed/taxonomy/sh_general_release_dynamic_29.11.2022.fasta"
-) # CHANGE ME to location on your machine
+silva.ref <- "data/input/databases/SILVA/silva_nr99_v138.2_toSpecies_trainset.fa" # CHANGE ME to location on your machine
+
+cat("\n", rep("=", 40), "\n")
+cat("Taxonomy assignment\n")
+cat(rep("=", 40), "\n")
+
 taxa <- assignTaxonomy(
-    seqtab.nochim,
+    new_16S_DNA_seqtab,
     silva.ref,
     multithread = TRUE,
     minBoot = 50,
     tryRC = TRUE
 ) # Multithread = FALSE in Windows. TRUE in Mac/Linux.
 
-taxa <- assignTaxonomy(
-    seqtab.nochim,
-    "/Users/loriensmacbook/Box Sync/Bioinformatics/energy_farm_16S/silva_nr99_v138.1_train_set.fa.gz",
-    multithread = TRUE
-)
-taxa.print <- taxa
-rownames(taxa.print) <- NULL
-head(taxa.print)
+
+cat("\n", rep("=", 40), "\n")
+cat("Inspection\n")
+cat(rep("=", 40), "\n")
 
 # Inspecting the taxonomic assignments:
-
 taxa.print <- taxa # Removing sequence rownames for display only
 rownames(taxa.print) <- NULL
 head(taxa.print)
@@ -32,9 +31,16 @@ str(taxa.print)
 dim(taxa.print)
 colnames(taxa.print)
 
+
+cat("\n", rep("=", 40), "\n")
+cat("Saving\n")
+cat(rep("=", 40), "\n")
+
 write.csv(
     taxa.print,
-    file.path(out_dir, "processed/taxonomy/assign_tax_mim2.csv")
+    "data/output/taxonomy/new_16S_DNA_tax.csv"
 )
 
-# Done
+cat("\n", rep("=", 40), "\n")
+cat("Complete\n")
+cat(rep("=", 40), "\n")
