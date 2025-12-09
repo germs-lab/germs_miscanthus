@@ -1,3 +1,12 @@
+###################################################################
+# Reassignment of taxonomy via dada2::assignTaxonomy()
+#
+# After the union of all otu tables in 02_main_subset_fasta.R we reassing taxonomy to the combined otu table for consitency in database version and ASV names
+
+# Author: Bolívar Aponte Rolón
+# Date: 2025-12-09
+###################################################################
+
 library("Rcpp")
 library("dada2") #v1.38.0
 

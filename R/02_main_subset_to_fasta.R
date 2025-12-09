@@ -1,9 +1,14 @@
 ###################################################################
 # From Phyloseq to FASTA
 #
-# Script for building main phyloseq objest used throughout the project. Use of lists to organize phyloseq objects and projects.
+# SECTION 1: Script for building main phyloseq objest used throughout the project. Use of lists to organize phyloseq objects and projects. Output:
+# - main_physeq_list = list of phyloseq object with all the information (e.g. crops, nucleotides, target regions)
+# - main_mxg_physeq_list = list of phyloseq objects containing only MXG crop with all target regions and nucleotides
+# - main_16S_physeq_list = list of phyloseq object subsetted to 16S target region and DNA nucleotide for all crops across projects.
 
-# It also extracts and concatenates sequences and exports them to FASTA. In the process, the renamed and concatenated sequences are reassigned to the phyloseq object.
+# SECTION 2: Extracts and concatenates sequences and exports them to FASTA. In the process, the renamed and concatenated sequences are reassigned to the corresponding phyloseq object.
+
+# SECTION 3: Concatenating all otu tables for 16S DNA phyloseqs to create a new sequence (OTU) table to reassing taxonomy downstream. Resulting union of otu tables yiels 56395 AVSs, the same as the proccesd FASTA files from Section 2
 
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-23
@@ -16,7 +21,7 @@ load("data/output/rdata/phyloseq/lamps_2022_physeq_list.rda")
 load("data/output/rdata/phyloseq/ef_physeq_list.rda")
 
 # ---------------------------------------------------
-# Subset phyloseq ----
+# SECTION 1: Subset phyloseq ----
 # ---------------------------------------------------
 
 ## Main list for downstream analyses ----
@@ -89,7 +94,7 @@ save(
 )
 
 # ---------------------------------------------------
-# Phyloseq to FASTA ----
+# SECTION 2: Phyloseq to FASTA ----
 # ---------------------------------------------------
 
 ## LAMPS ----
@@ -203,7 +208,7 @@ results_16S_DNA <- purrr::map(
 purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
 
 # ---------------------------------------------------
-# OTU_TABLE Exports
+# SECTION 3: OTU_TABLE Exports
 # ---------------------------------------------------
 # Concatenating all otu tables for 16S DNA phyloseqs
 
@@ -229,15 +234,45 @@ lamps_2022_otu_table <- main_16S_physeq_list$lamps_2022_16S_DNA %>%
   rownames_to_column(., var = "sample_id")
 
 ## Do we have shared ASV sequences? ----
+# union, intersect and setdiff discard any duplicated values in the arguments
 
-ef_seq_names <- colnames(ef_otu_table)
-lamps_2018_seq_names <- colnames(lamps_2018_otu_table)
-lamps_2022_seq_names <- colnames(lamps_2022_otu_table)
+A <- colnames(ef_otu_table)
+B <- colnames(lamps_2018_otu_table)
+C <- colnames(lamps_2022_otu_table)
+
+# basic intersections/unions
+A_and_B <- intersect(A, B)
+A_and_C <- intersect(A, C)
+B_and_C <- intersect(B, C)
+all_three <- Reduce(intersect, list(A, B, C)) # A ∩ B ∩ C
+union_all <- Reduce(union, list(A, B, C)) # A ∪ B ∪ C
+
+# # "only" sets (in one set and not any other)
+# A_only <- setdiff(A, union(B, C))
+# B_only <- setdiff(B, union(A, C))
+# C_only <- setdiff(C, union(A, B))
+
+# # pairwise-only (in exactly two sets)
+# A_and_B_only <- setdiff(A_and_B, C) # in A and B but NOT in C
+# A_and_C_only <- setdiff(A_and_C, B)
+# B_and_C_only <- setdiff(B_and_C, A)
+
+# # assemble into a named list
+# seq_combinations <- list(
+#   A_only = A_only,
+#   B_only = B_only,
+#   C_only = C_only,
+#   A_and_B_only = A_and_B_only,
+#   A_and_C_only = A_and_C_only,
+#   B_and_C_only = B_and_C_only,
+#   all_three = all_three,
+#   union_all = union_all,
+#   A_and_B = A_and_B,
+#   A_and_C = A_and_C,
+#   B_and_C = B_and_C
+# )
 
 ## Use the intersection to by = NULL. From the documentation: If NULL, the default, *_join() will perform a natural join, using all variables in common across x and y.
-seq_intersection <- intersect(ef_seq_names, lamps_2018_seq_names)
-seq_intersection2 <- intersect(ef_seq_names, lamps_2022_seq_names)
-seq_intersection3 <- intersect(lamps_2018_seq_names, lamps_2022_seq_names)
 
 # The combined DT should be the union of all three OTU tables (21833+40189+5132) - minus their intersection (10759)
 
