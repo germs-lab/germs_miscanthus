@@ -46,7 +46,7 @@ cat("Saving\n")
 cat(rep("=", 40), "\n")
 
 write.csv(
-    taxa.print,
+    taxa,
     "data/output/taxonomy/new_16S_DNA_tax.csv"
 )
 
