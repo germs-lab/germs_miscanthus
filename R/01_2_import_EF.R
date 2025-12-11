@@ -37,7 +37,7 @@ taxa_16S <- readRDS(
 ) %>%
   as.data.frame() %>%
   rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
+  rename_with(str_to_lower, .cols = everything())
 rownames(taxa_16S) <- taxa_16S %>%
   pull(sequence)
 
@@ -88,8 +88,7 @@ taxa_AMF <- readRDS(
 ) %>%
   as.data.frame() %>%
   rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
-
+  rename_with(str_to_lower, .cols = everything())
 rownames(taxa_AMF) <- taxa_AMF %>%
   pull(sequence)
 
