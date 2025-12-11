@@ -11,16 +11,26 @@
 source("R/utils/00_setup.R")
 
 #--------------------------------------------------------
-# SECTION 1: Alpha Diversity Analysis
+# SECTION 1: Alpha Diversity Analysis ----
 #--------------------------------------------------------
 
 # Calculate alpha diversity
-alpha_diversity_results <- calculate_alpha_diversity_nested(
+alpha_diversity_results_16S <- calculate_alpha_diversity(main_16S_physeq_list)
+
+main_alpha_diversity_results <- calculate_alpha_diversity_nested(
   main_physeq_list
 )
 
-# Flatten the nested list for easier plotting
-alpha_diversity_df <- alpha_diversity_results %>%
+# Flatten lists for easier plotting
+
+alpha_diversity_df_16S <- alpha_diversity_results_16S %>%
+  purrr::map_dfr(~.x) %>%
+  select(-c(sample_id.y)) %>%
+  relocate(sequence_id, .before = sample_id) %>%
+  relocate(c(observed:physeq_name), .after = site)
+
+
+main_alpha_diversity_df_nested <- main_alpha_diversity_results %>%
   purrr::list_flatten(name_spec = "{outer}_{inner}") %>%
   purrr::map_dfr(~.x) %>%
   select(-c(sample_id.y, target_region)) %>%
@@ -28,7 +38,7 @@ alpha_diversity_df <- alpha_diversity_results %>%
   relocate(c(observed:physeq_name), .after = site)
 
 # View summary
-summary(alpha_diversity_df[, c(
+summary(alpha_diversity_df_16S[, c(
   "observed",
   "shannon",
   "simpson",
@@ -36,7 +46,7 @@ summary(alpha_diversity_df[, c(
 )])
 
 #--------------------------------------------------------
-# SECTION 2: Alpha Diversity Plots
+# SECTION 2: Alpha Diversity Plots ----
 #--------------------------------------------------------
 
 # Define comparison mappings
@@ -76,8 +86,97 @@ get_comparisons <- function(data, physeq_name, comparison_map) {
 }
 
 # Alpha diversity plots for each phyloseq object
-alpha_diversity_plots <- purrr::imap(
-  alpha_diversity_results,
+alpha_diversity_plots_16S <-
+  # purrr::imap(
+  # alpha_diversity_results,
+  # function(project_list, project_name) {
+  purrr::imap(alpha_diversity_results_16S, function(alpha_data, physeq_name) {
+    # Get appropriate comparisons for this dataset
+    comparisons <- get_comparisons(alpha_data, physeq_name, comparison_map)
+    # Determine grouping variable
+    group_var <- names(alpha_data)[
+      names(alpha_data) %in% names(comparison_map)
+    ][1]
+
+    comparison_setting <- {
+      if (is.null(comparisons)) {
+        ggpubr::stat_compare_means(
+          comparisons = comparisons,
+          method = "wilcox.test",
+          label = "p.signif"
+          # symnum.args = list(
+          #   cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, 1),
+          #   symbols = c("****", "***", "**", "*", "ns")
+          # )
+        )
+      }
+    }
+
+    theme_settings <- list(
+      theme_minimal(),
+      theme(
+        plot.title = element_text(size = 8),
+        plot.subtitle = element_text(size = 6),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none"
+      )
+    )
+
+    # Observed richness plot
+    p_observed <- create_alpha_plot(
+      alpha_data,
+      group_var = "crop",
+      "observed",
+      title = "Observed Richness",
+      subtitle = physeq_name,
+      y_title_add = "index"
+    ) +
+      comparison_setting +
+      theme_settings
+
+    # Shannon diversity plot
+    p_shannon <- create_alpha_plot(
+      alpha_data,
+      group_var = "crop",
+      "shannon",
+      title = "Shannon Diversity",
+      subtitle = physeq_name,
+      y_title_add = "index"
+    ) +
+      comparison_setting +
+      theme_settings
+
+    # Simpson diversity plot
+    p_simpson <- create_alpha_plot(
+      alpha_data,
+      group_var = "crop",
+      "simpson",
+      title = "Simpson Diversity",
+      subtitle = physeq_name,
+      y_title_add = "index"
+    ) +
+      comparison_setting +
+      theme_settings
+
+    all_div_plots <- ggpubr::ggarrange(
+      p_observed,
+      p_shannon,
+      p_simpson,
+      labels = c("A", "B", "C"),
+      nrow = 1,
+      ncol = 3
+    )
+
+    # Return list of plots
+    list(
+      all_div_plots = all_div_plots
+    )
+  })
+#   }
+# )
+
+main_alpha_diversity_plots <- purrr::imap(
+  main_alpha_diversity_results,
   function(project_list, project_name) {
     purrr::imap(project_list, function(alpha_data, physeq_name) {
       # Get appropriate comparisons for this dataset
@@ -167,51 +266,63 @@ alpha_diversity_plots <- purrr::imap(
 cat("\n", rep("=", 40), "\n")
 cat("Alpha Diversity by Project and Crop\n")
 cat(rep("=", 40), "\n")
-print(alpha_diversity_plots)
+print(alpha_diversity_plots_16S$ef_16S_DNA$all_div_plots)
+print(main_alpha_diversity_plots$ef_physeq_list$ef_16S_physeq$all_div_plots) #These should be too different
+
+print(alpha_diversity_plots_16S)
+print(main_alpha_diversity_plots)
 # TODO
 # Fix comparisons in alpha diversity - priority: normal
 
 #--------------------------------------------------------
-# SECTION 3: Beta Diversity Analysis
+# SECTION 3: Beta Diversity Analysis ----
 #--------------------------------------------------------
 
-# Calculate beta diversity (Bray-Curtis dissimilarity)
-beta_diversity_results <- calculate_beta_diversity_nested(
-  main_hellgr_physeq_list,
-  method = "NMDS",
+# # Calculate beta diversity (Bray-Curtis dissimilarity)
+beta_diversity_results_16S <- calculate_beta_diversity(
+  main_16S_physeq_list,
+  method = "PCoA",
   distance = "bray"
 )
+
+main_beta_diversity_results <- calculate_alpha_diversity_nested(
+  main_physeq_list,
+  method = "PCoA",
+  distance = "bray"
+)
+
 
 #--------------------------------------------------------
 # SECTION 4: Beta Diversity Plots (PCoA)
 #--------------------------------------------------------
 
 # Create beta diversity plots for each phyloseq object
-beta_diversity_plots <- purrr::imap(
-  beta_diversity_results,
-  function(project_list, project_name) {
-    purrr::imap(project_list, function(beta_data, physeq_name) {
-      plot_title <- gsub("_physeq$", " ", physeq_name) %>%
-        str_to_upper(.)
-      # PCoA plot colored by crop
-      p_pcoa <- plot_ordination(
-        beta_data$physeq,
-        beta_data$ordination,
-        type = "samples",
-        color = "crop"
+beta_diversity_plots <-
+  # purrr::imap(
+  # beta_diversity_results,
+  # function(project_list, project_name) {
+  purrr::imap(beta_diversity_results, function(beta_data, physeq_name) {
+    plot_title <- gsub("_physeq$", " ", physeq_name) %>%
+      str_to_upper(.)
+    # PCoA plot colored by crop
+    p_pcoa <- plot_ordination(
+      beta_data$physeq,
+      beta_data$ordination,
+      type = "samples",
+      color = "crop"
+    ) +
+      geom_point(size = 3, alpha = 0.7) +
+      labs(
+        title = paste("PCoA (Bray-Curtis) -", plot_title),
+        color = "Crop"
       ) +
-        geom_point(size = 3, alpha = 0.7) +
-        labs(
-          title = paste("PCoA (Bray-Curtis) -", plot_title),
-          color = "Crop"
-        ) +
-        theme_bw() +
-        theme(legend.position = "right")
+      theme_bw() +
+      theme(legend.position = "right")
 
-      return(p_pcoa)
-    })
-  }
-)
+    return(p_pcoa)
+  })
+# }
+# )
 
 # Beta diversity plots are stored in the nested list
 

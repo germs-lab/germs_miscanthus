@@ -73,12 +73,40 @@ transform_to_hellinger <- function(nested_list) {
   })
 }
 
+transform_to_hellinger_single <- function(project_list) {
+  purrr::map(project_list, function(physeq_obj) {
+    otu_mat <- otu_table(physeq_obj) %>%
+      as.matrix()
+
+    # Apply Hellinger transformation
+    # decostand expects rows as samples, so transpose if needed
+    if (taxa_are_rows(physeq_obj)) {
+      otu_mat <- t(otu_mat)
+    }
+
+    # Apply Hellinger transformation
+    otu_hellinger <- vegan::decostand(
+      otu_mat,
+      method = "hellinger"
+    ) %>%
+      t() # Transpose back to taxa_are_rows = TRUE
+
+    otu_table(physeq_obj) <- otu_table(otu_hellinger, taxa_are_rows = TRUE)
+
+    return(physeq_obj)
+  })
+}
+
 ## Relative abundance ----
 main_mxg_relab_psq_list <- transform_to_relab(main_mxg_physeq_list)
 
 ## Hellinger transformation ----
 main_mxg_hellgr_psq_list <- transform_to_hellinger(main_mxg_physeq_list)
 main_hellgr_physeq_list <- transform_to_hellinger(main_physeq_list)
+
+main_16S_hellgr_physeq_list <- transform_to_hellinger_single(
+  main_16S_physeq_list
+)
 
 ## Verify transformations ----
 purrr::map(main_mxg_relab_psq_list, function(project_list) {
@@ -117,3 +145,8 @@ save(
 )
 
 save(main_16S_physeq_list, file = "data/output/rdata/main_16S_physeq_list.rda")
+
+save(
+  main_16S_hellgr_physeq_list,
+  file = "data/output/rdata/main_16S_hellgr_physeq_list.rda"
+)
