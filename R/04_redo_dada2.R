@@ -1,11 +1,13 @@
-###################################################################
+###########################################################################
 # Reassignment of taxonomy via dada2::assignTaxonomy()
 #
-# After the union of all otu tables in 02_main_subset_fasta.R we reassing taxonomy to the combined otu table for consitency in database version and ASV names
+# After 03_eda.R we opted to focus solely on 16S_DNA data and subset a new phyloseq object list in Section 3 of 02_main_subset_to_fasta.R. Hence the "redo" of dada2 for 16S_DNA.
+
+# After the union of all otu tables in 02_main_subset_fasta.R we reassign taxonomy to the combined otu table for consitency in database version and ASV names
 
 # Author: Bolívar Aponte Rolón
 # Date: 2025-12-09
-###################################################################
+###########################################################################
 
 library("Rcpp")
 library("dada2") #v1.38.0

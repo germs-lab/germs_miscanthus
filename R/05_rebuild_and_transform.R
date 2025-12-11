@@ -1,7 +1,7 @@
 ################################################################################
 # Rebuild Phyloseq object and Transformation for Microbiome of Miscanthus
 #
-# This script focuses on reassigning to the 16S_DNA phyloseq objects the newly generated OTU (02_main_subset_to_fasta.R) and taxonomy tables (03_redo_dada2.R). The new objects contain the concatenated OTU table of all projects and it's corresponding taxonomy table. Objects are then subset to the specific samples for each project, thus retaining only the OTUs present in each. OTU1 in project EF should be the same as OTU1 in LAMPS 2018. They were assigned and renamed all together.
+# This script focuses on reassigning to the 16S_DNA phyloseq objects the newly generated OTU (02_main_subset_to_fasta.R) and taxonomy tables (04_redo_dada2.R). The new objects contain the concatenated OTU table of all projects and it's corresponding taxonomy table. Objects are then subset to the specific samples for each project, thus retaining only the OTUs present in each. OTU1 in project EF should be the same as OTU1 in LAMPS 2018. They were assigned and renamed all together.
 
 # We also perform Relative abundance and Hellinger transformations to "main_physeq_list" and "main_mxg_physe_list", the former contains all project data and metadata, the latter contains all data and metadata focused on MXG crop.
 #
