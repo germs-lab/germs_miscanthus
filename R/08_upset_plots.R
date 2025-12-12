@@ -6,91 +6,108 @@
 
 source("R/utils/00_setup.R")
 
-
-# Explore beta_diversity_results structure
-str(main_16S_physeq_list, max.level = 2)
 library(UpSetR)
-movies <- read.csv(
-  system.file("extdata", "movies.csv", package = "UpSetR"),
-  header = T,
-  sep = ";"
-)
-
-listInput <- list(
-  EF = rownames(otu_table(main_16S_physeq_list$ef_16S_DNA)),
-  LAMPS_2018 = rownames(otu_table(main_16S_physeq_list$lamps_2018_16S_DNA))
-)
-
-
-upset(fromList(listInput), order.by = "freq")
 
 # TODO
 # Focus on main_16S_physeq_list then subset to only the MXG within the 16S_DNA
 
-# Check sample data columns for each project
-main_16S_physeq_list |>
-  map(~ sample_data(.x) |> colnames()) |>
-  enframe(name = "project", value = "columns")
-
-
 # TODO
 # Fix this pipeline
-library(UpSetR)
-# Pipeline 2: Enhanced ASV presence with biological attributes
 
-# Create the list
+# Create ASV list ----
 asv_data <- create_asv_upset_data(main_16S_physeq_list)
 
 # Check lenght of list
 length(asv_data$presence_list$ef_16S_DNA$ef_MXG)
+length(asv_data$presence_list$lamps_2018_16S_DNA$lamps_2018_M)
+# They should all have different number of ASVs
 
-# Quick summary
-map_int(asv_data$presence_list, length) |>
-  enframe(name = "crop_project", value = "n_asvs")
+# Table summaries ----
 
+## Quick summary ----
+asv_data$presence_list %>%
+  flatten() %>%
+  map_int(., length) %>%
+  enframe(name = "crop_project", value = "n_asvs") %>%
+  arrange(desc(n_asvs))
 
-# Basic UpSet plot: all crop-project combinations
-# Create a matrix suitable for boxplot.summary
-phylum_matrix <- asv_data$attributes |>
-  select(asv, project, crop, phylum) |>
-  distinct() |>
-  mutate(set_name = paste0(substr(project, 1, 4), "_", crop)) |>
-  pivot_wider(
-    names_from = set_name,
-    values_from = phylum,
-    values_fill = NA
-  ) |>
-  #column_to_rownames("asv") |>
-  as.matrix()
-# Create a phylum summary for each intersection
+## Phylum summary for each intersection -----
 intersection_phylum <- asv_data$attributes |>
   group_by(project, crop) |>
   summarize(
     total_asvs = n_distinct(asv),
     dominant_phylum = names(sort(table(phylum), decreasing = TRUE)[1]),
     n_phyla = n_distinct(phylum),
+    n_genera = n_distinct(genus),
     .groups = "drop"
   ) |>
   mutate(set_name = paste0(substr(project, 1, 4), "_", crop))
 
 intersection_phylum
 
+# Plotting matrix with attributes of interest ----
+# Create the upset matrix
+upset_matrix <- fromList(flatten(asv_data$presence_list))
+
+# Recreate the flattened list to get ASV order matching the matrix rows
+flattened_asvs <- flatten(asv_data$presence_list)
+all_asvs <- unique(unlist(flattened_asvs))
+
+# Create dataframe linking matrix rows to ASVs
+asv_row_map <- tibble(
+  matrix_row = seq_along(all_asvs),
+  asv = all_asvs
+)
+
+# Join with taxonomy info and summarize
+upset_df <- asv_row_map |>
+  left_join(
+    asv_data$attributes |>
+      select(asv, phylum, genus) |>
+      distinct(),
+    by = "asv"
+  ) |>
+  group_by(matrix_row) |>
+  summarize(
+    asv = first(asv),
+    phylum = first(phylum),
+    genus = first(genus),
+    n_phyla = n_distinct(phylum),
+    n_genera = n_distinct(genus),
+    .groups = "drop"
+  ) |>
+  bind_cols(as_tibble(upset_matrix, rownames = NA)) |>
+  as.data.frame()
+
+upset_df
+
+# Basic UpSet plot: all crop-project combinations
+
+movies <- read.csv(
+  system.file("extdata", "movies.csv", package = "UpSetR"),
+  header = T,
+  sep = ";"
+)
+
 upset(
   fromList(flatten(asv_data$presence_list)),
   order.by = "freq",
   nsets = 8,
   nintersects = 20,
-  boxplot.summary = phylum_matrix
 )
 
-
 upset(
-  fromList(flatten(asv_data$presence_list)),
+  upset_df[, 7:14],
   order.by = "freq",
   nsets = 8,
   nintersects = 20,
-  boxplot.summary = top(asv_data$attributes, "phylum", 5)
+  boxplot.summary = "n_phyla"
 )
+
+ggplot(intersection_phylum, aes(x = crop, y = n_genera)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Genera per ASV", y = "Number of Genera")
+facet_wrap(~crop)
 
 
 # SCRAPS ----
