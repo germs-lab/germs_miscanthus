@@ -212,7 +212,7 @@ beta_diversity_results_16S <- calculate_beta_diversity(
   distance = "bray"
 )
 
-main_beta_diversity_results <- calculate_alpha_diversity_nested(
+main_beta_diversity_results <- calculate_beta_diversity_nested(
   main_physeq_list,
   method = "PCoA",
   distance = "bray"
@@ -223,33 +223,48 @@ main_beta_diversity_results <- calculate_alpha_diversity_nested(
 # SECTION 4: Beta Diversity Plots (PCoA)
 #--------------------------------------------------------
 
-# Create beta diversity plots for each phyloseq object
-beta_diversity_plots <-
-  # purrr::imap(
-  # beta_diversity_results,
-  # function(project_list, project_name) {
-  purrr::imap(beta_diversity_results, function(beta_data, physeq_name) {
-    plot_title <- gsub("_physeq$", " ", physeq_name) %>%
-      str_to_upper(.)
-    # PCoA plot colored by crop
-    p_pcoa <- plot_ordination(
-      beta_data$physeq,
-      beta_data$ordination,
-      type = "samples",
-      color = "crop"
+beta_plot_workflow <- function(beta_data, physeq_name) {
+  plot_title <- gsub("_physeq$", " ", physeq_name) %>%
+    str_to_upper(.)
+  # Ordination plot colored by crop
+  p_ordination <- plot_ordination(
+    beta_data$physeq,
+    beta_data$ordination,
+    type = "samples",
+    color = "crop"
+  ) +
+    geom_point(size = 3, alpha = 0.7) +
+    labs(
+      title = ifelse(
+        class(beta_data$ordination) == "nmds",
+        paste("NMDS (Bray-Curtis) -", plot_title),
+        paste("PCoA (Bray-Curtis) -", plot_title)
+      ),
+      color = "Crop"
     ) +
-      geom_point(size = 3, alpha = 0.7) +
-      labs(
-        title = paste("PCoA (Bray-Curtis) -", plot_title),
-        color = "Crop"
-      ) +
-      theme_bw() +
-      theme(legend.position = "right")
+    theme_bw() +
+    theme(legend.position = "right")
 
-    return(p_pcoa)
+  return(p_ordination)
+}
+
+
+# Create beta diversity plots for each phyloseq object
+beta_diversity_plots_16S <-
+  purrr::imap(beta_diversity_results_16S, function(beta_data, physeq_name) {
+    beta_plot_workflow(beta_data = beta_data, physeq_name = physeq_name)
   })
-# }
-# )
+
+
+main_beta_diversity_plots <-
+  purrr::imap(
+    main_beta_diversity_results,
+    function(project_list, project_name) {
+      purrr::imap(project_list, function(beta_data, physeq_name) {
+        beta_plot_workflow(beta_data = beta_data, physeq_name = physeq_name)
+      })
+    }
+  )
 
 # Beta diversity plots are stored in the nested list
 
