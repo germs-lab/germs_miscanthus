@@ -41,6 +41,14 @@ create_upset_df <- function(presence_list, attributes_df, tax_level = "asv") {
   upset_df
 }
 
+create_tax_upset_df <- function(presence_list) {
+  flattened_list <- purrr::flatten(presence_list)
+  upset_matrix <- UpSetR::fromList(flattened_list)
+  as.data.frame(upset_matrix) |>
+    mutate(taxon = rownames(upset_matrix)) |>
+    relocate(taxon)
+}
+
 create_tax_presence_list <- function(physeq_list, tax_level = "phylum") {
   imap(physeq_list, function(psq, project_name) {
     crops <- sample_data(psq)$crop |> unique()
@@ -119,17 +127,11 @@ asv_upset_df <- create_upset_df(
   tax_level = "asv"
 )
 
-phylum_upset_df <- purrr::flatten(phylum_presence) |>
-  UpSetR::fromList() |>
-  as.data.frame() |>
-  mutate(phylum = unique(unlist(purrr::flatten(phylum_presence)))) |>
-  relocate(phylum)
+phylum_upset_df <- create_tax_upset_df(phylum_presence) |>
+  rename(phylum = taxon)
 
-class_upset_df <- purrr::flatten(class_presence) |>
-  UpSetR::fromList() |>
-  as.data.frame() |>
-  mutate(class = unique(unlist(purrr::flatten(class_presence)))) |>
-  relocate(class)
+class_upset_df <- create_tax_upset_df(class_presence) |>
+  rename(class = taxon)
 
 # SECTION 5: UpSet plots - All crops ----
 
@@ -257,7 +259,7 @@ shared_asv_summary <- asv_intersection_details |>
       n_sets == 1 ~ "Unique to one crop",
       n_sets == 2 ~ "Shared by 2 crops",
       n_sets == 3 ~ "Shared by 3 crops",
-      n_sets >= 4 ~ paste0("Shared by ", n_sets, "+ crops")
+      TRUE ~ paste0("Shared by ", n_sets, " crops")
     )
   )
 
