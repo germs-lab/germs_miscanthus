@@ -9,44 +9,48 @@
 ##########################################################################
 
 source("R/utils/00_setup.R")
-library(UpSetR)
+library(ComplexUpset)
 
 # SECTION 1: Helper functions for UpSet data preparation ----
 
+list_to_binary_df <- function(presence_list) {
+  flattened <- purrr::flatten(presence_list)
+  create_binary_df_from_flat(flattened)
+}
+
+create_binary_df_from_flat <- function(flat_list) {
+  all_items <- unique(unlist(flat_list))
+  set_names <- names(flat_list)
+  binary_df <- map_dfc(set_names, function(set_name) {
+    tibble(!!set_name := as.integer(all_items %in% flat_list[[set_name]]))
+  })
+  binary_df$item <- all_items
+  binary_df |> relocate(item)
+}
+
 create_upset_df <- function(presence_list, attributes_df, tax_level = "asv") {
-
-  flattened_list <- purrr::flatten(presence_list)
-  upset_matrix <- UpSetR::fromList(flattened_list)
-  all_items <- unique(unlist(flattened_list))
-
-  item_map <- tibble(row_idx = seq_along(all_items), item = all_items)
+  binary_df <- list_to_binary_df(presence_list)
 
   tax_info <- attributes_df |>
     select(asv, phylum, class, genus) |>
     distinct()
 
   if (tax_level == "asv") {
-    upset_df <- item_map |>
+    upset_df <- binary_df |>
       rename(asv = item) |>
-      left_join(tax_info, by = "asv") |>
-      bind_cols(as_tibble(upset_matrix)) |>
-      as.data.frame()
+      left_join(tax_info, by = "asv")
   } else {
-    upset_df <- item_map |>
-      rename(!!tax_level := item) |>
-      bind_cols(as_tibble(upset_matrix)) |>
-      as.data.frame()
+    upset_df <- binary_df |>
+      rename(!!tax_level := item)
   }
 
   upset_df
 }
 
 create_tax_upset_df <- function(presence_list) {
-  flattened_list <- purrr::flatten(presence_list)
-  upset_matrix <- UpSetR::fromList(flattened_list)
-  as.data.frame(upset_matrix) |>
-    mutate(taxon = rownames(upset_matrix)) |>
-    relocate(taxon)
+  binary_df <- list_to_binary_df(presence_list) |>
+    rename(taxon = item)
+  binary_df
 }
 
 create_tax_presence_list <- function(physeq_list, tax_level = "phylum") {
@@ -142,14 +146,23 @@ cat("ASV Intersections Across All Crops\n")
 cat(rep("=", 50), "\n")
 
 upset(
-  asv_upset_df |> select(all_of(set_cols)),
-  order.by = "freq",
-  nsets = length(set_cols),
-  nintersects = 25,
-  main.bar.color = "#1f77b4",
-  sets.bar.color = "#2ca02c",
-  text.scale = 1.2
-)
+  asv_upset_df,
+  intersect = set_cols,
+  n_intersections = 25,
+  base_annotations = list(
+    "Intersection size" = intersection_size(
+      bar_number_threshold = 1,
+      fill = "#1f77b4"
+    )
+  ),
+  set_sizes = upset_set_size(
+    geom = geom_bar(fill = "#2ca02c")
+  ),
+  sort_sets = "descending",
+  sort_intersections = "descending"
+) +
+  labs(title = "ASV Intersections Across All Crops") +
+  theme(plot.title = element_text(hjust = 0.5))
 
 cat("\n", rep("=", 50), "\n")
 cat("Phylum Intersections Across All Crops\n")
@@ -157,14 +170,23 @@ cat(rep("=", 50), "\n")
 
 phylum_set_cols <- names(purrr::flatten(phylum_presence))
 upset(
-  phylum_upset_df |> select(all_of(phylum_set_cols)),
-  order.by = "freq",
-  nsets = length(phylum_set_cols),
-  nintersects = 25,
-  main.bar.color = "#ff7f0e",
-  sets.bar.color = "#d62728",
-  text.scale = 1.2
-)
+  phylum_upset_df,
+  intersect = phylum_set_cols,
+  n_intersections = 25,
+  base_annotations = list(
+    "Intersection size" = intersection_size(
+      bar_number_threshold = 1,
+      fill = "#ff7f0e"
+    )
+  ),
+  set_sizes = upset_set_size(
+    geom = geom_bar(fill = "#d62728")
+  ),
+  sort_sets = "descending",
+  sort_intersections = "descending"
+) +
+  labs(title = "Phylum Intersections Across All Crops") +
+  theme(plot.title = element_text(hjust = 0.5))
 
 cat("\n", rep("=", 50), "\n")
 cat("Class Intersections Across All Crops\n")
@@ -172,14 +194,23 @@ cat(rep("=", 50), "\n")
 
 class_set_cols <- names(purrr::flatten(class_presence))
 upset(
-  class_upset_df |> select(all_of(class_set_cols)),
-  order.by = "freq",
-  nsets = length(class_set_cols),
-  nintersects = 25,
-  main.bar.color = "#9467bd",
-  sets.bar.color = "#8c564b",
-  text.scale = 1.2
-)
+  class_upset_df,
+  intersect = class_set_cols,
+  n_intersections = 25,
+  base_annotations = list(
+    "Intersection size" = intersection_size(
+      bar_number_threshold = 1,
+      fill = "#9467bd"
+    )
+  ),
+  set_sizes = upset_set_size(
+    geom = geom_bar(fill = "#8c564b")
+  ),
+  sort_sets = "descending",
+  sort_intersections = "descending"
+) +
+  labs(title = "Class Intersections Across All Crops") +
+  theme(plot.title = element_text(hjust = 0.5))
 
 # SECTION 6: UpSet plots - Miscanthus only ----
 
@@ -192,14 +223,19 @@ cat("ASV Intersections - Miscanthus Only\n")
 cat(rep("=", 50), "\n")
 
 if (length(mxg_asv_list) >= 2) {
+  mxg_asv_df <- create_binary_df_from_flat(mxg_asv_list)
   upset(
-    UpSetR::fromList(mxg_asv_list),
-    order.by = "freq",
-    nsets = length(mxg_asv_list),
-    main.bar.color = "#1f77b4",
-    sets.bar.color = "#2ca02c",
-    text.scale = 1.2
-  )
+    mxg_asv_df,
+    intersect = names(mxg_asv_list),
+    base_annotations = list(
+      "Intersection size" = intersection_size(bar_number_threshold = 1, fill = "#1f77b4")
+    ),
+    set_sizes = upset_set_size(geom = geom_bar(fill = "#2ca02c")),
+    sort_sets = "descending",
+    sort_intersections = "descending"
+  ) +
+    labs(title = "ASV Intersections - Miscanthus Only") +
+    theme(plot.title = element_text(hjust = 0.5))
 }
 
 cat("\n", rep("=", 50), "\n")
@@ -207,14 +243,19 @@ cat("Phylum Intersections - Miscanthus Only\n")
 cat(rep("=", 50), "\n")
 
 if (length(mxg_phylum_list) >= 2) {
+  mxg_phylum_df <- create_binary_df_from_flat(mxg_phylum_list)
   upset(
-    UpSetR::fromList(mxg_phylum_list),
-    order.by = "freq",
-    nsets = length(mxg_phylum_list),
-    main.bar.color = "#ff7f0e",
-    sets.bar.color = "#d62728",
-    text.scale = 1.2
-  )
+    mxg_phylum_df,
+    intersect = names(mxg_phylum_list),
+    base_annotations = list(
+      "Intersection size" = intersection_size(bar_number_threshold = 1, fill = "#ff7f0e")
+    ),
+    set_sizes = upset_set_size(geom = geom_bar(fill = "#d62728")),
+    sort_sets = "descending",
+    sort_intersections = "descending"
+  ) +
+    labs(title = "Phylum Intersections - Miscanthus Only") +
+    theme(plot.title = element_text(hjust = 0.5))
 }
 
 cat("\n", rep("=", 50), "\n")
@@ -222,14 +263,19 @@ cat("Class Intersections - Miscanthus Only\n")
 cat(rep("=", 50), "\n")
 
 if (length(mxg_class_list) >= 2) {
+  mxg_class_df <- create_binary_df_from_flat(mxg_class_list)
   upset(
-    UpSetR::fromList(mxg_class_list),
-    order.by = "freq",
-    nsets = length(mxg_class_list),
-    main.bar.color = "#9467bd",
-    sets.bar.color = "#8c564b",
-    text.scale = 1.2
-  )
+    mxg_class_df,
+    intersect = names(mxg_class_list),
+    base_annotations = list(
+      "Intersection size" = intersection_size(bar_number_threshold = 1, fill = "#9467bd")
+    ),
+    set_sizes = upset_set_size(geom = geom_bar(fill = "#8c564b")),
+    sort_sets = "descending",
+    sort_intersections = "descending"
+  ) +
+    labs(title = "Class Intersections - Miscanthus Only") +
+    theme(plot.title = element_text(hjust = 0.5))
 }
 
 # SECTION 7: Intersection summary tables ----
