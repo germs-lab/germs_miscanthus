@@ -38,12 +38,10 @@ intersection_phylum <- asv_data$attributes |>
     total_asvs = n_distinct(asv),
     dominant_phylum = names(sort(table(phylum), decreasing = TRUE)[1]),
     n_phyla = n_distinct(phylum),
-    n_class = n_distinct(class),
-
     n_genera = n_distinct(genus),
     .groups = "drop"
   ) |>
-  mutate(set_name = paste0(crop))
+  mutate(set_name = paste0(substr(project, 1, 4), "_", crop))
 
 intersection_phylum
 
@@ -71,12 +69,12 @@ upset_df <- asv_row_map |>
   ) |>
   group_by(matrix_row) |>
   summarize(
-    asv = dplyr::first(asv),
-    phylum = dplyr::first(phylum),
-    genus = dplyr::first(genus),
+    asv = first(asv),
+    phylum = first(phylum),
+    genus = first(genus),
     n_phyla = n_distinct(phylum),
-    n_genera = if_else(all(is.na(genus)), 0L, n_distinct(genus)),
-    .groups = "drop",
+    n_genera = n_distinct(genus),
+    .groups = "drop"
   ) |>
   bind_cols(as_tibble(upset_matrix, rownames = NA)) |>
   as.data.frame()
@@ -90,8 +88,6 @@ movies <- read.csv(
   header = T,
   sep = ";"
 )
-str(movies)
-str(upset_df)
 
 upset(
   fromList(flatten(asv_data$presence_list)),
@@ -141,7 +137,7 @@ intersection_summary <- asv_data$attributes |>
     ),
     .groups = "drop"
   ) |>
-  mutate(combo = paste0(crop)) |>
+  mutate(combo = paste0(substr(project, 1, 4), "_", crop)) |>
   arrange(desc(total_asvs))
 
 intersection_summary
