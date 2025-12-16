@@ -8,7 +8,8 @@
 
 # SECTION 2: Extracts and concatenates sequences and exports them to FASTA. In the process, the renamed and concatenated sequences are reassigned to the corresponding phyloseq object.
 
-# SECTION 3: Concatenating all otu tables for 16S DNA phyloseqs to create a new sequence (OTU) table to reassing taxonomy downstream. Resulting union of otu tables yiels 56395 AVSs, the same as the proccesd FASTA files from Section 2
+# SECTION 3: Exporting and concatenating all otu tables for 16S DNA and fungal (ITS and AMF) phyloseqs to create a new sequence (OTU) table for reassigning taxonomy downstream.
+# - 16S: Resulting union of otu tables yields 56395 AVSs, the same as the proccesd FASTA files from Section 2
 
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-23
@@ -32,52 +33,16 @@ main_physeq_list <- list(
   lamps_2022_physeq_list = lamps_2022_physeq_list
 )
 
-## Only MXG ----
-# To subset the actual phyloseq object by MXG
-mxg_lamps_2018 <- purrr::map(
-  lamps_2018_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "M")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-)
-
-mxg_lamps_2022 <- purrr::map(
-  lamps_2022_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "Miscanthus")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-)
-
-mxg_ef <- purrr::map(
-  ef_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "MXG")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-)
-
-
 save(
   main_physeq_list,
   file = "data/output/rdata/main_physeq_list.rda"
 )
-## MXG physeq lists ----
-main_mxg_physeq_list <- list(
-  mxg_ef = mxg_ef,
-  mxg_lamps_2018 = mxg_lamps_2018,
-  mxg_lamps_2022 = mxg_lamps_2022
-)
-
-save(
-  main_mxg_physeq_list,
-  file = "data/output/rdata/main_mxg_physeq_list.rda"
-)
 
 ## Only 16S data for all projects ----
+## The idea here is to use this list of object for developing the pipeline. We can then explore fungal datasets.
 
 # Subset to only 16S DNA data
+## lamps_2018_16S is the only one that needs it.
 lamps_2018_16S_DNA <- lamps_2018_physeq_list$lamps_2018_16S_physeq %>%
   subset_samples(., nucleotide == "DNA") %>%
   filter_taxa(., function(x) sum(x > 0) > 0, TRUE)
@@ -92,6 +57,53 @@ save(
   main_16S_physeq_list,
   file = "data/output/rdata/main_16S_physeq_list.rda"
 )
+
+## Only MXG ----
+# To subset the actual phyloseq object by MXG
+mxg_ef <- purrr::imap(
+  ef_physeq_list,
+  ~ {
+    ps_subset <- subset_samples(.x, crop == "MXG")
+    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
+  }
+) |>
+  set_names(names(ef_physeq_list) |> str_remove("_physeq$"))
+
+mxg_lamps_2018 <- purrr::map(
+  lamps_2018_physeq_list,
+  ~ {
+    ps_subset <- subset_samples(.x, crop == "M")
+    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
+  }
+) |>
+  set_names(names(lamps_2018_physeq_list) |> str_remove("_physeq$"))
+
+mxg_lamps_2022 <- purrr::map(
+  lamps_2022_physeq_list,
+  ~ {
+    ps_subset <- subset_samples(.x, crop == "Miscanthus")
+    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
+  }
+) |>
+  set_names(names(lamps_2022_physeq_list) |> str_remove("_physeq$"))
+
+
+## MXG physeq lists ----
+## 16S is only DNA nucleotide
+main_mxg_physeq_list <- list(
+  ef = mxg_ef,
+  lamps_2018 = list(
+    lamps_2018_16S = lamps_2018_16S_DNA, # Making sure we only have 16S_DNA
+    lamps_2018_ITS = mxg_lamps_2018$lamps_2018_ITS
+  ),
+  lamps_2022 = mxg_lamps_2022
+)
+
+save(
+  main_mxg_physeq_list,
+  file = "data/output/rdata/main_mxg_physeq_list.rda"
+)
+
 
 # ---------------------------------------------------
 # SECTION 2: Phyloseq to FASTA ----
@@ -135,7 +147,6 @@ refseq2fasta(
   extra_id = "_mxg",
   out_dir = "data/output/sequences"
 )
-
 
 # Only 16S DNA data ----
 refseq2fasta(
@@ -210,35 +221,35 @@ purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
 # ---------------------------------------------------
 # SECTION 3: OTU_TABLE Exports
 # ---------------------------------------------------
-# Concatenating all otu tables for 16S DNA phyloseqs
+# Export all otu tables for 16S DNA phyloseqs
 
-ef_otu_table <- main_16S_physeq_list$ef_16S_DNA %>%
-  otu_table() %>%
-  as.data.frame() %>%
-  t() %>%
-  as.data.frame() %>%
-  rownames_to_column(., var = "sample_id")
+ef_16S_otu_table <- export_otu_table(main_16S_physeq_list$ef_16S_DNA)
 
-lamps_2018_otu_table <- main_16S_physeq_list$lamps_2018_16S_DNA %>%
-  otu_table() %>%
-  as.data.frame() %>%
-  t() %>%
-  as.data.frame() %>%
-  rownames_to_column(., var = "sample_id")
+lamps_2018_16S_otu_table <- export_otu_table(
+  main_16S_physeq_list$lamps_2018_16S_DNA
+)
 
-lamps_2022_otu_table <- main_16S_physeq_list$lamps_2022_16S_DNA %>%
-  otu_table() %>%
-  as.data.frame() %>%
-  t() %>%
-  as.data.frame() %>%
-  rownames_to_column(., var = "sample_id")
+lamps_2022_16S_otu_table <- export_otu_table(
+  main_16S_physeq_list$lamps_2022_16S_DNA
+)
+
+# Export OTU tables for Fungal datasets only MXG crop
+
+ef_mxg_AMF <- export_otu_table(main_mxg_physeq_list$ef$ef_AMF)
+
+lamps_2018_mxg_ITS <- export_otu_table(
+  main_mxg_physeq_list$lamps_2018$lamps_2018_ITS
+)
+lamps_2022_mxg_AMF <- export_otu_table(
+  main_mxg_physeq_list$lamps_2022$lamps_2022_AMF
+)
 
 ## Do we have shared ASV sequences? ----
 # union, intersect and setdiff discard any duplicated values in the arguments
 
-A <- colnames(ef_otu_table)
-B <- colnames(lamps_2018_otu_table)
-C <- colnames(lamps_2022_otu_table)
+A <- colnames(ef_16S_otu_table)
+B <- colnames(lamps_2018_16S_otu_table)
+C <- colnames(lamps_2022_16S_otu_table)
 
 # basic intersections/unions
 A_and_B <- intersect(A, B)
@@ -276,38 +287,40 @@ union_all <- Reduce(union, list(A, B, C)) # A ∪ B ∪ C
 
 # The combined DT should be the union of all three OTU tables (21833+40189+5132) - minus their intersection (10759)
 
-combined_seqtab_DT <- full_join(
+# TODO
+# MAke in to function and create new seqtab for fungal data
+combined_16S_seqtab_DT <- full_join(
   {
     full_join(
-      ef_otu_table,
-      lamps_2018_otu_table,
+      ef_16S_otu_table,
+      lamps_2018_16S_otu_table,
       by = NULL
     )
   },
-  lamps_2022_otu_table,
+  lamps_2022_16S_otu_table,
   by = NULL
 ) %>%
   data.table::as.data.table(.) # We need some speed with this big data
 
 
 # Replace resulting NAs
-for (j in seq_len(ncol(combined_seqtab_DT))) {
+for (j in seq_len(ncol(combined_16S_seqtab_DT))) {
   data.table::set(
-    combined_seqtab_DT,
-    which(is.na(combined_seqtab_DT[[j]])),
+    combined_16S_seqtab_DT,
+    which(is.na(combined_16S_seqtab_DT[[j]])),
     j,
     0
   )
 }
 
 # Ensuring types
-combined_seqtab_DT[,
-  (names(combined_seqtab_DT)) := lapply(.SD, function(x) {
+combined_16S_seqtab_DT[,
+  (names(combined_16S_seqtab_DT)) := lapply(.SD, function(x) {
     if (is.numeric(x)) as.integer(x) else x
   })
 ]
 
-new_16S_DNA_seqtab <- combined_seqtab_DT %>%
+new_16S_DNA_seqtab <- combined_16S_seqtab_DT %>%
   column_to_rownames(., var = "sample_id") %>%
   as.matrix()
 

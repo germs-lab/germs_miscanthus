@@ -32,6 +32,7 @@ main_16S_physeq_list <- purrr::map(
   }
 )
 
+
 ## Inspect ----
 purrr::map(main_16S_physeq_list, function(project_names) {
   dim(tax_table(project_names))
