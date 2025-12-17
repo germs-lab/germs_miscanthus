@@ -218,7 +218,7 @@ results_16S_DNA <- purrr::map(
 purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
 
 # ---------------------------------------------------
-# SECTION 3: OTU_TABLE Exports
+# SECTION 3: OTU_TABLE Exports ----
 # ---------------------------------------------------
 # Export all otu tables for 16S DNA phyloseqs
 
@@ -286,44 +286,25 @@ union_all <- Reduce(union, list(A, B, C)) # A ∪ B ∪ C
 
 # The combined DT should be the union of all three OTU tables (21833+40189+5132) - minus their intersection (10759)
 
-# TODO
-# MAke in to function and create new seqtab for fungal data
-combined_16S_seqtab_DT <- full_join(
-  {
-    full_join(
-      ef_16S_otu_table,
-      lamps_2018_16S_otu_table,
-      by = NULL
-    )
-  },
-  lamps_2022_16S_otu_table,
-  by = NULL
-) %>%
-  data.table::as.data.table(.) # We need some speed with this big data
-
-
-# Replace resulting NAs
-for (j in seq_len(ncol(combined_16S_seqtab_DT))) {
-  data.table::set(
-    combined_16S_seqtab_DT,
-    which(is.na(combined_16S_seqtab_DT[[j]])),
-    j,
-    0
-  )
-}
-
-# Ensuring types
-combined_16S_seqtab_DT[,
-  (names(combined_16S_seqtab_DT)) := lapply(.SD, function(x) {
-    if (is.numeric(x)) as.integer(x) else x
-  })
-]
-
-new_16S_DNA_seqtab <- combined_16S_seqtab_DT %>%
-  column_to_rownames(., var = "sample_id") %>%
-  as.matrix()
+## New 16S DNA joined otu table (aka seqtab)
+new_16S_DNA_seqtab <- join_otu_tables(
+  ef_16S_otu_table,
+  lamps_2018_16S_otu_table,
+  lamps_2022_16S_otu_table
+)
 
 save(new_16S_DNA_seqtab, file = "data/output/rdata/new_16S_DNS_seqtab.rda")
+
+
+## New fungal joined otu tables
+
+new_fungal_seqtab <- join_otu_tables(
+  ef_mxg_AMF,
+  lamps_2018_mxg_ITS,
+  lamps_2022_mxg_AMF
+)
+
+save(new_fungal_seqtab, file = "data/output/rdata/new_fungal_seqtab.rda")
 
 # NOTE ----
 # This new seqtab matrix is meant to be used to reassign taxonomy. Another approach is to take the taxonomy tables and reassign sequence ID to a concatenated table of all projects then subset by project.
