@@ -19,7 +19,7 @@ regen_physeq <- function(physeq, sample_metadata, rownames = "sample_id") {
       )
     )
 
-    physeq_regen <- add_refseq(physeq_regen, tag = "ASV_")
+    physeq_regen <- add_refseq(physeq_regen, tag = NA, seq_to_name = TRUE)
   }
 
   return(physeq_regen)

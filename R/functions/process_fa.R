@@ -1,24 +1,34 @@
-process_fa <- function(region, .all = NULL) {
+process_fa <- function(
+  region,
+  path = "data/output/sequences/",
+  combined_suffix = "_combined_asv_renamed.fa",
+  prefix = NULL,
+  target_suffix = NULL,
+  .all = NULL,
+  new_headers = TRUE
+) {
   # Determine file selection logic
   if (is.null(.all)) {
     # Process specific region
-    fa_files <- fs::dir_ls("data/output/processed/sequences/") %>%
-      str_subset(paste0(region, "_mxg.fa"))
+    fa_files <- fs::dir_ls(path) %>%
+      str_subset(paste0(region, target_suffix))
 
     output_path <- paste0(
-      "data/output/processed/sequences/mxg_",
+      path,
+      prefix,
       region,
-      "_combined_asv_renamed.fa"
+      combined_suffix
     )
   } else {
     # Process all regions combined
-    fa_files <- fs::dir_ls("data/output/processed/sequences/") %>%
-      str_subset("_mxg.fa")
+    fa_files <- fs::dir_ls(path) %>%
+      str_subset(target_suffix)
 
     output_path <- paste0(
-      "data/output/processed/sequences/mxg_",
-      "all",
-      "_combined_asv_renamed.fa"
+      path,
+      prefix,
+      .all,
+      combined_suffix
     )
   }
 
@@ -32,8 +42,9 @@ process_fa <- function(region, .all = NULL) {
   unique_df <- all_sequences_df[!duplicated(all_sequences_df$seq.text), ]
 
   # Rename ASVs
-  unique_df$seq.name <- paste0("ASV_", seq_len(nrow(unique_df)))
-
+  if (new_headers) {
+    unique_df$seq.name <- paste0("ASV_", seq_len(nrow(unique_df)))
+  }
   # Save to file using dat2fasta
   phylotools::dat2fasta(unique_df, outfile = output_path)
 

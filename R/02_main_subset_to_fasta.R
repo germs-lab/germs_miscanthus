@@ -1,40 +1,33 @@
 ###################################################################
 # From Phyloseq to FASTA
+#
+# SECTION 1: Script for building main phyloseq objest used throughout the project. Use of lists to organize phyloseq objects and projects.
+# Output:
+# - main_physeq_list = list of phyloseq object with all the information (e.g. crops, nucleotides, target regions)
+# - main_mxg_physeq_list = list of phyloseq objects containing only MXG crop with 16S_DNA, ITS and AMF target regions and nucleotides
+# - main_16S_physeq_list = list of phyloseq object subsetted to 16S target region and DNA nucleotide for all crops across projects.
+
+# SECTION 2: Extracts and concatenates sequences and exports them to FASTA. In the process, the renamed and concatenated sequences are reassigned to the corresponding phyloseq object.
+
+# SECTION 3: Exporting and concatenating all otu tables for 16S DNA and fungal (ITS and AMF) phyloseqs to create a new sequence (OTU) table for reassigning taxonomy downstream.
+# - 16S: Resulting union of otu tables yields 56395 AVSs, the same as the proccesd FASTA files from Section 2
+
 # Author: Bolívar Aponte Rolón
 # Date: 2025-10-23
 ###################################################################
 
 source("R/utils/00_setup.R")
 
+load("data/output/rdata/phyloseq/lamps_2018_physeq_list.rda")
+load("data/output/rdata/phyloseq/lamps_2022_physeq_list.rda")
+load("data/output/rdata/phyloseq/ef_physeq_list.rda")
 
-# Subset phyloseq by plant type
-# To subset the actual phyloseq object
-mxg_lamps_2018 <- purrr::map(
-  lamps_2018_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "M")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-)
+# ---------------------------------------------------
+# SECTION 1: Subset phyloseq ----
+# ---------------------------------------------------
 
-mxg_lamps_2022 <- purrr::map(
-  lamps_2022_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "Miscanthus")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-)
-
-mxg_ef <- purrr::map(
-  ef_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "MXG")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-)
-
-# Main list for downstream analyses
-# Main list for downstream analyses
+## Main list for downstream analyses ----
+# All projects/datasets with all target regions
 main_physeq_list <- list(
   ef_physeq_list = ef_physeq_list,
   lamps_2018_physeq_list = lamps_2018_physeq_list,
@@ -43,71 +36,275 @@ main_physeq_list <- list(
 
 save(
   main_physeq_list,
-  file = "data/output/processed/rdata/main_physeq_list.rda"
+  file = "data/output/rdata/main_physeq_list.rda"
 )
 
-main_mxg_physeq_list <- list(
-  mxg_ef = mxg_ef,
-  mxg_lamps_2018 = mxg_lamps_2018,
-  mxg_lamps_2022 = mxg_lamps_2022
+## Only 16S data for all projects ----
+## The idea here is to use this list of object for developing the pipeline. We can then explore fungal datasets.
+
+# Subset to only 16S DNA data
+## lamps_2018_16S is the only one that needs it.
+lamps_2018_16S_DNA <- lamps_2018_physeq_list$lamps_2018_16S_physeq %>%
+  subset_samples(., nucleotide == "DNA") %>%
+  filter_taxa(., function(x) sum(x > 0) > 0, TRUE)
+
+
+main_16S_physeq_list <- list(
+  ef_16S_DNA = ef_physeq_list$ef_16S_physeq,
+  lamps_2018_16S_DNA = lamps_2018_16S_DNA,
+  lamps_2022_16S_DNA = lamps_2022_physeq_list$lamps_2022_16S_physeq
 )
+save(
+  main_16S_physeq_list,
+  file = "data/output/rdata/main_16S_physeq_list.rda"
+)
+
+## MXG physeq lists ----
+# To subset the actual phyloseq object by MXG
+## With 16S, only DNA nucleotide
+
+crop_patterns <- c("MXG", "M", "Miscanthus")
+
+main_mxg_physeq_list <- purrr::imap(
+  main_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap(project_list, function(physeq_obj, physeq_name) {
+      ps_subset <- subset_samples(physeq_obj, crop %in% crop_patterns) |>
+        filter_taxa(function(x) sum(x) > 0, TRUE)
+
+      # Subset to only 16S DNA data like above
+      if (grepl("^lamps_2018_16S", physeq_name, ignore.case = TRUE)) {
+        ps_subset <- physeq_obj |>
+          subset_samples(nucleotide == "DNA") |>
+          filter_taxa(function(x) sum(x > 0) > 0, TRUE)
+      }
+
+      return(ps_subset)
+    }) |>
+      set_names(names(project_list) |> str_remove("_physeq$"))
+  }
+) %>%
+  set_names(names(.) |> str_remove("_physeq_list$"))
+
+
+# Need this one to keep DNA and RNA nucleotides for FASTA
+mxg_lamps_2018 <- purrr::map(
+  lamps_2018_physeq_list,
+  ~ {
+    ps_subset <- subset_samples(.x, crop == "M")
+    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
+  }
+) |>
+  set_names(names(lamps_2018_physeq_list) |> str_remove("_physeq$"))
+
 
 save(
   main_mxg_physeq_list,
-  file = "data/output/processed/rdata/main_mxg_physeq_list.rda"
+  file = "data/output/rdata/main_mxg_physeq_list.rda"
 )
 
-# Phyloseq to FASTA
-# create output dir
 
-# LAMPS
-# Full
+# ---------------------------------------------------
+# SECTION 2: Phyloseq to FASTA ----
+# ---------------------------------------------------
+
+## FASTA: LAMPS ----
+# Full with all target regions
 refseq2fasta(
   lamps_2018_physeq_list,
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 refseq2fasta(
   lamps_2022_physeq_list,
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
-# MXG
+## FASTA: MXG with 16S_DNA, ITS and AMF target regions and nucleotides ----
+
+refseq2fasta(
+  main_mxg_physeq_list$ef,
+  extra_id = "_mxg",
+  out_dir = "data/output/sequences"
+)
+
 refseq2fasta(
   mxg_lamps_2018,
   extra_id = "_mxg",
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
 refseq2fasta(
-  mxg_lamps_2022,
+  main_mxg_physeq_list$lamps_2022,
   extra_id = "_mxg",
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
-# Energy Farm Collab
-# Full
+## FASTA: Energy Farm Collab ----
+## Full with all target regions and nucleotides
 refseq2fasta(
   ef_physeq_list,
-  out_dir = "data/output/processed/sequences"
+  out_dir = "data/output/sequences"
 )
 
-# MXG
+## FASTA: Only 16S DNA data ----
 refseq2fasta(
-  mxg_ef,
-  extra_id = "_mxg",
-  out_dir = "data/output/processed/sequences"
+  main_16S_physeq_list,
+  out_dir = "data/output/sequences"
 )
+# NOTE ----
+# In the case of ef_16S.fa = ef_16S_DNA.fa and lamps_2022_16S = lamps_16S_DNA.fa, the resulting files with the "_DNA" suffix should be the same as when output with "all target regions" since they only contain 1 nucleotide.
 
+# ---------------------------------------------------
+# FASTA Export Checks ----
+# ---------------------------------------------------
 
 # Concatenate and export per target region
+
 target_regions <- c("16S", "ITS", "AMF")
 
+
 # Export and summary
-results <- purrr::map(target_regions, process_fa) %>%
+# process_fa() takes preexisting FASTA files when given file names, combines and reassigns sequence tags.
+
+# MXG, regions and nucleotides together, exported as individual files
+results <- purrr::map(
+  target_regions,
+  function(region) {
+    process_fa(
+      region,
+      path = "data/output/sequences/",
+      combined_suffix = "_combined_asv_renamed.fa",
+      prefix = "mxg_",
+      target_suffix = "_mxg.fa",
+      new_headers = FALSE
+    )
+  }
+) %>%
   set_names(target_regions)
 purrr::map_dfr(results, ~ data.frame(.x), .id = "region")
 
-# All together
-result <- list(all_regions = process_fa(region = target_regions, .all = "all"))
+
+# MXG, target regions and nucleotides together exported as combined file
+result <- list(
+  all_regions = process_fa(
+    region = target_regions,
+    path = "data/output/sequences/",
+    combined_suffix = "_combined_asv_renamed.fa",
+    prefix = "mxg_",
+    target_suffix = "_mxg.fa",
+    new_headers = FALSE,
+    .all = "all"
+  )
+)
 purrr::map_dfr(result, ~ data.frame(.x), .id = "region")
+
+
+# 16S region and DNA nucleotide - all crops
+results_16S_DNA <- purrr::map(
+  "16S",
+  function(region) {
+    process_fa(
+      region,
+      path = "data/output/sequences/",
+      combined_suffix = "_DNA_combined_asv_renamed.fa",
+      prefix = "all_",
+      target_suffix = "_DNA.fa",
+      .all = "16S"
+    )
+  }
+) %>%
+  set_names("16S")
+purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
+
+# ---------------------------------------------------
+# SECTION 3: OTU_TABLE Exports ----
+# ---------------------------------------------------
+# Export all otu tables for 16S DNA phyloseqs
+
+ef_16S_otu_table <- export_otu_table(main_16S_physeq_list$ef_16S_DNA)
+
+lamps_2018_16S_otu_table <- export_otu_table(
+  main_16S_physeq_list$lamps_2018_16S_DNA
+)
+
+lamps_2022_16S_otu_table <- export_otu_table(
+  main_16S_physeq_list$lamps_2022_16S_DNA
+)
+
+# Export OTU tables for Fungal datasets only MXG crop
+
+ef_mxg_AMF <- export_otu_table(main_mxg_physeq_list$ef$ef_AMF)
+
+lamps_2018_mxg_ITS <- export_otu_table(
+  main_mxg_physeq_list$lamps_2018$lamps_2018_ITS
+)
+lamps_2022_mxg_AMF <- export_otu_table(
+  main_mxg_physeq_list$lamps_2022$lamps_2022_AMF
+)
+
+## Do we have shared ASV sequences? ----
+# union, intersect and setdiff discard any duplicated values in the arguments
+
+A <- colnames(ef_16S_otu_table)
+B <- colnames(lamps_2018_16S_otu_table)
+C <- colnames(lamps_2022_16S_otu_table)
+
+# basic intersections/unions
+A_and_B <- intersect(A, B)
+A_and_C <- intersect(A, C)
+B_and_C <- intersect(B, C)
+all_three <- Reduce(intersect, list(A, B, C)) # A ∩ B ∩ C
+union_all <- Reduce(union, list(A, B, C)) # A ∪ B ∪ C
+
+# # "only" sets (in one set and not any other)
+# A_only <- setdiff(A, union(B, C))
+# B_only <- setdiff(B, union(A, C))
+# C_only <- setdiff(C, union(A, B))
+
+# # pairwise-only (in exactly two sets)
+# A_and_B_only <- setdiff(A_and_B, C) # in A and B but NOT in C
+# A_and_C_only <- setdiff(A_and_C, B)
+# B_and_C_only <- setdiff(B_and_C, A)
+
+# # assemble into a named list
+# seq_combinations <- list(
+#   A_only = A_only,
+#   B_only = B_only,
+#   C_only = C_only,
+#   A_and_B_only = A_and_B_only,
+#   A_and_C_only = A_and_C_only,
+#   B_and_C_only = B_and_C_only,
+#   all_three = all_three,
+#   union_all = union_all,
+#   A_and_B = A_and_B,
+#   A_and_C = A_and_C,
+#   B_and_C = B_and_C
+# )
+
+## Use the intersection to by = NULL. From the documentation: If NULL, the default, *_join() will perform a natural join, using all variables in common across x and y.
+
+# The combined DT should be the union of all three OTU tables (21833+40189+5132) - minus their intersection (10759)
+
+## New 16S DNA joined otu table (aka seqtab)
+new_16S_DNA_seqtab <- join_otu_tables(
+  ef_16S_otu_table,
+  lamps_2018_16S_otu_table,
+  lamps_2022_16S_otu_table
+)
+
+save(new_16S_DNA_seqtab, file = "data/output/rdata/new_16S_DNS_seqtab.rda")
+
+
+## New fungal joined otu tables
+
+new_fungal_seqtab <- join_otu_tables(
+  ef_mxg_AMF,
+  lamps_2018_mxg_ITS,
+  lamps_2022_mxg_AMF
+)
+
+save(new_fungal_seqtab, file = "data/output/rdata/new_fungal_seqtab.rda")
+
+# NOTE ----
+# This new seqtab matrix is meant to be used to reassign taxonomy. Another approach is to take the taxonomy tables and reassign sequence ID to a concatenated table of all projects then subset by project.

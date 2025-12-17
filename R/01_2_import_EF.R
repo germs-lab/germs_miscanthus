@@ -37,7 +37,7 @@ taxa_16S <- readRDS(
 ) %>%
   as.data.frame() %>%
   rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
+  rename_with(str_to_lower, .cols = everything())
 rownames(taxa_16S) <- taxa_16S %>%
   pull(sequence)
 
@@ -68,7 +68,7 @@ tax_table(ef_16S_physeq)
 sample_data(ef_16S_physeq)
 
 # Add refseq
-ef_16S_physeq <- add_refseq(ef_16S_physeq, tag = "ASV_")
+ef_16S_physeq <- add_refseq(ef_16S_physeq, tag = NA, seq_to_name = TRUE)
 
 # Any other missing or dropped sample?
 post_physeq_missing <- base::setdiff(
@@ -88,8 +88,7 @@ taxa_AMF <- readRDS(
 ) %>%
   as.data.frame() %>%
   rownames_to_column(., var = "sequence") %>%
-  rename_with(str_to_lower, .cols = everything()) # Clean up needed after importing from .csv
-
+  rename_with(str_to_lower, .cols = everything())
 rownames(taxa_AMF) <- taxa_AMF %>%
   pull(sequence)
 
@@ -136,8 +135,7 @@ tax_table(ef_AMF_physeq)
 sample_data(ef_AMF_physeq)
 
 # Add refseq
-ef_AMF_physeq <- add_refseq(ef_AMF_physeq, tag = "ASV_")
-
+ef_AMF_physeq <- add_refseq(ef_AMF_physeq, tag = NA, seq_to_name = TRUE)
 
 # Any other missing or dropped sample?
 post_physeq_missing <- base::setdiff(
@@ -156,10 +154,10 @@ ef_physeq_list <- list(
   ef_AMF_physeq = ef_AMF_physeq
 )
 
-#dir.create("data/output/processed/rdata/phyloseq/", recursive = TRUE)
+#dir.create("data/output/rdata/phyloseq/", recursive = TRUE)
 save(
   ef_physeq_list,
-  file = "data/output/processed/rdata/phyloseq/ef_physeq_list.rda"
+  file = "data/output/rdata/phyloseq/ef_physeq_list.rda"
 )
 
 # Save phyloseqs independently
@@ -170,7 +168,7 @@ purrr::iwalk(
     save(
       list = .y,
       file = file.path(
-        "data/output/processed/rdata/phyloseq/",
+        "data/output/rdata/phyloseq/",
         paste0(.y, ".rda")
       )
     )
