@@ -1,4 +1,4 @@
-export_otu_table <- function(physeq_obj, project_name) {
+export_otu_table <- function(physeq_obj) {
   result <- physeq_obj %>%
     otu_table() %>%
     as.data.frame() %>%
