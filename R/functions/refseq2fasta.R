@@ -1,38 +1,81 @@
+#' Export Reference Sequences from Phyloseq Objects to FASTA Files
+#'
+#' Extracts reference sequences from phyloseq objects and exports them to FASTA
+#' format with explicit, standardized naming.
+#'
+#' @param phyloseq_list A named list of phyloseq objects.
+#' @param out_dir Output directory for FASTA files.
+#' @param crop_subset Character string describing the crop subset
+#'   (e.g., "all_crops", "mxg_only"). Default is NULL.
+#' @param out_ext File extension. Default is ".fa".
+#'
+#' @return Invisibly returns a named list of output file paths.
+#'
+#' @details
+#' Output naming convention: {project}_{target_region}_{nucleotide}_{crop_subset}.fa
+#'
+#' Examples:
+#' - ef_16S_DNA_all_crops.fa (Energy Farm, 16S, DNA, all crops)
+#' - lamps_2018_ITS_DNA_mxg_only.fa (LAMPS 2018, ITS, DNA, Miscanthus only)
+#' - lamps_2022_AMF_DNA_all_crops.fa (LAMPS 2022, AMF, DNA, all crops)
+#'
+#' @export
 refseq2fasta <- function(
-  phyloseq_list,
-  out_dir,
-  extra_id = NULL,
-  out_ext = ".fa"
-) {
-  # Names for files
-  nms <- names(phyloseq_list)
-  nms <- gsub("_physeq", "", nms)
+    phyloseq_list,
+    out_dir,
+    crop_subset = NULL,
+    out_ext = ".fa") {
+  # Validate inputs
+  if (!dir.exists(out_dir)) {
+    dir.create(out_dir, recursive = TRUE)
+  }
 
-  # Refseqs to a FASTA named by the list name
+  # Get base names from list (remove _physeq suffix)
+  base_names <- names(phyloseq_list)
+  base_names <- gsub("_physeq$", "", base_names)
+
+  # Track output files
+
+  output_files <- list()
+
+  # Process each phyloseq object
   purrr::walk2(
     phyloseq_list,
-    nms,
+    base_names,
     ~ {
       seqs <- phyloseq::refseq(.x)
 
-      # build a safe output path
-      fname <- paste0(.y, extra_id, out_ext)
+      # Build explicit filename with crop subset
+      fname <- if (!is.null(crop_subset)) {
+        paste0(.y, "_", crop_subset, out_ext)
+      } else {
+        paste0(.y, out_ext)
+      }
+
+      # Sanitize filename (remove spaces, keep alphanumeric, underscore, hyphen, dot)
       fname <- gsub("[[:space:]]+", "_", fname)
       fname <- gsub("[^A-Za-z0-9_\\-\\.]", "", fname)
 
       outfile <- file.path(out_dir, fname)
 
-      # Getting Biostring to talk to phylotools
+      # Convert Biostrings to phylotools format
       new_seqs <- Biostrings::as.data.frame(seqs) %>%
         tibble::rownames_to_column(., var = "seq.name") %>%
-        rename(seq.text = x)
+        dplyr::rename(seq.text = x)
 
       tryCatch(
-        phylotools::dat2fasta(new_seqs, outfile = outfile),
+        {
+          phylotools::dat2fasta(new_seqs, outfile = outfile)
+          message("Exported: ", fname, " (", nrow(new_seqs), " sequences)")
+        },
         error = function(e) {
-          message("Failed to write ", outfile, ": ", conditionMessage(e))
+          warning("Failed to write ", outfile, ": ", conditionMessage(e))
         }
       )
+
+      output_files[[.y]] <<- outfile
     }
   )
+
+  invisible(output_files)
 }
