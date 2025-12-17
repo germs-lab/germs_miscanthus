@@ -86,8 +86,8 @@ process_fa <- function(
     warning(
       "No FASTA files found matching criteria:\n",
       "  region: ", paste(region, collapse = ", "), "\n",
-      "  crop_subset: ", crop_subset %||% "any", "\n",
-      "  nucleotide: ", nucleotide %||% "any"
+      "  crop_subset: ", if (is.null(crop_subset)) "any" else crop_subset, "\n",
+      "  nucleotide: ", if (is.null(nucleotide)) "any" else nucleotide
     )
     return(NULL)
   }

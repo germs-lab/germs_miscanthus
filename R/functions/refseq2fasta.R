@@ -34,22 +34,18 @@ refseq2fasta <- function(
   base_names <- names(phyloseq_list)
   base_names <- gsub("_physeq$", "", base_names)
 
-  # Track output files
-
-  output_files <- list()
-
-  # Process each phyloseq object
-  purrr::walk2(
+  # Process each phyloseq object and collect output paths
+  output_files <- purrr::map2(
     phyloseq_list,
     base_names,
-    ~ {
-      seqs <- phyloseq::refseq(.x)
+    function(ps, nm) {
+      seqs <- phyloseq::refseq(ps)
 
       # Build explicit filename with crop subset
       fname <- if (!is.null(crop_subset)) {
-        paste0(.y, "_", crop_subset, out_ext)
+        paste0(nm, "_", crop_subset, out_ext)
       } else {
-        paste0(.y, out_ext)
+        paste0(nm, out_ext)
       }
 
       # Sanitize filename (remove spaces, keep alphanumeric, underscore, hyphen, dot)
@@ -73,9 +69,10 @@ refseq2fasta <- function(
         }
       )
 
-      output_files[[.y]] <<- outfile
+      outfile
     }
   )
 
+  names(output_files) <- base_names
   invisible(output_files)
 }

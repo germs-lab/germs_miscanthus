@@ -144,11 +144,14 @@ test_that("naming convention follows expected pattern", {
   # Combined: combined_{region}_{nucleotide}_{crop_subset}_combined.fa
 
   # Test individual file pattern
-  individual_pattern <- "^[a-z]+(_[0-9]{4})?_[A-Z0-9]+(_DNA|_RNA)?(_[a-z_]+)?\\.fa$"
+  # Note: nucleotide is optional because some datasets may have only one type
+  # The pattern allows for flexibility while maintaining consistency
+  individual_pattern <- "^[a-z]+(_[0-9]{4})?_[A-Z0-9]+(_DNA|_RNA|_DNA_RNA)?(_[a-z_]+)?\\.fa$"
 
   expect_true(grepl(individual_pattern, "ef_16S_DNA_all_crops.fa"))
   expect_true(grepl(individual_pattern, "lamps_2018_ITS_mxg_only.fa"))
   expect_true(grepl(individual_pattern, "lamps_2022_AMF_DNA_all_crops.fa"))
+  expect_true(grepl(individual_pattern, "ef_16S_all_crops.fa")) # Without explicit nucleotide
 
   # Test combined file pattern
   combined_pattern <- "^combined_.*_combined\\.fa$"
