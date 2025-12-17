@@ -1,9 +1,10 @@
 ###################################################################
 # From Phyloseq to FASTA
 #
-# SECTION 1: Script for building main phyloseq objest used throughout the project. Use of lists to organize phyloseq objects and projects. Output:
+# SECTION 1: Script for building main phyloseq objest used throughout the project. Use of lists to organize phyloseq objects and projects.
+# Output:
 # - main_physeq_list = list of phyloseq object with all the information (e.g. crops, nucleotides, target regions)
-# - main_mxg_physeq_list = list of phyloseq objects containing only MXG crop with all target regions and nucleotides
+# - main_mxg_physeq_list = list of phyloseq objects containing only MXG crop with 16S_DNA, ITS and AMF target regions and nucleotides
 # - main_16S_physeq_list = list of phyloseq object subsetted to 16S target region and DNA nucleotide for all crops across projects.
 
 # SECTION 2: Extracts and concatenates sequences and exports them to FASTA. In the process, the renamed and concatenated sequences are reassigned to the corresponding phyloseq object.
@@ -58,17 +59,35 @@ save(
   file = "data/output/rdata/main_16S_physeq_list.rda"
 )
 
-## Only MXG ----
+## MXG physeq lists ----
 # To subset the actual phyloseq object by MXG
-mxg_ef <- purrr::imap(
-  ef_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "MXG")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-) |>
-  set_names(names(ef_physeq_list) |> str_remove("_physeq$"))
+## With 16S, only DNA nucleotide
 
+crop_patterns <- c("MXG", "M", "Miscanthus")
+
+main_mxg_physeq_list <- purrr::imap(
+  main_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap(project_list, function(physeq_obj, physeq_name) {
+      ps_subset <- subset_samples(physeq_obj, crop %in% crop_patterns) |>
+        filter_taxa(function(x) sum(x) > 0, TRUE)
+
+      # Subset to only 16S DNA data like above
+      if (grepl("^lamps_2018_16S", physeq_name, ignore.case = TRUE)) {
+        ps_subset <- physeq_obj |>
+          subset_samples(nucleotide == "DNA") |>
+          filter_taxa(function(x) sum(x > 0) > 0, TRUE)
+      }
+
+      return(ps_subset)
+    }) |>
+      set_names(names(project_list) |> str_remove("_physeq$"))
+  }
+) %>%
+  set_names(names(.) |> str_remove("_physeq_list$"))
+
+
+# Need this one to keep DNA and RNA nucleotides for FASTA
 mxg_lamps_2018 <- purrr::map(
   lamps_2018_physeq_list,
   ~ {
@@ -78,26 +97,6 @@ mxg_lamps_2018 <- purrr::map(
 ) |>
   set_names(names(lamps_2018_physeq_list) |> str_remove("_physeq$"))
 
-mxg_lamps_2022 <- purrr::map(
-  lamps_2022_physeq_list,
-  ~ {
-    ps_subset <- subset_samples(.x, crop == "Miscanthus")
-    filter_taxa(ps_subset, function(x) sum(x > 0) > 0, TRUE)
-  }
-) |>
-  set_names(names(lamps_2022_physeq_list) |> str_remove("_physeq$"))
-
-
-## MXG physeq lists ----
-## 16S is only DNA nucleotide
-main_mxg_physeq_list <- list(
-  ef = mxg_ef,
-  lamps_2018 = list(
-    lamps_2018_16S = lamps_2018_16S_DNA, # Making sure we only have 16S_DNA
-    lamps_2018_ITS = mxg_lamps_2018$lamps_2018_ITS
-  ),
-  lamps_2022 = mxg_lamps_2022
-)
 
 save(
   main_mxg_physeq_list,
@@ -109,7 +108,7 @@ save(
 # SECTION 2: Phyloseq to FASTA ----
 # ---------------------------------------------------
 
-## LAMPS ----
+## FASTA: LAMPS ----
 # Full with all target regions
 refseq2fasta(
   lamps_2018_physeq_list,
@@ -121,7 +120,14 @@ refseq2fasta(
   out_dir = "data/output/sequences"
 )
 
-## MXG with all target regions ----
+## FASTA: MXG with 16S_DNA, ITS and AMF target regions and nucleotides ----
+
+refseq2fasta(
+  main_mxg_physeq_list$ef,
+  extra_id = "_mxg",
+  out_dir = "data/output/sequences"
+)
+
 refseq2fasta(
   mxg_lamps_2018,
   extra_id = "_mxg",
@@ -129,26 +135,19 @@ refseq2fasta(
 )
 
 refseq2fasta(
-  mxg_lamps_2022,
+  main_mxg_physeq_list$lamps_2022,
   extra_id = "_mxg",
   out_dir = "data/output/sequences"
 )
 
-## Energy Farm Collab ----
-# Fullwith all target regions
+## FASTA: Energy Farm Collab ----
+## Full with all target regions and nucleotides
 refseq2fasta(
   ef_physeq_list,
   out_dir = "data/output/sequences"
 )
 
-# MXG with all target regions
-refseq2fasta(
-  mxg_ef,
-  extra_id = "_mxg",
-  out_dir = "data/output/sequences"
-)
-
-# Only 16S DNA data ----
+## FASTA: Only 16S DNA data ----
 refseq2fasta(
   main_16S_physeq_list,
   out_dir = "data/output/sequences"
@@ -157,7 +156,7 @@ refseq2fasta(
 # In the case of ef_16S.fa = ef_16S_DNA.fa and lamps_2022_16S = lamps_16S_DNA.fa, the resulting files with the "_DNA" suffix should be the same as when output with "all target regions" since they only contain 1 nucleotide.
 
 # ---------------------------------------------------
-# FASTA Exports ----
+# FASTA Export Checks ----
 # ---------------------------------------------------
 
 # Concatenate and export per target region
