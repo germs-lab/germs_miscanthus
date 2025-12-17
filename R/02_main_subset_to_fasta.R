@@ -112,11 +112,13 @@ save(
 # Full with all target regions
 refseq2fasta(
   lamps_2018_physeq_list,
+  extra_id = "_all_crops",
   out_dir = "data/output/sequences"
 )
 
 refseq2fasta(
   lamps_2022_physeq_list,
+  extra_id = "_all_crops",
   out_dir = "data/output/sequences"
 )
 
@@ -124,13 +126,13 @@ refseq2fasta(
 
 refseq2fasta(
   main_mxg_physeq_list$ef,
-  extra_id = "_mxg",
+  extra_id = "_mxg", # Renaming manually to ef_16S_DNA_mxg.fa and ef_AMF_mxg.fa respectively
   out_dir = "data/output/sequences"
 )
 
 refseq2fasta(
-  mxg_lamps_2018,
-  extra_id = "_mxg",
+  main_mxg_physeq_list$lamps_2018,
+  extra_id = "_mxg", # Renaming manually lamps_2018_16S_DNA_mxg.ga
   out_dir = "data/output/sequences"
 )
 
@@ -150,6 +152,7 @@ refseq2fasta(
 ## FASTA: Only 16S DNA data ----
 refseq2fasta(
   main_16S_physeq_list,
+  extra_id = "_all_crops",
   out_dir = "data/output/sequences"
 )
 # NOTE ----
