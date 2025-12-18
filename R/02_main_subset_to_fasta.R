@@ -27,7 +27,7 @@ load("data/output/rdata/phyloseq/ef_physeq_list.rda")
 # ---------------------------------------------------
 
 ## Main list for downstream analyses ----
-# All projects/datasets with all target regions
+# All projects/datasets with all target regions, nucleotides and crops.
 main_physeq_list <- list(
   ef_physeq_list = ef_physeq_list,
   lamps_2018_physeq_list = lamps_2018_physeq_list,
@@ -74,14 +74,14 @@ main_mxg_physeq_list <- purrr::imap(
 
       # Subset to only 16S DNA data like above
       if (grepl("^lamps_2018_16S", physeq_name, ignore.case = TRUE)) {
-        ps_subset <- physeq_obj |>
+        ps_subset <- ps_subset |>
           subset_samples(nucleotide == "DNA") |>
           filter_taxa(function(x) sum(x > 0) > 0, TRUE)
       }
 
       return(ps_subset)
     }) |>
-      set_names(names(project_list) |> str_remove("_physeq$"))
+      set_names(names(project_list) |> str_replace("_physeq$", "_DNA"))
   }
 ) %>%
   set_names(names(.) |> str_remove("_physeq_list$"))
@@ -107,118 +107,178 @@ save(
 # ---------------------------------------------------
 # SECTION 2: Phyloseq to FASTA ----
 # ---------------------------------------------------
+#
+# FASTA Naming Convention:
+# {project}_{target_region}_{nucleotide}_{crop_subset}.fa
+#
+# Components:
+# - project: ef, lamps_2018, lamps_2022
+# - target_region: 16S, ITS, AMF
+# - nucleotide: DNA, RNA (or DNA_RNA for combined)
+# - crop_subset: all_crops, mxg_only
+#
+# Examples:
+# - ef_16S_DNA_all_crops.fa        (Energy Farm, 16S, DNA, all crops)
+# - lamps_2018_ITS_DNA_mxg_only.fa (LAMPS 2018, ITS, DNA, Miscanthus only)
+# - lamps_2022_AMF_DNA_all_crops.fa (LAMPS 2022, AMF, DNA, all crops)
+#
+# Combined file naming:
+# combined_{crop_subset}_{region}_{nucleotide}_combined.fa
+# - combined_mxg_only_16S_DNA_combined.fa (MXG 16S DNA sequences combined)
+# - combined_all_crops_all_regions_DNA_combined.fa (All crops, all regions)
 
-## FASTA: LAMPS ----
-# Full with all target regions
-refseq2fasta(
-  lamps_2018_physeq_list,
-  extra_id = "_all_crops",
-  out_dir = "data/output/sequences"
-)
+fasta_output_dir <- "data/output/sequences"
 
-refseq2fasta(
-  lamps_2022_physeq_list,
-  extra_id = "_all_crops",
-  out_dir = "data/output/sequences"
-)
+## 2.1 FASTA Export: All Crops ----
+# Export sequences from all projects with all crops included
 
-## FASTA: MXG with 16S_DNA, ITS and AMF target regions and nucleotides ----
-
-refseq2fasta(
-  main_mxg_physeq_list$ef,
-  extra_id = "_mxg", # Renaming manually to ef_16S_DNA_mxg.fa and ef_AMF_mxg.fa respectively
-  out_dir = "data/output/sequences"
-)
-
-refseq2fasta(
-  main_mxg_physeq_list$lamps_2018,
-  extra_id = "_mxg", # Renaming manually lamps_2018_16S_DNA_mxg.ga
-  out_dir = "data/output/sequences"
-)
-
-refseq2fasta(
-  main_mxg_physeq_list$lamps_2022,
-  extra_id = "_mxg",
-  out_dir = "data/output/sequences"
-)
-
-## FASTA: Energy Farm Collab ----
-## Full with all target regions and nucleotides
+# Energy Farm - all target regions (16S_DNA, AMF)
 refseq2fasta(
   ef_physeq_list,
-  out_dir = "data/output/sequences"
+  crop_subset = "all_crops",
+  out_dir = fasta_output_dir
 )
 
-## FASTA: Only 16S DNA data ----
+# LAMPS 2018 - all target regions (16S has DNA+RNA, ITS has DNA)
+# Note: lamps_2018_16S includes both DNA and RNA nucleotides
+refseq2fasta(
+  lamps_2018_physeq_list,
+  crop_subset = "all_crops",
+  out_dir = fasta_output_dir
+)
+
+refseq2fasta(
+  lamps_2018_16S_DNA,
+  crop_subset = "all_crops",
+  out_dir = fasta_output_dir
+)
+
+# LAMPS 2022 - all target regions (16S_DNA, AMF)
+refseq2fasta(
+  lamps_2022_physeq_list,
+  crop_subset = "all_crops",
+  out_dir = fasta_output_dir
+)
+
+
+## 2.2 FASTA Export: Miscanthus (MXG) Only ----
+# Export sequences subsetted to Miscanthus crop only
+# This list only contains DNA nucleotide for all target regions.
+
+# Energy Farm MXG subset
+refseq2fasta(
+  main_mxg_physeq_list$ef,
+  crop_subset = "mxg_only",
+  out_dir = fasta_output_dir
+)
+
+# LAMPS 2018 MXG subset
+refseq2fasta(
+  main_mxg_physeq_list$lamps_2018,
+  crop_subset = "mxg_only",
+  out_dir = fasta_output_dir
+)
+
+
+## LAMPS 2018 MXG subset with 16S DNA+RNA
+refseq2fasta(
+  mxg_lamps_2018$lamps_2018_16S,
+  crop_subset = "DNA_RNA_mxg_only",
+  out_dir = fasta_output_dir
+)
+
+# LAMPS 2022 MXG subset
+refseq2fasta(
+  main_mxg_physeq_list$lamps_2022,
+  crop_subset = "mxg_only",
+  out_dir = fasta_output_dir
+)
+
+## 2.3 FASTA Export: 16S DNA Only (All Crops) ----
+# Export 16S DNA sequences from the curated 16S-only list
+
 refseq2fasta(
   main_16S_physeq_list,
-  extra_id = "_all_crops",
-  out_dir = "data/output/sequences"
+  crop_subset = "all_crops",
+  out_dir = fasta_output_dir
 )
-# NOTE ----
-# In the case of ef_16S.fa = ef_16S_DNA.fa and lamps_2022_16S = lamps_16S_DNA.fa, the resulting files with the "_DNA" suffix should be the same as when output with "all target regions" since they only contain 1 nucleotide.
+# | Project | File Name | Equivalence |
+# |---------|-----------|-------------|
+# | LAMPS 2022 | lamps_2022_16S_DNA_all_crops.fa | Same as lamps_2022_16S_all_crops.fa |
+# | Energy Farm | ef_16S_DNA_all_crops.fa | Same as ef_16S_all_crops.fa |
+# |
+# | Note: 16S_DNA is the only target region in these projects |
 
 # ---------------------------------------------------
-# FASTA Export Checks ----
+# SECTION 2.4: FASTA Concatenation ----
 # ---------------------------------------------------
-
-# Concatenate and export per target region
+# Combine FASTA files across projects for downstream analysis
+# process_fa() reads existing FASTA files, deduplicates, and exports combined files
 
 target_regions <- c("16S", "ITS", "AMF")
 
+## 2.4.1 Combined FASTA: MXG All Regions ----
+# Combine all MXG sequences across projects and all target regions
 
-# Export and summary
-# process_fa() takes preexisting FASTA files when given file names, combines and reassigns sequence tags.
+results_mxg_all <- process_fa(
+  region = target_regions,
+  path = fasta_output_dir,
+  exclude_str = "_RNA",
+  crop_subset = "mxg_only",
+  output_prefix = "combined_",
+  combine_all = TRUE,
+  rename_headers = FALSE
+)
 
-# MXG, regions and nucleotides together, exported as individual files
-results <- purrr::map(
+## 2.4.2 Combined FASTA: MXG by Region ----
+# Combine MXG sequences across projects, one file per target region
+
+results_mxg_by_region <- purrr::map(
   target_regions,
   function(region) {
     process_fa(
-      region,
-      path = "data/output/sequences/",
-      combined_suffix = "_combined_asv_renamed.fa",
-      prefix = "mxg_",
-      target_suffix = "_mxg.fa",
-      new_headers = FALSE
+      region = region,
+      nucleotide = "DNA",
+      exclude_str = "_RNA",
+      path = fasta_output_dir,
+      crop_subset = "mxg_only",
+      output_prefix = "combined_",
+      combine_all = FALSE,
+      rename_headers = FALSE
     )
   }
 ) %>%
-  set_names(target_regions)
-purrr::map_dfr(results, ~ data.frame(.x), .id = "region")
+  purrr::set_names(target_regions)
 
-
-# MXG, target regions and nucleotides together exported as combined file
-result <- list(
-  all_regions = process_fa(
-    region = target_regions,
-    path = "data/output/sequences/",
-    combined_suffix = "_combined_asv_renamed.fa",
-    prefix = "mxg_",
-    target_suffix = "_mxg.fa",
-    new_headers = FALSE,
-    .all = "all"
-  )
+# Summary of MXG by region
+purrr::map_dfr(
+  results_mxg_by_region,
+  ~ data.frame(
+    region = .x$region,
+    n_files = .x$n_files,
+    n_unique_sequences = .x$n_sequences,
+    output_file = basename(.x$output_path)
+  ),
+  .id = "target"
 )
-purrr::map_dfr(result, ~ data.frame(.x), .id = "region")
 
+## 2.4.3 Combined FASTA: 16S DNA All Crops ----
+# Combine 16S DNA sequences across all projects and crops
 
-# 16S region and DNA nucleotide - all crops
-results_16S_DNA <- purrr::map(
-  "16S",
-  function(region) {
-    process_fa(
-      region,
-      path = "data/output/sequences/",
-      combined_suffix = "_DNA_combined_asv_renamed.fa",
-      prefix = "all_",
-      target_suffix = "_DNA.fa",
-      .all = "16S"
-    )
-  }
-) %>%
-  set_names("16S")
-purrr::map_dfr(results_16S_DNA, ~ data.frame(.x), .id = "region")
+results_16S_DNA_all_crops <- process_fa(
+  region = "16S",
+  path = fasta_output_dir,
+  vec_files = c(
+    "ef_16S_all_crops.fa",
+    "lamps_2018_16S_DNA_all_crops.fa",
+    "lamps_2022_16S_all_crops.fa"
+  ),
+  exclude_str = "_RNA",
+  crop_subset = "all_crops",
+  output_prefix = "combined_",
+  extra_id = "DNA",
+  rename_headers = FALSE
+)
 
 # ---------------------------------------------------
 # SECTION 3: OTU_TABLE Exports ----
