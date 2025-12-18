@@ -74,7 +74,7 @@ main_mxg_physeq_list <- purrr::imap(
 
       # Subset to only 16S DNA data like above
       if (grepl("^lamps_2018_16S", physeq_name, ignore.case = TRUE)) {
-        ps_subset <- physeq_obj |>
+        ps_subset <- ps_subset |>
           subset_samples(nucleotide == "DNA") |>
           filter_taxa(function(x) sum(x > 0) > 0, TRUE)
       }
@@ -147,6 +147,12 @@ refseq2fasta(
   out_dir = fasta_output_dir
 )
 
+refseq2fasta(
+  lamps_2018_16S_DNA,
+  crop_subset = "all_crops",
+  out_dir = fasta_output_dir
+)
+
 # LAMPS 2022 - all target regions (16S_DNA, AMF)
 refseq2fasta(
   lamps_2022_physeq_list,
@@ -211,7 +217,20 @@ refseq2fasta(
 
 target_regions <- c("16S", "ITS", "AMF")
 
-## 2.4.1 Combined FASTA: MXG by Region ----
+## 2.4.1 Combined FASTA: MXG All Regions ----
+# Combine all MXG sequences across projects and all target regions
+
+results_mxg_all <- process_fa(
+  region = target_regions,
+  path = fasta_output_dir,
+  exclude_str = "_RNA",
+  crop_subset = "mxg_only",
+  output_prefix = "combined_",
+  combine_all = TRUE,
+  rename_headers = FALSE
+)
+
+## 2.4.2 Combined FASTA: MXG by Region ----
 # Combine MXG sequences across projects, one file per target region
 
 results_mxg_by_region <- purrr::map(
@@ -219,10 +238,13 @@ results_mxg_by_region <- purrr::map(
   function(region) {
     process_fa(
       region = region,
+      nucleotide = "DNA",
+      exclude_str = "_RNA",
       path = fasta_output_dir,
       crop_subset = "mxg_only",
       output_prefix = "combined_",
-      rename_headers = TRUE
+      combine_all = FALSE,
+      rename_headers = FALSE
     )
   }
 ) %>%
@@ -240,28 +262,22 @@ purrr::map_dfr(
   .id = "target"
 )
 
-## 2.4.2 Combined FASTA: MXG All Regions ----
-# Combine all MXG sequences across projects and all target regions
-
-results_mxg_all <- process_fa(
-  region = target_regions,
-  path = fasta_output_dir,
-  crop_subset = "mxg_only",
-  output_prefix = "combined_",
-  combine_all = TRUE,
-  rename_headers = TRUE
-)
-
 ## 2.4.3 Combined FASTA: 16S DNA All Crops ----
 # Combine 16S DNA sequences across all projects and crops
 
 results_16S_DNA_all_crops <- process_fa(
   region = "16S",
   path = fasta_output_dir,
+  vec_files = c(
+    "ef_16S_all_crops.fa",
+    "lamps_2018_16S_DNA_all_crops.fa",
+    "lamps_2022_16S_all_crops.fa"
+  ),
+  exclude_str = "_RNA",
   crop_subset = "all_crops",
   output_prefix = "combined_",
-  nucleotide = "DNA",
-  rename_headers = TRUE
+  extra_id = "DNA",
+  rename_headers = FALSE
 )
 
 # ---------------------------------------------------
