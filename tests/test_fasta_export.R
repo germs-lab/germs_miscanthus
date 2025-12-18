@@ -65,7 +65,6 @@ test_that("refseq2fasta sanitizes filenames correctly", {
 # ---------------------------------------------------
 
 test_that("process_fa generates correct output filename for single region", {
-
   # Test single region output naming
   region <- "16S"
   output_prefix <- "combined_"
@@ -157,7 +156,10 @@ test_that("naming convention follows expected pattern", {
   combined_pattern <- "^combined_.*_combined\\.fa$"
 
   expect_true(grepl(combined_pattern, "combined_16S_DNA_mxg_only_combined.fa"))
-  expect_true(grepl(combined_pattern, "combined_all_regions_all_crops_combined.fa"))
+  expect_true(grepl(
+    combined_pattern,
+    "combined_all_regions_all_crops_combined.fa"
+  ))
 })
 
 # ---------------------------------------------------
@@ -183,6 +185,6 @@ test_that("FASTA sequence count matches expected", {
 # Run tests if executed directly ----
 # ---------------------------------------------------
 
-if (interactive()) {
-  test_dir(here::here("tests"))
-}
+# if (interactive()) {
+#   testthat::test_file(here::here("tests/test_fasta_export.R"))
+# }

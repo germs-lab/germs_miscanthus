@@ -27,7 +27,7 @@ load("data/output/rdata/phyloseq/ef_physeq_list.rda")
 # ---------------------------------------------------
 
 ## Main list for downstream analyses ----
-# All projects/datasets with all target regions
+# All projects/datasets with all target regions, nucleotides and crops.
 main_physeq_list <- list(
   ef_physeq_list = ef_physeq_list,
   lamps_2018_physeq_list = lamps_2018_physeq_list,
@@ -81,7 +81,7 @@ main_mxg_physeq_list <- purrr::imap(
 
       return(ps_subset)
     }) |>
-      set_names(names(project_list) |> str_remove("_physeq$"))
+      set_names(names(project_list) |> str_replace("_physeq$", "_DNA"))
   }
 ) %>%
   set_names(names(.) |> str_remove("_physeq_list$"))
@@ -132,6 +132,13 @@ fasta_output_dir <- "data/output/sequences"
 ## 2.1 FASTA Export: All Crops ----
 # Export sequences from all projects with all crops included
 
+# Energy Farm - all target regions (16S_DNA, AMF)
+refseq2fasta(
+  ef_physeq_list,
+  crop_subset = "all_crops",
+  out_dir = fasta_output_dir
+)
+
 # LAMPS 2018 - all target regions (16S has DNA+RNA, ITS has DNA)
 # Note: lamps_2018_16S includes both DNA and RNA nucleotides
 refseq2fasta(
@@ -147,15 +154,10 @@ refseq2fasta(
   out_dir = fasta_output_dir
 )
 
-# Energy Farm - all target regions (16S_DNA, AMF)
-refseq2fasta(
-  ef_physeq_list,
-  crop_subset = "all_crops",
-  out_dir = fasta_output_dir
-)
 
 ## 2.2 FASTA Export: Miscanthus (MXG) Only ----
 # Export sequences subsetted to Miscanthus crop only
+# This list only contains DNA nucleotide for all target regions.
 
 # Energy Farm MXG subset
 refseq2fasta(
@@ -168,6 +170,14 @@ refseq2fasta(
 refseq2fasta(
   main_mxg_physeq_list$lamps_2018,
   crop_subset = "mxg_only",
+  out_dir = fasta_output_dir
+)
+
+
+## LAMPS 2018 MXG subset with 16S DNA+RNA
+refseq2fasta(
+  mxg_lamps_2018$lamps_2018_16S,
+  crop_subset = "DNA_RNA_mxg_only",
   out_dir = fasta_output_dir
 )
 
@@ -186,6 +196,12 @@ refseq2fasta(
   crop_subset = "all_crops",
   out_dir = fasta_output_dir
 )
+# | Project | File Name | Equivalence |
+# |---------|-----------|-------------|
+# | LAMPS 2022 | lamps_2022_16S_DNA_all_crops.fa | Same as lamps_2022_16S_all_crops.fa |
+# | Energy Farm | ef_16S_DNA_all_crops.fa | Same as ef_16S_all_crops.fa |
+# |
+# | Note: 16S_DNA is the only target region in these projects |
 
 # ---------------------------------------------------
 # SECTION 2.4: FASTA Concatenation ----
