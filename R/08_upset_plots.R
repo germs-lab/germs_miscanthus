@@ -11,90 +11,13 @@
 source("R/utils/00_setup.R")
 library(ComplexUpset)
 
-# SECTION 1: Helper functions for UpSet data preparation ----
-
-create_binary_df_from_flat <- function(flat_list) {
-  all_items <- unique(unlist(flat_list))
-  set_names <- names(flat_list)
-  binary_df <- map_dfc(set_names, function(set_name) {
-    tibble(!!set_name := as.integer(all_items %in% flat_list[[set_name]]))
-  })
-  binary_df$item <- all_items
-  binary_df |> relocate(item)
-}
-
-list_to_binary_df <- function(presence_list) {
-  flattened <- purrr::flatten(presence_list)
-  create_binary_df_from_flat(flattened)
-}
-
-create_upset_df <- function(presence_list, attributes_df, tax_level = "asv") {
-  binary_df <- list_to_binary_df(presence_list)
-
-  tax_info <- attributes_df |>
-    select(asv, phylum, class, genus) |>
-    distinct()
-
-  if (tax_level == "asv") {
-    upset_df <- binary_df |>
-      rename(asv = item) |>
-      left_join(tax_info, by = "asv")
-  } else {
-    upset_df <- binary_df |>
-      rename(!!tax_level := item)
-  }
-
-  upset_df
-}
-
-create_tax_upset_df <- function(presence_list) {
-  binary_df <- list_to_binary_df(presence_list) |>
-    rename(taxon = item)
-  binary_df
-}
-
-create_tax_presence_list <- function(physeq_list, tax_level = "phylum") {
-  imap(physeq_list, function(psq, project_name) {
-    crops <- sample_data(psq)$crop |> unique()
-
-    crop_taxa <- map(crops, function(crop_name) {
-      psq_subset <- prune_samples(sample_data(psq)$crop == crop_name, psq)
-      tax_df <- tax_table(psq_subset) |>
-        as.data.frame() |>
-        rownames_to_column("asv")
-
-      present_asvs <- taxa_names(psq_subset)[taxa_sums(psq_subset) > 0]
-      tax_df |>
-        filter(asv %in% present_asvs) |>
-        pull(!!sym(tax_level)) |>
-        unique() |>
-        na.omit() |>
-        as.character()
-    })
-
-    if (grepl("^lamps", project_name, ignore.case = TRUE)) {
-      prefix <- gsub("^([^_]+_[^_]+).*", "\\1", project_name)
-    } else {
-      prefix <- gsub("^([^_]+).*", "\\1", project_name)
-    }
-    set_names(crop_taxa, paste0(prefix, "_", crops))
-  })
-}
-
-get_mxg_sets <- function(presence_list) {
-  flattened <- purrr::flatten(presence_list)
-  mxg_patterns <- c("MXG", "Miscanthus", "_M$")
-  mxg_idx <- grep(paste(mxg_patterns, collapse = "|"), names(flattened))
-  flattened[mxg_idx]
-}
-
-# SECTION 2: Prepare data for all taxonomic levels ----
+# SECTION 1: Prepare data for all taxonomic levels ----
 
 asv_data <- create_asv_upset_data(main_16S_physeq_list)
 phylum_presence <- create_tax_presence_list(main_16S_physeq_list, "phylum")
 class_presence <- create_tax_presence_list(main_16S_physeq_list, "class")
 
-# SECTION 3: Summary tables ----
+# SECTION 2: Summary tables ----
 
 asv_summary <- asv_data$presence_list |>
   purrr::flatten() |>
@@ -123,7 +46,7 @@ cat("Taxonomic Richness by Crop-Project\n")
 cat(rep("=", 50), "\n")
 print(combined_summary)
 
-# SECTION 4: UpSet DataFrames ----
+# SECTION 3: UpSet DataFrames ----
 
 asv_upset_df <- create_upset_df(
   asv_data$presence_list,
@@ -137,7 +60,7 @@ phylum_upset_df <- create_tax_upset_df(phylum_presence) |>
 class_upset_df <- create_tax_upset_df(class_presence) |>
   rename(class = taxon)
 
-# SECTION 5: UpSet plots - All crops ----
+# SECTION 4: UpSet plots - All crops ----
 
 cat("\n", rep("=", 50), "\n")
 cat("ASV Intersections Across All Crops\n")
@@ -221,11 +144,21 @@ upset(
   labs(title = "Class Intersections Across All Crops") +
   theme(plot.title = element_text(hjust = 0.5))
 
-# SECTION 6: UpSet plots - Miscanthus only ----
+# SECTION 5: UpSet plots - Miscanthus only ----
 
 mxg_asv_list <- get_mxg_sets(asv_data$presence_list)
 mxg_phylum_list <- get_mxg_sets(phylum_presence)
 mxg_class_list <- get_mxg_sets(class_presence)
+
+label_crop_project <- function(x) {
+  case_when(
+    grepl("^ef_", x) ~ "Energy Farm",
+    grepl("^lamps_2018_", x) ~ "LAMPS 2018",
+    grepl("^lamps_2022_", x) ~ "LAMPS 2022",
+    TRUE ~ x
+  )
+}
+
 
 cat("\n", rep("=", 50), "\n")
 cat("ASV Intersections - Miscanthus Only\n")
@@ -242,12 +175,16 @@ if (length(mxg_asv_list) >= 2) {
         fill = "#1f77b4"
       )
     ),
+    labeller = label_crop_project,
     set_sizes = upset_set_size(geom = geom_bar(fill = "#2ca02c")),
     sort_sets = "descending",
     sort_intersections = "descending"
   ) +
     labs(title = "ASV Intersections - Miscanthus Only") +
-    theme(plot.title = element_text(hjust = 0.5))
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      panel.grid = element_blank()
+    )
 }
 
 cat("\n", rep("=", 50), "\n")
@@ -296,7 +233,7 @@ if (length(mxg_class_list) >= 2) {
     theme(plot.title = element_text(hjust = 0.5))
 }
 
-# SECTION 7: Intersection summary tables ----
+# SECTION 6: MXG Intersection summary tables ----
 
 get_intersection_details <- function(upset_df, set_cols, id_col = "asv") {
   upset_df |>
@@ -311,13 +248,12 @@ get_intersection_details <- function(upset_df, set_cols, id_col = "asv") {
     select(all_of(id_col), n_sets, sets_present) |>
     arrange(desc(n_sets))
 }
-
 asv_intersection_details <- get_intersection_details(
-  asv_upset_df,
-  set_cols,
-  "asv"
+  mxg_asv_df,
+  names(mxg_asv_df)[-1],
+  "item"
 )
-
+asv_upset_df$asv
 shared_asv_summary <- asv_intersection_details |>
   group_by(n_sets) |>
   summarize(count = n(), .groups = "drop") |>
