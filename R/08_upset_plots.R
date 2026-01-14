@@ -164,28 +164,88 @@ cat("\n", rep("=", 50), "\n")
 cat("ASV Intersections - Miscanthus Only\n")
 cat(rep("=", 50), "\n")
 
+
 if (length(mxg_asv_list) >= 2) {
   mxg_asv_df <- create_binary_df_from_flat(mxg_asv_list)
-  upset(
-    mxg_asv_df,
+  mxg_phylum_df <- create_binary_df_from_flat(mxg_phylum_list)
+
+  # Get phylum for each ASV from the taxonomy table
+  asv_phylum_map <- asv_data$attributes |>
+    select(asv, phylum) |>
+    distinct() |>
+    filter(!is.na(phylum))
+
+  top_20_phyla <- asv_phylum_map |>
+    count(phylum, name = "n_asvs") |>
+    slice_max(order_by = n_asvs, n = 20, with_ties = FALSE)
+
+  # Join phylum to ASV binary df
+  mxg_asv_df_annotated <- mxg_asv_df |>
+    rename(asv = item) |>
+    left_join(
+      asv_data$attributes |> select(asv, phylum) |> distinct(),
+      by = "asv"
+    ) |>
+    filter(phylum %in% top_20_phyla$phylum)
+
+  mxg_upset <- upset(
+    mxg_asv_df_annotated,
     intersect = names(mxg_asv_list),
     base_annotations = list(
       "Intersection size" = intersection_size(
         bar_number_threshold = 1,
-        fill = "#1f77b4"
+        #fill = "#1f77b4",
+        text = list(
+          vjust = -0.5
+        )
       )
     ),
+    annotations = list(
+      "Phylum" = (ggplot(mapping = aes(fill = phylum)) +
+        geom_bar(stat = "count", position = "fill") +
+        scale_y_continuous(labels = scales::percent_format()) +
+        scale_fill_viridis_d(option = "turbo", na.value = "grey50") +
+        labs(y = "Relative Abundance", fill = "Top 20 Phyla") +
+        theme(
+          legend.position = "right",
+          legend.title = element_text(face = "bold")
+        ))
+    ),
+    queries = list(
+      upset_query(
+        intersect = c('ef_MXG', 'lamps_2018_M', 'lamps_2022_Miscanthus'),
+        color = '#47c204ff',
+        fill = '#47c204ff',
+        only_components = c('intersections_matrix', 'Intersection size')
+      )
+    ),
+    width_ratio = 0.1,
+    min_size = 10,
+    wrap = TRUE,
     labeller = label_crop_project,
-    set_sizes = upset_set_size(geom = geom_bar(fill = "#2ca02c")),
-    sort_sets = "descending",
-    sort_intersections = "descending"
+    set_sizes = FALSE,
+    guides = 'over'
   ) +
-    labs(title = "ASV Intersections - Miscanthus Only") +
+    labs(title = "ASVs in Top 20 Phyla in Miscanthus", ) +
     theme(
-      plot.title = element_text(hjust = 0.5),
-      panel.grid = element_blank()
+      plot.title = element_text(hjust = 0, size = 14, face = "bold"),
+      panel.grid = element_blank(),
+      panel.grid.major.x = element_blank()
     )
+
+  mxg_upset
 }
+
+
+ggsave(
+  filename = "data/output/figures/mxg_upset_abundance.svg",
+  plot = mxg_upset,
+  width = 250,
+  height = 225,
+  units = "mm",
+  dpi = 600
+)
+
 
 cat("\n", rep("=", 50), "\n")
 cat("Phylum Intersections - Miscanthus Only\n")
@@ -199,9 +259,10 @@ if (length(mxg_phylum_list) >= 2) {
     base_annotations = list(
       "Intersection size" = intersection_size(
         bar_number_threshold = 1,
-        fill = "#ff7f0e"
+        fill = "#ff7f0e",
       )
     ),
+    labeller = label_crop_project,
     set_sizes = upset_set_size(geom = geom_bar(fill = "#d62728")),
     sort_sets = "descending",
     sort_intersections = "descending"
@@ -225,6 +286,7 @@ if (length(mxg_class_list) >= 2) {
         fill = "#9467bd"
       )
     ),
+    labeller = label_crop_project,
     set_sizes = upset_set_size(geom = geom_bar(fill = "#8c564b")),
     sort_sets = "descending",
     sort_intersections = "descending"
@@ -248,13 +310,13 @@ get_intersection_details <- function(upset_df, set_cols, id_col = "asv") {
     select(all_of(id_col), n_sets, sets_present) |>
     arrange(desc(n_sets))
 }
-asv_intersection_details <- get_intersection_details(
+mxg_intersection_details <- get_intersection_details(
   mxg_asv_df,
   names(mxg_asv_df)[-1],
   "item"
 )
-asv_upset_df$asv
-shared_asv_summary <- asv_intersection_details |>
+
+shared_mxg_asv_summary <- mxg_intersection_details |>
   group_by(n_sets) |>
   summarize(count = n(), .groups = "drop") |>
   mutate(
@@ -269,9 +331,10 @@ shared_asv_summary <- asv_intersection_details |>
 cat("\n", rep("=", 50), "\n")
 cat("ASV Sharing Summary\n")
 cat(rep("=", 50), "\n")
-print(shared_asv_summary)
+print(shared_mxg_asv_summary)
 
-core_asvs <- asv_intersection_details |>
+core_asvs <- mxg_intersection_details |>
+  rename(asv = item) |>
   filter(n_sets == max(n_sets)) |>
   left_join(
     asv_data$attributes |> select(asv, phylum, class, genus) |> distinct(),
