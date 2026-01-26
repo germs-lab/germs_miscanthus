@@ -166,7 +166,8 @@ cat(rep("=", 50), "\n")
 
 
 if (length(mxg_asv_list) >= 2) {
-  mxg_asv_df <- create_binary_df_from_flat(mxg_asv_list)
+  mxg_asv_df <- create_binary_df_from_flat(mxg_asv_list) |>
+    rename(asv = item)
   mxg_phylum_df <- create_binary_df_from_flat(mxg_phylum_list)
 
   # Get phylum for each ASV from the taxonomy table
@@ -181,13 +182,13 @@ if (length(mxg_asv_list) >= 2) {
 
   # Join phylum to ASV binary df
   mxg_asv_df_annotated <- mxg_asv_df |>
-    rename(asv = item) |>
     left_join(
       asv_data$attributes |> select(asv, phylum) |> distinct(),
       by = "asv"
     ) |>
     filter(phylum %in% top_20_phyla$phylum)
 
+  # Miscanthus UpSet plot with phylum annotation
   mxg_upset <- upset(
     mxg_asv_df_annotated,
     intersect = names(mxg_asv_list),
@@ -236,7 +237,7 @@ if (length(mxg_asv_list) >= 2) {
   mxg_upset
 }
 
-
+## Saving UpSet plot ----
 ggsave(
   filename = "data/output/figures/mxg_upset_abundance.svg",
   plot = mxg_upset,
@@ -245,55 +246,6 @@ ggsave(
   units = "mm",
   dpi = 600
 )
-
-
-cat("\n", rep("=", 50), "\n")
-cat("Phylum Intersections - Miscanthus Only\n")
-cat(rep("=", 50), "\n")
-
-if (length(mxg_phylum_list) >= 2) {
-  mxg_phylum_df <- create_binary_df_from_flat(mxg_phylum_list)
-  upset(
-    mxg_phylum_df,
-    intersect = names(mxg_phylum_list),
-    base_annotations = list(
-      "Intersection size" = intersection_size(
-        bar_number_threshold = 1,
-        fill = "#ff7f0e",
-      )
-    ),
-    labeller = label_crop_project,
-    set_sizes = upset_set_size(geom = geom_bar(fill = "#d62728")),
-    sort_sets = "descending",
-    sort_intersections = "descending"
-  ) +
-    labs(title = "Phylum Intersections - Miscanthus Only") +
-    theme(plot.title = element_text(hjust = 0.5))
-}
-
-cat("\n", rep("=", 50), "\n")
-cat("Class Intersections - Miscanthus Only\n")
-cat(rep("=", 50), "\n")
-
-if (length(mxg_class_list) >= 2) {
-  mxg_class_df <- create_binary_df_from_flat(mxg_class_list)
-  upset(
-    mxg_class_df,
-    intersect = names(mxg_class_list),
-    base_annotations = list(
-      "Intersection size" = intersection_size(
-        bar_number_threshold = 1,
-        fill = "#9467bd"
-      )
-    ),
-    labeller = label_crop_project,
-    set_sizes = upset_set_size(geom = geom_bar(fill = "#8c564b")),
-    sort_sets = "descending",
-    sort_intersections = "descending"
-  ) +
-    labs(title = "Class Intersections - Miscanthus Only") +
-    theme(plot.title = element_text(hjust = 0.5))
-}
 
 # SECTION 6: MXG Intersection summary tables ----
 
@@ -310,10 +262,12 @@ get_intersection_details <- function(upset_df, set_cols, id_col = "asv") {
     select(all_of(id_col), n_sets, sets_present) |>
     arrange(desc(n_sets))
 }
+
+# Get MXG ASV intersection details
 mxg_intersection_details <- get_intersection_details(
-  mxg_asv_df,
-  names(mxg_asv_df)[-1],
-  "item"
+  mxg_asv_df_annotated,
+  names(mxg_asv_df_annotated)[-c(1, 5)],
+  "asv"
 )
 
 shared_mxg_asv_summary <- mxg_intersection_details |>
@@ -328,20 +282,45 @@ shared_mxg_asv_summary <- mxg_intersection_details |>
     )
   )
 
-cat("\n", rep("=", 50), "\n")
-cat("ASV Sharing Summary\n")
-cat(rep("=", 50), "\n")
-print(shared_mxg_asv_summary)
-
-core_asvs <- mxg_intersection_details |>
-  rename(asv = item) |>
+# Details of shared ASVs (shared by all 3 crops)
+mxg_shared_asvs <- mxg_intersection_details |>
   filter(n_sets == max(n_sets)) |>
   left_join(
     asv_data$attributes |> select(asv, phylum, class, genus) |> distinct(),
     by = "asv"
   )
 
+count_shared_asvs <- mxg_shared_asvs |>
+  count(phylum, sort = TRUE) |>
+  mutate(pct = n / sum(n) * 100)
+
+# Compare unique vs shared phylum composition
+compare_shared_unique <- mxg_asv_df_annotated |>
+  mutate(
+    n_projects = ef_MXG + lamps_2018_M + lamps_2022_Miscanthus,
+    sharing = case_when(
+      n_projects == 3 ~ "Core (all 3)",
+      n_projects == 2 ~ "Shared (2)",
+      TRUE ~ "Unique (1)"
+    )
+  ) |>
+  count(sharing, phylum) |>
+  pivot_wider(names_from = sharing, values_from = n, values_fill = 0)
+
 cat("\n", rep("=", 50), "\n")
-cat("Core ASVs (Present in Most Crops)\n")
+cat("ASV Sharing Summary\n")
 cat(rep("=", 50), "\n")
-print(core_asvs)
+print(shared_mxg_asv_summary)
+
+cat("\n", rep("=", 40), "\n")
+cat("Shared ASVs in Miscanthus\n")
+cat(rep("=", 40), "\n")
+print(count_shared_asvs)
+
+cat("\n", rep("=", 40), "\n")
+cat("Comparison of Shared vs Unique ASVs by Phylum:\n")
+print(compare_shared_unique)
+
+cat("\n", rep("=", 40), "\n")
+cat("Details of Shared ASVs:\n")
+print(mxg_shared_asvs)
