@@ -115,3 +115,72 @@ diffs <- base::setdiff(
   ef_16S_core_asvs_60,
   lamps_2018_16S_core_asvs_60
 )
+
+# SECTION: Shared ASVs Between Projects at Different Thresholds ----
+
+# Define thresholds to test
+thresholds <- c(0.6, 0.7, 0.8, 0.9)
+
+# Get project names from the phyloseq list (focusing on DNA projects)
+project_names <- grep("_DNA$", names(main_16S_physeq_list), value = TRUE)
+
+# Extract core ASVs for each project at each threshold
+core_asvs_by_threshold <- purrr::map(thresholds, function(threshold) {
+  # For each project, get ASVs at this threshold
+  project_asvs <- purrr::map(project_names, function(proj_name) {
+    rownames(
+      summarize_abundance_occupancy(main_16S_physeq_list[[proj_name]]) %>%
+        .$overall %>%
+        filter(occupancy_prop >= threshold)
+    )
+  }) %>%
+    set_names(gsub("_DNA$", "", project_names))
+
+  return(project_asvs)
+}) %>%
+  set_names(paste0("threshold_", thresholds))
+
+# Calculate shared ASVs between all projects at each threshold
+shared_asvs_by_threshold <- purrr::imap(core_asvs_by_threshold, function(asv_list, threshold_name) {
+  # Get all unique ASVs across all projects
+  all_asvs <- unique(unlist(asv_list))
+
+  # Count how many projects each ASV appears in
+  asv_counts <- purrr::map_int(all_asvs, function(asv) {
+    sum(purrr::map_lgl(asv_list, ~ asv %in% .x))
+  })
+  names(asv_counts) <- all_asvs
+
+  # Create a structured list with different sharing levels
+  sharing_levels <- list(
+    all_projects = names(asv_counts)[asv_counts == length(asv_list)],
+    two_or_more = names(asv_counts)[asv_counts >= 2],
+    by_project = asv_list,
+    asv_project_counts = asv_counts
+  )
+
+  return(sharing_levels)
+})
+
+# Save the shared ASV data
+save(
+  core_asvs_by_threshold,
+  shared_asvs_by_threshold,
+  file = "data/output/rdata/shared_asvs_by_threshold.rda"
+)
+
+# Print summary statistics
+cat("\n", rep("=", 60), "\n")
+cat("Shared ASVs Between Projects - Summary\n")
+cat(rep("=", 60), "\n\n")
+
+purrr::iwalk(shared_asvs_by_threshold, function(sharing_data, threshold_name) {
+  cat("Threshold:", threshold_name, "\n")
+  cat("  ASVs shared across ALL projects:", length(sharing_data$all_projects), "\n")
+  cat("  ASVs shared by 2+ projects:", length(sharing_data$two_or_more), "\n")
+  cat("  ASVs by project:\n")
+  purrr::iwalk(sharing_data$by_project, function(asvs, proj) {
+    cat("    ", proj, ":", length(asvs), "ASVs\n")
+  })
+  cat("\n")
+})
