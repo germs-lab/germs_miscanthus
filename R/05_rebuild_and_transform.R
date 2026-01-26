@@ -33,6 +33,34 @@ main_16S_physeq_list <- purrr::map(
 )
 
 
+## Rebuilding main_mxg_physeq_list ----
+
+main_mxg_physeq_list <- purrr::imap(
+  main_mxg_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap(project_list, function(physeq_obj, physeq_name) {
+      if (grepl("16S", physeq_name, ignore.case = TRUE)) {
+        tax_table(physeq_obj) <- tax_table(new_taxa_16S_DNA)
+        physeq_obj <- add_refseq(physeq_obj, tag = NA, seq_to_name = TRUE)
+      }
+      return(physeq_obj)
+    })
+  }
+)
+
+
+## Rebuilding main_16S_mxg_physeq_list ----
+crop_patterns <- c("MXG", "M", "Miscanthus")
+main_16S_mxg_physeq_list <- purrr::map(
+  main_16S_physeq_list,
+  function(physeq_obj) {
+    ps_subset <- subset_samples(physeq_obj, crop %in% crop_patterns) %>%
+      filter_taxa(function(x) sum(x) > 0, TRUE)
+    return(ps_subset)
+  }
+)
+
+
 ## Inspect ----
 purrr::map(main_16S_physeq_list, function(project_names) {
   dim(tax_table(project_names))
@@ -124,15 +152,14 @@ main_hellgr_physeq_list$ef_physeq_list$ef_16S_physeq %>%
 
 # Save objects ----
 save(
-  main_16S_mxg_physeq_list,
   main_16S_mxg_relab_psq_list,
   main_16S_mxg_hellgr_psq_list,
-  file = "data/output/rdata/main_16S_mxg_physeq_list_05.rda"
+  file = "data/output/rdata/main_16S_mxg_transformed_lists_05.rda"
 )
 
 save(
-  main_hellgr_physeq_list,
-  file = "data/output/rdata/main_hellgr_physeq_list_05.rda"
+  main_mxg_physeq_list,
+  file = "data/output/rdata/main_mxg_physeq_list_05.rda"
 )
 
 save(
@@ -141,6 +168,6 @@ save(
 )
 
 save(
-  main_16S_hellgr_physeq_list,
-  file = "data/output/rdata/main_16S_hellgr_physeq_list_05.rda"
+  main_hellgr_physeq_list,
+  file = "data/output/rdata/main_hellgr_physeq_list_05.rda"
 )

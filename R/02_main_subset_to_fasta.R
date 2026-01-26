@@ -64,27 +64,34 @@ main_16S_physeq_list <- list(
 
 crop_patterns <- c("MXG", "M", "Miscanthus")
 
-main_16S_mxg_physeq_list <- purrr::imap(
+main_mxg_physeq_list <- purrr::imap(
   main_physeq_list,
   function(project_list, project_name) {
     purrr::imap(project_list, function(physeq_obj, physeq_name) {
-      ps_subset <- subset_samples(physeq_obj, crop %in% crop_patterns) |>
+      # Subset to crops first
+      ps_subset <- subset_samples(physeq_obj, crop %in% crop_patterns) %>%
         filter_taxa(function(x) sum(x) > 0, TRUE)
 
-      # Subset to only 16S DNA data like above
-      if (grepl("^lamps_2018_16S", physeq_name, ignore.case = TRUE)) {
-        ps_subset <- ps_subset |>
-          subset_samples(nucleotide == "DNA") |>
+      # Subset to only 16S DNA nucleotide (check if nucleotide column exists)
+      if ("nucleotide" %in% colnames(sample_data(ps_subset))) {
+        ps_subset <- ps_subset %>%
+          subset_samples(nucleotide == "DNA") %>%
           filter_taxa(function(x) sum(x > 0) > 0, TRUE)
       }
 
       return(ps_subset)
-    }) |>
-      set_names(names(project_list) |> str_replace("_physeq$", "_DNA"))
+    }) %>%
+      # Keep only non-NULL objects and rename
+      purrr::discard(is.null) %>%
+      set_names(names(.) %>% str_replace("_physeq$", "_DNA"))
   }
 ) %>%
-  set_names(names(.) |> str_remove("_physeq_list$"))
+  set_names(names(.) %>% str_remove("_physeq_list$"))
 
+# save( # Replaced in 05_rebuild_and_transform.R
+#   main_mxg_physeq_list,
+#   file = "data/output/rdata/main_mxg_physeq_list_02.rda"
+# )
 
 # Need this one to keep DNA and RNA nucleotides for FASTA
 mxg_lamps_2018 <- purrr::map(

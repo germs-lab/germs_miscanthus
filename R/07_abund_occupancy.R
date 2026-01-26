@@ -28,6 +28,7 @@ main_16S_core_list <- purrr::map(
 # Polish in to a cohesive workflow for all 16S phyloseqs
 # 2025-11-24
 
+# Abundance-Occupancy Plots - All crops ----
 abundance_occ_plots <- purrr::imap(
   main_16S_physeq_list,
   function(physeq_obj, physeq_name) {
@@ -90,3 +91,27 @@ abundance_occ_plots$lamps_2022_16S$overall_plots$threshold_0.6
 abundance_occ_plots$lamps_2022_16S$by_crop_plots$Miscanthus$threshold_0.6
 abundance_occ_plots$lamps_2022_16S$by_crop_plots$Maize$threshold_0.6
 abundance_occ_plots$lamps_2022_16S$by_crop_plots$Grass$threshold_0.6
+
+
+# Abundance-Occupancy Plots - Miscanthus only ----
+mxg_abundance_occ_plots <- purrr::imap(
+  main_16S_mxg_physeq_list,
+  function(physeq_obj, physeq_name) {
+    # Get summaries
+    summarized_df_list <- summarize_abundance_occupancy(physeq_obj)
+
+    # Define thresholds to test
+    thresholds <- c(0.5, 0.6, 0.7, 0.8, 0.9)
+
+    # Plots at different thresholds - overall
+    overall_plots <- purrr::map(thresholds, function(threshold) {
+      plot_abundance_occupancy(
+        summarized_df_list$overall,
+        threshold = threshold,
+        title = paste0(physeq_name, " - Overall (threshold:", threshold, ")")
+      )
+    }) %>%
+      set_names(paste0("threshold_", thresholds))
+  }
+)
+main_16S_mxg_physeq_list$ef$ef_16S_DNA
