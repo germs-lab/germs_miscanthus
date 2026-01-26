@@ -93,25 +93,25 @@ abundance_occ_plots$lamps_2022_16S$by_crop_plots$Maize$threshold_0.6
 abundance_occ_plots$lamps_2022_16S$by_crop_plots$Grass$threshold_0.6
 
 
-# Abundance-Occupancy Plots - Miscanthus only ----
-mxg_abundance_occ_plots <- purrr::imap(
-  main_16S_mxg_physeq_list,
-  function(physeq_obj, physeq_name) {
-    # Get summaries
-    summarized_df_list <- summarize_abundance_occupancy(physeq_obj)
-
-    # Define thresholds to test
-    thresholds <- c(0.5, 0.6, 0.7, 0.8, 0.9)
-
-    # Plots at different thresholds - overall
-    overall_plots <- purrr::map(thresholds, function(threshold) {
-      plot_abundance_occupancy(
-        summarized_df_list$overall,
-        threshold = threshold,
-        title = paste0(physeq_name, " - Overall (threshold:", threshold, ")")
-      )
-    }) %>%
-      set_names(paste0("threshold_", thresholds))
-  }
+test <- summarize_abundance_occupancy(
+  main_16S_physeq_list$ef_16S
 )
-main_16S_mxg_physeq_list$ef$ef_16S_DNA
+test$overall
+
+# Identifying core ASVs at 60% threshold
+ef_16S_core_asvs_60 <- rownames(
+  summarize_abundance_occupancy(main_16S_physeq_list$ef_16S_DNA) %>%
+    .$overall %>%
+    filter(occupancy_prop >= 0.6)
+)
+lamps_2018_16S_core_asvs_60 <- rownames(
+  summarize_abundance_occupancy(main_16S_physeq_list$lamps_2018_16S_DNA) %>%
+    .$overall %>%
+    filter(occupancy_prop >= 0.6)
+)
+
+(c(ef_16S_core_asvs_60, lamps_2018_16S_core_asvs_60))
+diffs <- base::setdiff(
+  ef_16S_core_asvs_60,
+  lamps_2018_16S_core_asvs_60
+)
