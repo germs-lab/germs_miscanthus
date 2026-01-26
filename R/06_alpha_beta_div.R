@@ -10,9 +10,8 @@
 
 source("R/utils/00_setup.R")
 
-#--------------------------------------------------------
+
 # SECTION 1: Alpha Diversity Analysis ----
-#--------------------------------------------------------
 
 # Calculate alpha diversity
 alpha_diversity_results_16S <- calculate_alpha_diversity(main_16S_physeq_list)
@@ -45,9 +44,8 @@ summary(alpha_diversity_df_16S[, c(
   "inv_simpson"
 )])
 
-#--------------------------------------------------------
+
 # SECTION 2: Alpha Diversity Plots ----
-#--------------------------------------------------------
 
 ## Define comparison mappings ----
 comparison_map <- list(
@@ -201,9 +199,7 @@ print(alpha_diversity_plots_16S)
 print(main_alpha_diversity_plots)
 
 
-#--------------------------------------------------------
 # SECTION 3: Beta Diversity Analysis ----
-#--------------------------------------------------------
 
 # # Calculate beta diversity (Bray-Curtis dissimilarity)
 beta_diversity_results_16S <- calculate_beta_diversity(
@@ -219,9 +215,7 @@ main_beta_diversity_results <- calculate_beta_diversity_nested(
 )
 
 
-#--------------------------------------------------------
 # SECTION 4: Beta Diversity Plots (PCoA)
-#--------------------------------------------------------
 
 beta_plot_workflow <- function(beta_data, physeq_name) {
   plot_title <- gsub("_physeq$", " ", physeq_name) %>%
@@ -284,9 +278,7 @@ alpha_beta_plots <- list(
 #   file = "data/output/rdata/alpha_beta_plots.rda"
 # )
 
-#--------------------------------------------------------
 # SECTION 5: PERMANOVA Analysis
-#--------------------------------------------------------
 
 # # Perform PERMANOVA for each phyloseq object
 # set.seed(123)
@@ -334,9 +326,7 @@ alpha_beta_plots <- list(
 #   })
 # })
 
-#--------------------------------------------------------
 # SECTION 6: Summary Statistics
-#--------------------------------------------------------
 
 # Summary table of alpha diversity by project and crop
 alpha_summary <- alpha_diversity_df %>%

@@ -10,9 +10,7 @@
 
 source("R/utils/00_setup.R")
 
-#--------------------------------------------------------
-# SECTION 1: Basic Exploration of Nested Phyloseq
-#--------------------------------------------------------
+# SECTION 1: Basic Exploration of Nested Phyloseq ----
 # Total abundance only
 
 # Energy Farm Collab
@@ -64,9 +62,8 @@ nested_summary <- explore_nested_phyloseq(main_mxg_physeq_list)
 
 nested_summary
 
-#--------------------------------------------------------
-# Read Count Analysis for Nested Phyloseq
-#--------------------------------------------------------
+
+# Read Count Analysis for Nested Phyloseq ----
 
 # Get read count data
 nested_read_counts <- analyze_read_counts(main_mxg_physeq_list)
@@ -131,9 +128,8 @@ read_count_plots <- list(
 # Display plots
 print(read_count_plots)
 
-# Rarafection curves ---------------------------------
-
-# Mapping for rarefaction curves - all datasets
+# Rarafection curves ----
+## Mapping for rarefaction curves - all datasets ----
 # This errors out with:
 # The total size of the 8 globals exported for future expression (‘FUN()’) is 600.41 MiB. This exceeds the maximum allowed size 100.00 MiB per by R option "future.globals.maxSize".
 
@@ -185,7 +181,7 @@ print(read_count_plots)
 #     })
 #   })
 
-# Individual plotting of rare curves to avoid error on future.globals.maxSize
+## Individual plotting of rare curves to avoid error on future.globals.maxSize ----
 p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
   # Get phyloseq object name for plot title
 
@@ -249,7 +245,7 @@ p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
   )
 }
 
-# Individual rarefaction curves for each dataset
+## Individual rarefaction curves for each dataset ----
 # This was complete block by block and saving to .rda object to avoid running again if failed
 
 ef_16S_iNEXT <- p_iNEXt_list(
@@ -312,7 +308,7 @@ cat("\n", rep("=", 40), "\n")
 cat("Rarefaction curves\n")
 cat(rep("=", 40), "\n")
 
-# Printing nicely ---------------------------
+# Printing nicely ----
 rarecurve_results %>%
   purrr::imap(function(project_list, project_name) {
     # Level 1: project_name = "mxg_ef"

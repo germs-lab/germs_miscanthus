@@ -22,9 +22,8 @@ load("data/output/rdata/phyloseq/lamps_2018_physeq_list.rda")
 load("data/output/rdata/phyloseq/lamps_2022_physeq_list.rda")
 load("data/output/rdata/phyloseq/ef_physeq_list.rda")
 
-# ---------------------------------------------------
+
 # SECTION 1: Subset phyloseq ----
-# ---------------------------------------------------
 
 ## Main list for downstream analyses ----
 # All projects/datasets with all target regions, nucleotides and crops.
@@ -36,7 +35,7 @@ main_physeq_list <- list(
 
 save(
   main_physeq_list,
-  file = "data/output/rdata/main_physeq_list.rda"
+  file = "data/output/rdata/main_physeq_list_02.rda"
 )
 
 ## Only 16S data for all projects ----
@@ -54,10 +53,10 @@ main_16S_physeq_list <- list(
   lamps_2018_16S_DNA = lamps_2018_16S_DNA,
   lamps_2022_16S_DNA = lamps_2022_physeq_list$lamps_2022_16S_physeq
 )
-save(
-  main_16S_physeq_list,
-  file = "data/output/rdata/main_16S_physeq_list.rda"
-)
+# save( # Replaced in 05_rebuild_and_transform.R
+#   main_16S_physeq_list,
+#   file = "data/output/rdata/main_16S_physeq_list_02.rda"
+# )
 
 ## MXG physeq lists ----
 # To subset the actual phyloseq object by MXG
@@ -65,7 +64,7 @@ save(
 
 crop_patterns <- c("MXG", "M", "Miscanthus")
 
-main_mxg_physeq_list <- purrr::imap(
+main_16S_mxg_physeq_list <- purrr::imap(
   main_physeq_list,
   function(project_list, project_name) {
     purrr::imap(project_list, function(physeq_obj, physeq_name) {
@@ -98,15 +97,12 @@ mxg_lamps_2018 <- purrr::map(
   set_names(names(lamps_2018_physeq_list) |> str_remove("_physeq$"))
 
 
-save(
-  main_mxg_physeq_list,
-  file = "data/output/rdata/main_mxg_physeq_list.rda"
-)
+# save( # Replaced in 05_rebuild_and_transform.R
+#   main_16S_mxg_physeq_list,
+#   file = "data/output/rdata/main_16S_mxg_physeq_list_02.rda"
+# )
 
-
-# ---------------------------------------------------
 # SECTION 2: Phyloseq to FASTA ----
-# ---------------------------------------------------
 #
 # FASTA Naming Convention:
 # {project}_{target_region}_{nucleotide}_{crop_subset}.fa
@@ -209,9 +205,8 @@ refseq2fasta(
 # |
 # | Note: 16S_DNA is the only target region in these projects |
 
-# ---------------------------------------------------
 # SECTION 2.4: FASTA Concatenation ----
-# ---------------------------------------------------
+
 # Combine FASTA files across projects for downstream analysis
 # process_fa() reads existing FASTA files, deduplicates, and exports combined files
 
@@ -280,9 +275,9 @@ results_16S_DNA_all_crops <- process_fa(
   rename_headers = FALSE
 )
 
-# ---------------------------------------------------
+
 # SECTION 3: OTU_TABLE Exports ----
-# ---------------------------------------------------
+
 # Export all otu tables for 16S DNA phyloseqs
 
 ef_16S_otu_table <- export_otu_table(main_16S_physeq_list$ef_16S_DNA)
@@ -356,7 +351,7 @@ new_16S_DNA_seqtab <- join_otu_tables(
   lamps_2022_16S_otu_table
 )
 
-save(new_16S_DNA_seqtab, file = "data/output/rdata/new_16S_DNS_seqtab.rda")
+save(new_16S_DNA_seqtab, file = "data/output/rdata/new_16S_DNS_seqtab_02.rda")
 
 
 ## New fungal joined otu tables
@@ -367,7 +362,7 @@ new_fungal_seqtab <- join_otu_tables(
   lamps_2022_mxg_AMF
 )
 
-save(new_fungal_seqtab, file = "data/output/rdata/new_fungal_seqtab.rda")
+save(new_fungal_seqtab, file = "data/output/rdata/new_fungal_seqtab_02.rda")
 
 # NOTE ----
 # This new seqtab matrix is meant to be used to reassign taxonomy. Another approach is to take the taxonomy tables and reassign sequence ID to a concatenated table of all projects then subset by project.
