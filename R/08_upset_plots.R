@@ -330,6 +330,11 @@ print(mxg_shared_asvs)
 # Load shared ASV data from 07_abund_occupancy.R
 load("data/output/rdata/shared_asvs_by_threshold.rda")
 
+# Ensure asv_data is available (should be loaded from SECTION 1)
+if (!exists("asv_data")) {
+  asv_data <- create_asv_upset_data(main_16S_physeq_list)
+}
+
 cat("\n", rep("=", 60), "\n")
 cat("UpSet Plots for Shared ASVs at Different Thresholds\n")
 cat(rep("=", 60), "\n\n")

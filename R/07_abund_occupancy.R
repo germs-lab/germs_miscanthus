@@ -119,6 +119,9 @@ diffs <- base::setdiff(
 # SECTION: Shared ASVs Between Projects at Different Thresholds ----
 
 # Define thresholds to test
+# These represent the proportion of samples where an ASV must be present
+# to be considered "core" (e.g., 0.6 = present in 60% of samples)
+# Modify this vector to analyze different thresholds
 thresholds <- c(0.6, 0.7, 0.8, 0.9)
 
 # Get project names from the phyloseq list (focusing on DNA projects)

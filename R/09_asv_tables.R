@@ -33,7 +33,14 @@ cat("Creating Taxonomic Tables for Shared ASVs\n")
 cat(rep("=", 60), "\n\n")
 
 # Use the first phyloseq object for taxonomy reference
+# All phyloseq objects should have consistent taxonomy since they were
+# reassigned together in 05_rebuild_and_transform.R
 ref_physeq <- main_16S_physeq_list[[1]]
+
+# Verify taxonomy table exists
+if (is.null(tax_table(ref_physeq, errorIfNULL = FALSE))) {
+  stop("Reference phyloseq object does not contain a taxonomy table")
+}
 
 # Create tables for ASVs shared across all projects at each threshold
 shared_asv_tables <- purrr::imap(shared_asvs_by_threshold, function(sharing_data, threshold_name) {
