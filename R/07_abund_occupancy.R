@@ -183,7 +183,7 @@ purrr::iwalk(shared_asvs_by_threshold, function(sharing_data, threshold_name) {
     "\n"
   )
   cat("  ASVs above threshold by project:\n")
-  purrr::iwalk(sharing_data$by_project, function(asvs, proj) {
+  purrr::iwalk(sharing_data$core_by_project, function(asvs, proj) {
     cat("    ", proj, ":", length(asvs), "ASVs\n")
   })
   cat("\n")

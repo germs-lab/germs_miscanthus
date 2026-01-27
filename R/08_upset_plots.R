@@ -344,7 +344,7 @@ threshold_upset_plots <- purrr::imap(
   shared_asvs_by_threshold,
   function(sharing_data, threshold_name) {
     # Get the project-level ASV lists
-    asv_list <- sharing_data$by_project
+    asv_list <- sharing_data$core_by_project
 
     # Create binary dataframe for upset plot
     upset_df <- create_binary_df_from_flat(asv_list) |>

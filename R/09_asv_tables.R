@@ -187,7 +187,7 @@ shared_2plus_tables <- purrr::imap(
         columns = n_projects,
         colors = scales::col_numeric(
           palette = c("#FFF7BC", "#FEC44F", "#D95F0E"),
-          domain = c(2, length(sharing_data$by_project))
+          domain = c(2, length(sharing_data$core_by_project))
         )
       ) %>%
       cols_width(
