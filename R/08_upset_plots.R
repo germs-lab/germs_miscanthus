@@ -335,6 +335,100 @@ if (!exists("asv_data")) {
   asv_data <- create_asv_upset_data(main_16S_physeq_list)
 }
 
+# VALIDATION: Check that threshold_0.0 matches create_asv_upset_data() ----
+cat("\n", rep("=", 60), "\n")
+cat("VALIDATION: Comparing threshold_0.0 with create_asv_upset_data()\n")
+cat(rep("=", 60), "\n\n")
+
+# Get the crop-level ASVs from create_asv_upset_data (flattened)
+upset_data_crop_asvs <- purrr::flatten(asv_data$presence_list)
+
+# Get the crop-level ASVs from threshold_0.0
+threshold_0_crop_asvs <- shared_asvs_by_crop_by_threshold$threshold_0.0$core_by_crop
+
+# Compare counts
+cat("Crop-level comparison:\n")
+all_crop_names <- union(names(upset_data_crop_asvs), names(threshold_0_crop_asvs))
+
+validation_results <- purrr::map_dfr(all_crop_names, function(crop_name) {
+  upset_count <- length(upset_data_crop_asvs[[crop_name]])
+  threshold_count <- length(threshold_0_crop_asvs[[crop_name]])
+  match <- upset_count == threshold_count
+  
+  tibble(
+    crop = crop_name,
+    upset_data_count = upset_count,
+    threshold_0_count = threshold_count,
+    match = match
+  )
+})
+
+print(validation_results)
+
+# Overall summary
+all_match <- all(validation_results$match, na.rm = TRUE)
+if (all_match) {
+  cat("\n✓ VALIDATION PASSED: All crop-level counts match!\n")
+} else {
+  cat("\n✗ VALIDATION FAILED: Some crop-level counts do not match.\n")
+  cat("Mismatches:\n")
+  print(validation_results %>% filter(!match))
+}
+
+# Project-level validation
+cat("\n\nProject-level comparison:\n")
+cat("Checking if project-level threshold_0.0 equals union of crop ASVs:\n\n")
+
+project_validation <- purrr::map_dfr(names(shared_asvs_by_threshold$threshold_0.0$core_by_project), 
+  function(proj_name) {
+    # Get project-level ASVs at threshold 0.0
+    project_asvs <- shared_asvs_by_threshold$threshold_0.0$core_by_project[[proj_name]]
+    
+    # Get corresponding crop-level ASVs and take their union
+    # Match crops to this project (e.g., ef_MXG, ef_SB for ef_16S)
+    crop_pattern <- paste0("^", proj_name, "_")
+    matching_crops <- grep(crop_pattern, names(threshold_0_crop_asvs), value = TRUE)
+    
+    if (length(matching_crops) > 0) {
+      crop_union <- unique(unlist(threshold_0_crop_asvs[matching_crops]))
+      
+      # Compare
+      project_count <- length(project_asvs)
+      union_count <- length(crop_union)
+      match <- project_count == union_count
+      
+      # Also check if the actual ASVs are the same
+      same_asvs <- setequal(project_asvs, crop_union)
+      
+      tibble(
+        project = proj_name,
+        project_level_count = project_count,
+        crop_union_count = union_count,
+        counts_match = match,
+        asvs_identical = same_asvs
+      )
+    } else {
+      tibble(
+        project = proj_name,
+        project_level_count = length(project_asvs),
+        crop_union_count = NA,
+        counts_match = NA,
+        asvs_identical = NA
+      )
+    }
+  }
+)
+
+print(project_validation)
+
+if (all(project_validation$asvs_identical, na.rm = TRUE)) {
+  cat("\n✓ VALIDATION PASSED: Project-level ASVs equal union of crop-level ASVs!\n")
+} else {
+  cat("\n✗ VALIDATION FAILED: Project-level ASVs do not equal union of crop-level ASVs.\n")
+}
+
+cat("\n", rep("=", 60), "\n\n")
+
 cat("\n", rep("=", 40), "\n")
 cat("UpSet Plots for Shared ASVs at Different Thresholds\n")
 cat(rep("=", 40), "\n\n")
