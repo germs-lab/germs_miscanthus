@@ -8,21 +8,6 @@
 
 source("R/utils/00_setup.R")
 
-# Getting our cores
-main_16S_core_list <- purrr::map(
-  main_16S_physeq_list,
-  function(physeq_obj) {
-    # purrr::imap(project_list, function(physeq_obj, physeq_name) {
-    get_prevalent_rare(
-      physeq_obj,
-      thresholds = c(90, 80, 70, 60, 30),
-      detection = 0 / 100,
-      include.lowest = FALSE
-    )
-  }
-)
-# }
-#)
 
 # Abundance-Occupancy Plots - All crops ----
 abundance_occ_plots <- purrr::imap(
@@ -112,21 +97,34 @@ diffs <- base::setdiff(
 # Define thresholds to test
 # These represent the proportion of samples where an ASV must be present
 # to be considered "core" (e.g., 0.6 = present in 60% of samples)
+
+# Getting our "core" ASVs at different thresholds
+main_16S_core_list <- purrr::map(
+  main_16S_physeq_list,
+  function(physeq_obj) {
+    get_prevalent_rare(
+      physeq_obj,
+      thresholds = c(0, 60, 70, 80, 90),
+      detection = 0 / 100,
+      include.lowest = FALSE
+    )
+  }
+)
+
 # Modify this vector to analyze different thresholds
 thresholds <- c(0.0, 0.6, 0.7, 0.8, 0.9)
 
 # Get project names from the phyloseq list (focusing on DNA projects)
-project_names <- grep("_DNA$", names(main_16S_physeq_list), value = TRUE)
+project_names <- grep("_DNA$", names(main_16S_core_list), value = TRUE)
 
 # PROJECT-LEVEL ANALYSIS ----
 # Extract core ASVs for each project at each threshold (overall across all crops)
 core_asvs_by_threshold <- purrr::map(thresholds, function(threshold) {
   project_asvs <- purrr::map(project_names, function(proj_name) {
-    rownames(
-      summarize_abundance_occupancy(main_16S_physeq_list[[proj_name]]) %>%
-        .$overall %>%
-        filter(occupancy_prop >= threshold)
-    )
+    taxa_names(main_16S_core_list[[proj_name]][[paste0(
+      "prevalent_",
+      as.character(threshold * 100)
+    )]])
   }) %>%
     set_names(gsub("_DNA$", "", project_names))
 
@@ -134,38 +132,6 @@ core_asvs_by_threshold <- purrr::map(thresholds, function(threshold) {
 }) %>%
   set_names(paste0("threshold_", thresholds))
 
-# CROP-LEVEL ANALYSIS ----
-# Extract core ASVs for each crop within each project at each threshold
-core_asvs_by_crop_by_threshold <- purrr::map(thresholds, function(threshold) {
-  # For each project, get ASVs by crop
-  all_crop_asvs <- purrr::map(project_names, function(proj_name) {
-    # Get abundance/occupancy data by crop
-    crop_data <- summarize_abundance_occupancy(main_16S_physeq_list[[proj_name]])$by_crop
-    
-    # For each crop, get ASVs above threshold
-    crop_asvs <- purrr::imap(crop_data, function(crop_df, crop_name) {
-      rownames(crop_df %>% filter(occupancy_prop >= threshold))
-    })
-    
-    # Create proper naming (e.g., ef_MXG, lamps_2018_M)
-    proj_prefix <- gsub("_DNA$", "", proj_name)
-    if (grepl("^lamps", proj_prefix, ignore.case = TRUE)) {
-      # For LAMPS projects, keep the year part
-      names(crop_asvs) <- paste0(proj_prefix, "_", names(crop_asvs))
-    } else {
-      # For other projects (e.g., ef)
-      names(crop_asvs) <- paste0(proj_prefix, "_", names(crop_asvs))
-    }
-    
-    return(crop_asvs)
-  })
-  
-  # Flatten the list to get all crops across all projects
-  all_crop_asvs <- unlist(all_crop_asvs, recursive = FALSE)
-  
-  return(all_crop_asvs)
-}) %>%
-  set_names(paste0("threshold_", thresholds))
 
 # Calculate shared ASVs between all projects at each threshold (PROJECT-LEVEL)
 shared_asvs_by_threshold <- purrr::imap(
@@ -191,6 +157,42 @@ shared_asvs_by_threshold <- purrr::imap(
     return(sharing_levels)
   }
 )
+
+# CROP-LEVEL ANALYSIS ----
+# Extract core ASVs for each crop within each project at each threshold
+core_asvs_by_crop_by_threshold <- purrr::map(thresholds, function(threshold) {
+  # For each project, get ASVs by crop
+  all_crop_asvs <- purrr::map(project_names, function(proj_name) {
+    # Get abundance/occupancy data by crop
+    crop_data <- summarize_abundance_occupancy(main_16S_physeq_list[[
+      proj_name
+    ]])$by_crop
+
+    # For each crop, get ASVs above threshold
+    crop_asvs <- purrr::imap(crop_data, function(crop_df, crop_name) {
+      rownames(crop_df %>% filter(occupancy_prop >= threshold))
+    })
+
+    # Create proper naming (e.g., ef_MXG, lamps_2018_M)
+    proj_prefix <- gsub("_DNA$", "", proj_name)
+    if (grepl("^lamps", proj_prefix, ignore.case = TRUE)) {
+      # For LAMPS projects, keep the year part
+      names(crop_asvs) <- paste0(proj_prefix, "_", names(crop_asvs))
+    } else {
+      # For other projects (e.g., ef)
+      names(crop_asvs) <- paste0(proj_prefix, "_", names(crop_asvs))
+    }
+
+    return(crop_asvs)
+  })
+
+  # Flatten the list to get all crops across all projects
+  all_crop_asvs <- unlist(all_crop_asvs, recursive = FALSE)
+
+  return(all_crop_asvs)
+}) %>%
+  set_names(paste0("threshold_", thresholds))
+
 
 # Calculate shared ASVs between all crops at each threshold (CROP-LEVEL)
 shared_asvs_by_crop_by_threshold <- purrr::imap(
@@ -227,9 +229,9 @@ save(
 )
 
 # Print summary statistics - PROJECT LEVEL
-cat("\n", rep("=", 60), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("Shared ASVs Between Projects - PROJECT LEVEL Summary\n")
-cat(rep("=", 60), "\n\n")
+cat(rep("=", 40), "\n\n")
 
 purrr::iwalk(shared_asvs_by_threshold, function(sharing_data, threshold_name) {
   cat("Threshold:", threshold_name, "\n")
@@ -255,31 +257,34 @@ cat("\n", rep("=", 60), "\n")
 cat("Shared ASVs Between Crops - CROP LEVEL Summary\n")
 cat(rep("=", 60), "\n\n")
 
-purrr::iwalk(shared_asvs_by_crop_by_threshold, function(sharing_data, threshold_name) {
-  cat("Threshold:", threshold_name, "\n")
-  cat(
-    "  ASVs above threshold shared across ALL crops:",
-    length(sharing_data$all_crops),
-    "\n"
-  )
-  cat(
-    "  ASVs above threshold shared by 2+ crops:",
-    length(sharing_data$two_or_more),
-    "\n"
-  )
-  cat("  ASVs above threshold by crop (showing first 10):\n")
-  crop_list <- sharing_data$core_by_crop
-  if (length(crop_list) > 10) {
-    crop_list <- crop_list[1:10]
-    show_more <- TRUE
-  } else {
-    show_more <- FALSE
+purrr::iwalk(
+  shared_asvs_by_crop_by_threshold,
+  function(sharing_data, threshold_name) {
+    cat("Threshold:", threshold_name, "\n")
+    cat(
+      "  ASVs above threshold shared across ALL crops:",
+      length(sharing_data$all_crops),
+      "\n"
+    )
+    cat(
+      "  ASVs above threshold shared by 2+ crops:",
+      length(sharing_data$two_or_more),
+      "\n"
+    )
+    cat("  ASVs above threshold by crop (showing first 10):\n")
+    crop_list <- sharing_data$core_by_crop
+    if (length(crop_list) > 10) {
+      crop_list <- crop_list[1:10]
+      show_more <- TRUE
+    } else {
+      show_more <- FALSE
+    }
+    purrr::iwalk(crop_list, function(asvs, crop) {
+      cat("    ", crop, ":", length(asvs), "ASVs\n")
+    })
+    if (show_more) {
+      cat("    ... and", length(sharing_data$core_by_crop) - 10, "more crops\n")
+    }
+    cat("\n")
   }
-  purrr::iwalk(crop_list, function(asvs, crop) {
-    cat("    ", crop, ":", length(asvs), "ASVs\n")
-  })
-  if (show_more) {
-    cat("    ... and", length(sharing_data$core_by_crop) - 10, "more crops\n")
-  }
-  cat("\n")
-})
+)
