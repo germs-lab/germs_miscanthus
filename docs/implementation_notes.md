@@ -1,4 +1,6 @@
-# Implementation Notes: Shared ASV Analysis
+# Implementation Notes
+
+# Shared ASV Analysis
 
 ## Design Decisions
 
@@ -173,7 +175,7 @@ When running the scripts for the first time:
 
 2. **Verify outputs:**
    ```r
-   load("data/output/rdata/shared_asvs_by_threshold.rda")
+   load("data/output/rdata/shared_asvs_by_threshold_07.rda")
    names(shared_asvs_by_threshold)
    sapply(shared_asvs_by_threshold, function(x) length(x$all_projects))
    ```

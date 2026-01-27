@@ -26,7 +26,10 @@ invisible(
       "readr",
       "readxl",
       "stringr",
-      "iNEXT"
+      "iNEXT",
+      "gt",
+      "gtExtras",
+      "ComplexUpset"
     ),
     library,
     character.only = TRUE
@@ -43,7 +46,7 @@ list.files(
   here::here("data/output/rdata"),
   full.names = TRUE,
   recursive = FALSE,
-  pattern = "list\\.rda$"
+  pattern = "list.*\\.rda$"
 ) %>%
   purrr::walk(~ load(.x, envir = .GlobalEnv))
 

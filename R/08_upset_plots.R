@@ -328,82 +328,91 @@ print(mxg_shared_asvs)
 # SECTION 7: Shared ASVs by Threshold - UpSet Plots ----
 
 # Load shared ASV data from 07_abund_occupancy.R
-load("data/output/rdata/shared_asvs_by_threshold.rda")
+load("data/output/rdata/shared_asvs_by_threshold_07.rda")
 
 # Ensure asv_data is available (should be loaded from SECTION 1)
 if (!exists("asv_data")) {
   asv_data <- create_asv_upset_data(main_16S_physeq_list)
 }
 
-cat("\n", rep("=", 60), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("UpSet Plots for Shared ASVs at Different Thresholds\n")
-cat(rep("=", 60), "\n\n")
+cat(rep("=", 40), "\n\n")
 
 # Create UpSet plots for each threshold
-threshold_upset_plots <- purrr::imap(shared_asvs_by_threshold, function(sharing_data, threshold_name) {
-  # Get the project-level ASV lists
-  asv_list <- sharing_data$by_project
+threshold_upset_plots <- purrr::imap(
+  shared_asvs_by_threshold,
+  function(sharing_data, threshold_name) {
+    # Get the project-level ASV lists
+    asv_list <- sharing_data$by_project
 
-  # Create binary dataframe for upset plot
-  upset_df <- create_binary_df_from_flat(asv_list) |>
-    rename(asv = item)
+    # Create binary dataframe for upset plot
+    upset_df <- create_binary_df_from_flat(asv_list) |>
+      rename(asv = item)
 
-  # Add taxonomic information
-  asv_tax_info <- asv_data$attributes |>
-    select(asv, phylum, class, genus) |>
-    distinct()
+    # Add taxonomic information
+    asv_tax_info <- asv_data$attributes |>
+      select(asv, phylum, class, genus) |>
+      distinct()
 
-  upset_df_annotated <- upset_df |>
-    left_join(asv_tax_info, by = "asv")
+    upset_df_annotated <- upset_df |>
+      left_join(asv_tax_info, by = "asv")
 
-  # Create UpSet plot
-  set_cols <- names(asv_list)
-  n_projects <- length(set_cols)
+    # Create UpSet plot
+    set_cols <- names(asv_list)
+    n_projects <- length(set_cols)
 
-  plot_obj <- upset(
-    upset_df_annotated,
-    intersect = set_cols,
-    n_intersections = 20,
-    base_annotations = list(
-      "Intersection size" = intersection_size(
-        bar_number_threshold = 1,
-        fill = "#1f77b4",
-        text = list(vjust = -0.5)
+    plot_obj <- upset(
+      upset_df_annotated,
+      intersect = set_cols,
+      n_intersections = 20,
+      base_annotations = list(
+        "Intersection size" = intersection_size(
+          bar_number_threshold = 1,
+          fill = "#1f77b4",
+          text = list(vjust = -0.5)
+        )
+      ),
+      queries = list(
+        upset_query(
+          intersect = set_cols,
+          color = 'darkgreen',
+          fill = 'darkgreen',
+          only_components = c('intersections_matrix', 'Intersection size')
+        )
+      ),
+      set_sizes = upset_set_size(
+        geom = geom_bar(fill = "#2ca02c")
+      ),
+      sort_sets = "descending",
+      sort_intersections = "descending",
+      width_ratio = 0.15
+    ) +
+      labs(
+        title = paste0("Shared ASVs Between Projects (", threshold_name, ")")
+      ) +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        panel.grid = element_blank()
       )
-    ),
-    queries = list(
-      upset_query(
-        intersect = set_cols,
-        color = 'darkgreen',
-        fill = 'darkgreen',
-        only_components = c('intersections_matrix', 'Intersection size')
-      )
-    ),
-    set_sizes = upset_set_size(
-      geom = geom_bar(fill = "#2ca02c")
-    ),
-    sort_sets = "descending",
-    sort_intersections = "descending",
-    width_ratio = 0.15
-  ) +
-    labs(title = paste0("Shared ASVs Between Projects (", threshold_name, ")")) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-      panel.grid = element_blank()
+
+    # Save plot
+    ggsave(
+      filename = paste0(
+        "data/output/figures/shared_asvs_",
+        threshold_name,
+        "_upset.svg"
+      ),
+      plot = plot_obj,
+      width = 250,
+      height = 200,
+      units = "mm",
+      dpi = 600
     )
 
-  # Save plot
-  ggsave(
-    filename = paste0("data/output/figures/shared_asvs_", threshold_name, "_upset.svg"),
-    plot = plot_obj,
-    width = 250,
-    height = 200,
-    units = "mm",
-    dpi = 600
-  )
-
-  return(plot_obj)
-})
+    return(plot_obj)
+  }
+)
 
 # Display the plots
 purrr::walk(threshold_upset_plots, print)

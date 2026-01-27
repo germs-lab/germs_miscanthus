@@ -17,7 +17,7 @@ This script:
 - Analyzes ASV occupancy across projects at multiple thresholds (60%, 70%, 80%, 90%)
 - Identifies ASVs shared between all projects
 - Identifies ASVs shared by 2 or more projects
-- Saves results to `data/output/rdata/shared_asvs_by_threshold.rda`
+- Saves results to `data/output/rdata/shared_asvs_by_threshold_07.rda`
 
 **Output:**
 - `shared_asvs_by_threshold.rda` - R data object containing:
@@ -28,7 +28,7 @@ This script:
 ```r
 shared_asvs_by_threshold$threshold_0.6$all_projects  # ASVs shared by all projects
 shared_asvs_by_threshold$threshold_0.6$two_or_more  # ASVs shared by 2+ projects
-shared_asvs_by_threshold$threshold_0.6$by_project   # ASVs for each project
+shared_asvs_by_threshold$threshold_0.6$core_by_project   # ASVs for each project
 shared_asvs_by_threshold$threshold_0.6$asv_project_counts  # Count vector
 ```
 
