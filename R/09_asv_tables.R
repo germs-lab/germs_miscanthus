@@ -26,7 +26,7 @@ get_asv_taxonomy <- function(asv_ids, physeq_obj) {
   return(tax_df)
 }
 
-# SECTION 1: Create taxonomic tables for all shared ASVs ----
+# SECTION 1: Taxonomic tables for all shared ASVs in Miscanthus in all 3 projects ----
 
 cat("\n", rep("=", 40), "\n")
 cat("Creating Taxonomic Tables for Shared ASVs\n")
@@ -43,8 +43,8 @@ if (is.null(tax_table(ref_physeq, errorIfNULL = FALSE))) {
 }
 
 # Create tables for ASVs shared across all projects at each threshold
-shared_asv_tables <- purrr::imap(
-  shared_asvs_by_threshold,
+mxg_shared_asv_tables <- purrr::imap(
+  mxg_shared_asvs_by_threshold,
   function(sharing_data, threshold_name) {
     # Extract ASVs shared by all projects
     all_projects_asvs <- sharing_data$all_projects
@@ -70,7 +70,7 @@ shared_asv_tables <- purrr::imap(
     gt_table <- tax_summary %>%
       gt() %>%
       tab_header(
-        title = "Shared ASVs Across All Projects",
+        title = "Shared Miscanthus ASVs Across All Projects",
         subtitle = paste0("ASVs at ", threshold_name, " occupancy threshold")
       ) %>%
       cols_label(
@@ -86,11 +86,18 @@ shared_asv_tables <- purrr::imap(
       tab_style(
         style = cell_text(weight = "bold"),
         locations = cells_column_labels()
-      ) %>%
-      tab_style(
-        style = cell_fill(color = "#E8F4F8"),
-        locations = cells_body(rows = seq(2, nrow(tax_summary), by = 2))
-      ) %>%
+      )
+
+    # Only add alternating row colors if there are at least 2 rows
+    if (nrow(tax_summary) >= 2) {
+      gt_table <- gt_table %>%
+        tab_style(
+          style = cell_fill(color = "#E8F4F8"),
+          locations = cells_body(rows = seq(2, nrow(tax_summary), by = 2))
+        )
+    }
+
+    gt_table <- gt_table %>%
       cols_width(
         asv ~ px(150),
         kingdom ~ px(100),
@@ -112,7 +119,7 @@ shared_asv_tables <- purrr::imap(
     gtsave(
       gt_table,
       filename = paste0(
-        "data/output/figures/shared_asvs_",
+        "data/output/figures/mxg_shared_asvs_",
         threshold_name,
         "_taxonomy_table.html"
       )
@@ -133,10 +140,10 @@ shared_asv_tables <- purrr::imap(
   }
 )
 
-# SECTION 2: Create tables for ASVs shared by 2+ projects ----
+# SECTION 2: Taxonomic tables for Miscanthus ASVs shared by 2+ projects ----
 
 shared_2plus_tables <- purrr::imap(
-  shared_asvs_by_threshold,
+  mxg_shared_asvs_by_threshold,
   function(sharing_data, threshold_name) {
     # Extract ASVs shared by 2 or more projects
     two_plus_asvs <- sharing_data$two_or_more
@@ -162,7 +169,7 @@ shared_2plus_tables <- purrr::imap(
     gt_table <- tax_summary %>%
       gt() %>%
       tab_header(
-        title = "ASVs Shared by Two or More Projects",
+        title = "Miscanthus ASVs Shared by Two or More Projects",
         subtitle = paste0("ASVs at ", threshold_name, " occupancy threshold")
       ) %>%
       cols_label(
@@ -185,7 +192,7 @@ shared_2plus_tables <- purrr::imap(
       ) %>%
       data_color(
         columns = n_projects,
-        colors = scales::col_numeric(
+        fn = scales::col_numeric(
           palette = c("#FFF7BC", "#FEC44F", "#D95F0E"),
           domain = c(2, length(sharing_data$core_by_project))
         )
@@ -211,7 +218,7 @@ shared_2plus_tables <- purrr::imap(
     gtsave(
       gt_table,
       filename = paste0(
-        "data/output/figures/shared_asvs_2plus_",
+        "data/output/figures/mxg_shared_asvs_2plus_",
         threshold_name,
         "_taxonomy_table.html"
       )
@@ -236,7 +243,7 @@ shared_2plus_tables <- purrr::imap(
 
 # Create a summary table showing counts at each threshold
 summary_data <- purrr::imap_dfr(
-  shared_asvs_by_threshold,
+  mxg_shared_asvs_by_threshold,
   function(sharing_data, threshold_name) {
     tibble(
       threshold = gsub("threshold_", "", threshold_name),
@@ -250,7 +257,7 @@ summary_data <- purrr::imap_dfr(
 summary_gt <- summary_data %>%
   gt() %>%
   tab_header(
-    title = "Summary of Shared ASVs Across Thresholds",
+    title = "Summary of Shared Miscanthus ASVs Across Thresholds",
     subtitle = "Number of ASVs identified at different occupancy thresholds"
   ) %>%
   cols_label(
@@ -265,7 +272,7 @@ summary_gt <- summary_data %>%
   ) %>%
   tab_style(
     style = cell_fill(color = "#E8F4F8"),
-    locations = cells_body(rows = seq(2, nrow(tax_summary), by = 2))
+    locations = cells_body(rows = seq(2, nrow(summary_data), by = 2))
   ) %>%
   cols_width(
     threshold ~ px(150),
@@ -283,18 +290,16 @@ summary_gt <- summary_data %>%
 # Save summary table
 gtsave(
   summary_gt,
-  filename = "data/output/figures/shared_asvs_summary_table.html"
+  filename = "data/output/figures/mxg_shared_asvs_summary_table.html"
 )
 
-# Print summary
-print(summary_gt)
 
-cat("\n", rep("=", 60), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("All taxonomic tables saved to data/output/figures/\n")
-cat(rep("=", 60), "\n")
+cat(rep("=", 40), "\n")
 
 # Display the first table for viewing
-if (!is.null(shared_asv_tables[[1]])) {
-  cat("\nExample table (first threshold):\n")
-  print(shared_asv_tables[[1]]$gt_table)
-}
+# if (!is.null(mxg_shared_asv_tables[[1]])) {
+#   cat("\nExample table (first threshold):\n")
+#   print(mxg_shared_asv_tables[[1]]$gt_table)
+# }
