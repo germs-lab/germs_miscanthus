@@ -152,6 +152,7 @@ main_hellgr_physeq_list$ef_physeq_list$ef_16S_physeq %>%
 
 # Save objects ----
 save(
+  main_16S_mxg_physeq_list,
   main_16S_mxg_relab_psq_list,
   main_16S_mxg_hellgr_psq_list,
   file = "data/output/rdata/main_16S_mxg_transformed_lists_05.rda"
