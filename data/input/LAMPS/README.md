@@ -28,13 +28,13 @@ This applies to DNA (DNA amplicon sequencing) and RNA (RNA amplicon sequencing)s
 
 ```{r}
 its_seq_names <- fs::dir_ls(
-  "/home/baponte/cybox/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequencing/Raw sequences"
+  "/home/baponte/gdrive/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequencing/Raw sequences"
 ) %>% # rclone Box config, this may break
   basename() 
 
 write_tsv(
   as.data.frame(its_seq_names),
-file = "/home/baponte/cybox/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequencing/dna_seq_filenames.tsv", col_names = FALSE
+file = "/home/baponte/gdrive/GERMS-DATAMAN/DOE-CABBI/LAMPS/DNA\ amplicon\ sequencing/dna_seq_filenames.tsv", col_names = FALSE
 )
 ```
 
@@ -105,11 +105,11 @@ The standardization process in "01_import.R" conditionally transforms only the i
 
 ## Reproducibility notes
 
-- Keep the two source files versioned (CSV) or archived (Excel from Box).
+- Keep the two source files versioned (CSV) or archived (Excel from Google Drive).
 - Record any column renames made during import so the join remains stable if schemas change.
 
 
-# LAMPS 2023 (AKA LAMPS_EPS)
+# LAMPS 202 (AKA LAMPS_EPS)
 
 ## Sequence and Metadata provenance
 
@@ -119,5 +119,5 @@ The standardization process in "01_import.R" conditionally transforms only the i
       - AMF: "GERMS-DATAMAN/Argonne_Sequencing_Results/Feb2025_AMF"
   - .RData (phyloseq objects): "GERMS-DATAMAN/DOE-CABBI/Phillip/LAMPS_EPS/data/"
 
-  **Now in "~germs_miscanthus/data/input/LAMPS/2023/data". This is now categorized by sampling year.**
+  **Now in "~germs_miscanthus/data/input/LAMPS/2022/data". This is now categorized by sampling year.**
 

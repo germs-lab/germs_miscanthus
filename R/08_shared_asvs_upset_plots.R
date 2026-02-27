@@ -344,7 +344,7 @@ cat(rep("=", 60), "\n\n")
 upset_data_crop_asvs <- purrr::flatten(asv_data$presence_list)
 
 # Get the crop-level ASVs from threshold_0.0
-threshold_0_crop_asvs <- shared_asvs_by_crop_by_threshold$threshold_0.0$core_by_crop
+threshold_0_crop_asvs <- all_shared_asvs_by_crop_by_threshold$threshold_0.0$core_by_crop
 
 # Compare counts
 cat("Crop-level comparison:\n")
