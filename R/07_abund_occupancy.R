@@ -1,289 +1,226 @@
 ###########################################################################
-# Abundance Occupancy Analysis on Miscanthus 16S
+# Abundance Occupancy Analysis on Miscanthus
 #
 #
 # Author: Bolívar Aponte Rolón
 # Date: 2025-11-24
+# Modified: 2026-01-27
 ##########################################################################
 
 source("R/utils/00_setup.R")
 
 
-# SECTION1: Abundance-Occupancy Plots - All crops ----
-abundance_occ_plots <- purrr::imap(
+# Abundance-Occupancy Plots ----
+
+## Quick helper function
+multiple_abundance_occupancy_plots <- function(
+  physeq_obj,
+  physeq_name,
+  thresholds = c(0.5, 0.6, 0.7, 0.8, 0.9)
+) {
+  # Get summaries
+  summarized_df_list <- summarize_abundance_occupancy(physeq_obj)
+
+  # Define thresholds to test
+  thresholds <- thresholds
+
+  # Plots at different thresholds - overall
+  overall_plots <- purrr::map(thresholds, function(threshold) {
+    plot_abundance_occupancy(
+      summarized_df_list$overall,
+      threshold = threshold,
+      title = paste0(
+        physeq_name,
+        " - Overall (threshold:",
+        threshold,
+        ")"
+      )
+    )
+  }) %>%
+    set_names(paste0("threshold_", thresholds))
+
+  # Plots at different thresholds - by crop
+  by_crop_plots <- purrr::imap(
+    summarized_df_list$by_crop,
+    function(crop_df, crop_name) {
+      purrr::map(thresholds, function(threshold) {
+        plot_abundance_occupancy(
+          crop_df,
+          threshold = threshold,
+          title = paste0(
+            physeq_name,
+            " - ",
+            crop_name,
+            " (threshold:",
+            threshold,
+            ")"
+          )
+        )
+      }) %>%
+        set_names(paste0("threshold_", thresholds))
+    }
+  )
+
+  return(list(
+    summary_df = summarized_df_list,
+    overall_plots = overall_plots,
+    by_crop_plots = by_crop_plots
+  ))
+}
+
+##  16S All crops ----
+abundance_occ_plots_16S <- purrr::imap(
   main_16S_physeq_list,
   function(physeq_obj, physeq_name) {
-    # Get summaries
-    summarized_df_list <- summarize_abundance_occupancy(physeq_obj)
-
-    # Define thresholds to test
-    thresholds <- c(0.5, 0.6, 0.7, 0.8, 0.9)
-
-    # Plots at different thresholds - overall
-    overall_plots <- purrr::map(thresholds, function(threshold) {
-      plot_abundance_occupancy(
-        summarized_df_list$overall,
-        threshold = threshold,
-        title = paste0(physeq_name, " - Overall (threshold:", threshold, ")")
-      )
-    }) %>%
-      set_names(paste0("threshold_", thresholds))
-
-    # Plots at different thresholds - by crop
-    by_crop_plots <- purrr::imap(
-      summarized_df_list$by_crop,
-      function(crop_df, crop_name) {
-        purrr::map(thresholds, function(threshold) {
-          plot_abundance_occupancy(
-            crop_df,
-            threshold = threshold,
-            title = paste0(
-              physeq_name,
-              " - ",
-              crop_name,
-              " (threshold:",
-              threshold,
-              ")"
-            )
-          )
-        }) %>%
-          set_names(paste0("threshold_", thresholds))
-      }
-    )
-
-    return(list(
-      summary_df = summarized_df_list,
-      overall_plots = overall_plots,
-      by_crop_plots = by_crop_plots
-    ))
+    multiple_abundance_occupancy_plots(physeq_obj, physeq_name)
   }
 )
 
-abundance_occ_plots$ef_16S$overall_plots$threshold_0.6
+abundance_occ_plots_16S$ef_16S$overall_plots$threshold_0.6
 
 abundance_occ_plots$lamps_2018_16S$overall_plots$threshold_0.6
 
 abundance_occ_plots$lamps_2022_16S$overall_plots$threshold_0.6
 
-
-# Identifying core ASVs at 60% threshold
-ef_16S_core_asvs_60 <- rownames(
-  summarize_abundance_occupancy(main_16S_physeq_list$ef_16S_DNA) %>%
-    .$overall %>%
-    filter(occupancy_prop >= 0.6)
-)
-lamps_2018_16S_core_asvs_60 <- rownames(
-  summarize_abundance_occupancy(main_16S_physeq_list$lamps_2018_16S_DNA) %>%
-    .$overall %>%
-    filter(occupancy_prop >= 0.6)
-)
-
-(c(ef_16S_core_asvs_60, lamps_2018_16S_core_asvs_60))
-diffs <- base::setdiff(
-  ef_16S_core_asvs_60,
-  lamps_2018_16S_core_asvs_60
-)
-
-# SECTION 2: Shared ASVs in Miscanthus Between Projects at Different Thresholds ----
-
-# Define thresholds to test
-# These represent the proportion of samples where an ASV must be present
-# to be considered "core" (e.g., 0.6 = present in 60% of samples)
-
-# Getting our "core" ASVs in MXG at different thresholds
-main_16S_mxg_core_list <- purrr::map(
-  main_16S_mxg_physeq_list,
-  function(physeq_obj) {
-    get_prevalent_rare(
-      physeq_obj,
-      thresholds = c(0, 60, 70, 80, 90),
-      detection = 0 / 100,
-      include.lowest = FALSE
+## All target regions - All crops ----
+abundance_occ_plots_all <- purrr::imap(
+  main_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap(
+      project_list,
+      function(physeq_obj, physeq_name) {
+        multiple_abundance_occupancy_plots(
+          physeq_obj,
+          physeq_name
+        )
+      }
     )
   }
 )
 
-# Modify this vector to analyze different thresholds
-thresholds <- c(0.0, 0.6, 0.7, 0.8, 0.9)
 
-# Get project names from the phyloseq list (focusing on DNA projects)
-project_names <- grep("_DNA$", names(main_16S_mxg_core_list), value = TRUE)
+## Multi-panel Abundance-Occupancy Plots by Target Region ----
 
-## PROJECT-MXG-THRESHOLD-LEVEL ANALYSIS ----
-# Extract core Miscanthus ASVs for each project at each threshold
-
-mxg_core_asvs_by_threshold <- purrr::map(thresholds, function(threshold) {
-  project_asvs <- purrr::map(project_names, function(proj_name) {
-    physeq_object <- main_16S_mxg_core_list
-
-    taxa_names(physeq_object[[proj_name]][[paste0(
-      "prevalent_",
-      as.character(threshold * 100)
-    )]])
-  }) %>%
-    set_names(gsub("_DNA$", "", project_names))
-
-  return(project_asvs)
-}) %>%
-  set_names(paste0("threshold_", thresholds))
-
-
-# Calculate shared ASVs between all projects at each threshold (PROJECT-LEVEL)
-mxg_shared_asvs_by_threshold <- purrr::imap(
-  mxg_core_asvs_by_threshold,
-  function(asv_list, threshold_name) {
-    # Get all unique ASVs across all projects
-    all_asvs <- unique(unlist(asv_list))
-
-    # Count how many projects each ASV appears in
-    asv_counts <- purrr::map_int(all_asvs, function(asv) {
-      sum(purrr::map_lgl(asv_list, ~ asv %in% .x))
-    })
-    names(asv_counts) <- all_asvs
-
-    # Create a structured list with different sharing levels
-    sharing_levels <- list(
-      all_projects = names(asv_counts)[asv_counts == length(asv_list)],
-      two_or_more = names(asv_counts)[asv_counts >= 2],
-      core_by_project = asv_list,
-      asv_project_counts = asv_counts
-    )
-
-    return(sharing_levels)
-  }
+# Define target regions and crop mappings
+target_regions <- c("16S", "ITS", "AMF")
+crop_map <- list(
+  ef = "MXG",
+  lamps_2018 = "M",
+  lamps_2022 = "Miscanthus"
 )
+# Function to safely extract a plot
+safe_extract_plot <- function(
+  project_list,
+  project_name,
+  region,
+  crop_name,
+  threshold = "threshold_0.6"
+) {
+  project_list[[paste0(
+    project_name,
+    "_",
+    region,
+    "_physeq"
+  )]]$by_crop_plots[[crop_name]][[threshold]]
+}
 
-## PROJECT-CROP-THRESHOLD-LEVEL ANALYSIS ----
-# Needs to be calculated with "main_16S_physeq_list" to include all crops
 
-# Extract core ASVs for each crop within each project at each threshold
-all_core_asvs_by_crop_by_threshold <- purrr::map(thresholds, function(threshold) {
-  # For each project, get ASVs by crop
-  all_crop_asvs <- purrr::map(project_names, function(proj_name) {
-    # Get abundance/occupancy data by crop
-    crop_data <- summarize_abundance_occupancy(main_16S_physeq_list[[
-      proj_name
-    ]])$by_crop
+# Generate plots for each region
+region_plots <- purrr::imap(target_regions, function(region, index) {
+  # Extract plots for this region from all three projects
+  ef_plot <- safe_extract_plot(
+    abundance_occ_plots_all$ef_physeq_list,
+    "ef",
+    region,
+    crop_map$ef
+  )
 
-    # For each crop, get ASVs above threshold
-    crop_asvs <- purrr::imap(crop_data, function(crop_df, crop_name) {
-      rownames(crop_df %>% filter(occupancy_prop >= threshold))
-    })
+  lamps_2018_plot <- safe_extract_plot(
+    abundance_occ_plots_all$lamps_2018_physeq_list,
+    "lamps_2018",
+    region,
+    crop_map$lamps_2018
+  )
 
-    # Create proper naming (e.g., ef_MXG, lamps_2018_M)
-    proj_prefix <- gsub("_DNA$", "", proj_name)
-    if (grepl("^lamps", proj_prefix, ignore.case = TRUE)) {
-      # For LAMPS projects, keep the year part
-      names(crop_asvs) <- paste0(proj_prefix, "_", names(crop_asvs))
-    } else {
-      # For other projects (e.g., ef)
-      names(crop_asvs) <- paste0(proj_prefix, "_", names(crop_asvs))
+  lamps_2022_plot <- safe_extract_plot(
+    abundance_occ_plots_all$lamps_2022_physeq_list,
+    "lamps_2022",
+    region,
+    crop_map$lamps_2022
+  )
+
+  # Collect available plots
+  available_plots <- list(
+    EF = ef_plot,
+    `LAMPS 2018` = lamps_2018_plot,
+    `LAMPS 2022` = lamps_2022_plot
+  )
+
+  # Remove NULL plots
+  available_plots <- purrr::discard(available_plots, is.null)
+
+  # Check if we have at least one plot
+  if (length(available_plots) == 0) {
+    message("Skipping ", region, " - no plots available across any project")
+    return(NULL)
+  }
+
+  # Add clean titles to available plots
+  plots_with_titles <- purrr::imap(
+    available_plots,
+    function(plot, project_name) {
+      plot +
+        ggtitle(project_name) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold"))
     }
+  )
 
-    return(crop_asvs)
-  })
-
-  # Flatten the list to get all crops across all projects
-  all_crop_asvs <- unlist(all_crop_asvs, recursive = FALSE)
-
-  return(all_crop_asvs)
-}) %>%
-  set_names(paste0("threshold_", thresholds))
-
-
-## All crops core ASVs at different thresholds
-# Calculate shared ASVs between all crops at each threshold (CROP-LEVEL)
-all_shared_asvs_by_crop_by_threshold <- purrr::imap(
-  core_asvs_by_crop_by_threshold,
-  function(asv_list, threshold_name) {
-    # Get all unique ASVs across all crops
-    all_asvs <- unique(unlist(asv_list))
-
-    # Count how many crops each ASV appears in
-    asv_counts <- purrr::map_int(all_asvs, function(asv) {
-      sum(purrr::map_lgl(asv_list, ~ asv %in% .x))
-    })
-    names(asv_counts) <- all_asvs
-
-    # Create a structured list with different sharing levels
-    sharing_levels <- list(
-      all_crops = names(asv_counts)[asv_counts == length(asv_list)],
-      two_or_more = names(asv_counts)[asv_counts >= 2],
-      core_by_crop = asv_list,
-      asv_crop_counts = asv_counts
+  # Combine into multi-panel plot
+  combined <- patchwork::wrap_plots(
+    plots_with_titles,
+    ncol = length(plots_with_titles)
+  ) +
+    patchwork::plot_annotation(
+      title = paste0(
+        "Abundance-Occupancy Curves: Miscanthus ",
+        region,
+        " (Threshold 0.6) - ",
+        length(plots_with_titles),
+        " project(s)"
+      ),
+      theme = theme(
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+      )
     )
 
-    return(sharing_levels)
-  }
-)
-
-# Save the shared ASV data
-save(
-  mxg_core_asvs_by_threshold,
-  mxg_shared_asvs_by_threshold,
-  all_core_asvs_by_crop_by_threshold,
-  all_shared_asvs_by_crop_by_threshold,
-  file = "data/output/rdata/shared_asvs_by_threshold_07.rda"
-)
-
-# SECTION 3: Summary Statistics of Shared ASVs at Different Thresholds ----
-# Print summary statistics - PROJECT-MXG-THRESHOLD LEVEL
-cat("\n", rep("=", 40), "\n")
-cat("Shared ASVs Between Projects - PROJECT LEVEL Summary\n")
-cat(rep("=", 40), "\n\n")
-
-purrr::iwalk(mxg_shared_asvs_by_threshold, function(sharing_data, threshold_name) {
-  cat("Threshold:", threshold_name, "\n")
-  cat(
-    "  ASVs above threshold shared across ALL projects:",
-    length(sharing_data$all_projects),
-    "\n"
+  message(
+    "Created plot for ",
+    region,
+    " with ",
+    length(plots_with_titles),
+    " project(s)"
   )
-  cat(
-    "  ASVs above threshold shared by 2+ projects:",
-    length(sharing_data$two_or_more),
-    "\n"
+  return(combined)
+}) |>
+  purrr::discard(is.null) %>%
+  set_names(paste0(target_regions[!sapply(., is.null)], "_region_plot"))
+
+
+# Display individual region plots
+purrr::walk(region_plots, print)
+
+# Save all plots
+purrr::iwalk(region_plots, function(plot, region_name) {
+  ggsave(
+    filename = paste0(
+      "data/output/figures/abundance_occupancy_",
+      region_name,
+      ".png"
+    ),
+    plot = plot,
+    width = 300,
+    height = 250,
+    dpi = 300,
+    units = "mm"
   )
-  cat("  ASVs above threshold by project:\n")
-  purrr::iwalk(sharing_data$core_by_project, function(asvs, proj) {
-    cat("    ", proj, ":", length(asvs), "ASVs\n")
-  })
-  cat("\n")
 })
-
-# Print summary statistics - PROJECT-CROP LEVEL
-cat("\n", rep("=",4 0), "\n")
-cat("Shared ASVs Between Crops - CROP LEVEL Summary\n")
-cat(rep("=", 40), "\n\n")
-
-purrr::iwalk(
-  all_shared_asvs_by_crop_by_threshold,
-  function(sharing_data, threshold_name) {
-    cat("Threshold:", threshold_name, "\n")
-    cat(
-      "  ASVs above threshold shared across ALL crops:",
-      length(sharing_data$all_crops),
-      "\n"
-    )
-    cat(
-      "  ASVs above threshold shared by 2+ crops:",
-      length(sharing_data$two_or_more),
-      "\n"
-    )
-    cat("  ASVs above threshold by crop (showing first 10):\n")
-    crop_list <- sharing_data$core_by_crop
-    if (length(crop_list) > 10) {
-      crop_list <- crop_list[1:10]
-      show_more <- TRUE
-    } else {
-      show_more <- FALSE
-    }
-    purrr::iwalk(crop_list, function(asvs, crop) {
-      cat("    ", crop, ":", length(asvs), "ASVs\n")
-    })
-    if (show_more) {
-      cat("    ... and", length(sharing_data$core_by_crop) - 10, "more crops\n")
-    }
-    cat("\n")
-  }
-)
