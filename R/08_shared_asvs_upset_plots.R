@@ -41,9 +41,9 @@ combined_summary <- asv_summary |>
   left_join(phylum_summary, by = "crop_project") |>
   left_join(class_summary, by = "crop_project")
 
-cat("\n", rep("=", 50), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("Taxonomic Richness by Crop-Project\n")
-cat(rep("=", 50), "\n")
+cat(rep("=", 40), "\n")
 print(combined_summary)
 
 # SECTION 3: UpSet DataFrames ----
@@ -62,9 +62,9 @@ class_upset_df <- create_tax_upset_df(class_presence) |>
 
 # SECTION 4: UpSet plots - All crops ----
 
-cat("\n", rep("=", 50), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("ASV Intersections Across All Crops\n")
-cat(rep("=", 50), "\n")
+cat(rep("=", 40), "\n")
 
 set_cols <- names(purrr::flatten(asv_data$presence_list))
 upset(
@@ -96,53 +96,53 @@ upset(
   labs(title = "ASV Intersections Across All Crops") +
   theme(plot.title = element_text(hjust = 0.5))
 
-cat("\n", rep("=", 50), "\n")
-cat("Phylum Intersections Across All Crops\n")
-cat(rep("=", 50), "\n")
+# cat("\n", rep("=", 40), "\n")
+# cat("Phylum Intersections Across All Crops\n")
+# cat(rep("=", 40), "\n")
 
-phylum_set_cols <- names(purrr::flatten(phylum_presence))
-upset(
-  phylum_upset_df,
-  intersect = phylum_set_cols,
-  n_intersections = 25,
-  base_annotations = list(
-    "Intersection size" = intersection_size(
-      bar_number_threshold = 1,
-      fill = "#ff7f0e"
-    )
-  ),
-  set_sizes = upset_set_size(
-    geom = geom_bar(fill = "#d62728")
-  ),
-  sort_sets = "descending",
-  sort_intersections = "descending"
-) +
-  labs(title = "Phylum Intersections Across All Crops") +
-  theme(plot.title = element_text(hjust = 0.5))
+# phylum_set_cols <- names(purrr::flatten(phylum_presence))
+# upset(
+#   phylum_upset_df,
+#   intersect = phylum_set_cols,
+#   n_intersections = 25,
+#   base_annotations = list(
+#     "Intersection size" = intersection_size(
+#       bar_number_threshold = 1,
+#       fill = "#ff7f0e"
+#     )
+#   ),
+#   set_sizes = upset_set_size(
+#     geom = geom_bar(fill = "#d62728")
+#   ),
+#   sort_sets = "descending",
+#   sort_intersections = "descending"
+# ) +
+#   labs(title = "Phylum Intersections Across All Crops") +
+#   theme(plot.title = element_text(hjust = 0.5))
 
-cat("\n", rep("=", 50), "\n")
-cat("Class Intersections Across All Crops\n")
-cat(rep("=", 50), "\n")
+# cat("\n", rep("=", 40), "\n")
+# cat("Class Intersections Across All Crops\n")
+# cat(rep("=", 40), "\n")
 
-class_set_cols <- names(purrr::flatten(class_presence))
-upset(
-  class_upset_df,
-  intersect = class_set_cols,
-  n_intersections = 25,
-  base_annotations = list(
-    "Intersection size" = intersection_size(
-      bar_number_threshold = 1,
-      fill = "#9467bd"
-    )
-  ),
-  set_sizes = upset_set_size(
-    geom = geom_bar(fill = "#8c564b")
-  ),
-  sort_sets = "descending",
-  sort_intersections = "descending"
-) +
-  labs(title = "Class Intersections Across All Crops") +
-  theme(plot.title = element_text(hjust = 0.5))
+# class_set_cols <- names(purrr::flatten(class_presence))
+# upset(
+#   class_upset_df,
+#   intersect = class_set_cols,
+#   n_intersections = 25,
+#   base_annotations = list(
+#     "Intersection size" = intersection_size(
+#       bar_number_threshold = 1,
+#       fill = "#9467bd"
+#     )
+#   ),
+#   set_sizes = upset_set_size(
+#     geom = geom_bar(fill = "#8c564b")
+#   ),
+#   sort_sets = "descending",
+#   sort_intersections = "descending"
+# ) +
+#   labs(title = "Class Intersections Across All Crops") +
+#   theme(plot.title = element_text(hjust = 0.5))
 
 # SECTION 5: UpSet plots - Miscanthus only ----
 
@@ -160,11 +160,11 @@ label_crop_project <- function(x) {
 }
 
 
-cat("\n", rep("=", 50), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("ASV Intersections - Miscanthus Only\n")
-cat(rep("=", 50), "\n")
+cat(rep("=", 40), "\n")
 
-
+# MXG upset
 if (length(mxg_asv_list) >= 2) {
   mxg_asv_df <- create_binary_df_from_flat(mxg_asv_list) |>
     rename(asv = item)
@@ -227,7 +227,10 @@ if (length(mxg_asv_list) >= 2) {
     set_sizes = FALSE,
     guides = 'over'
   ) +
-    labs(title = "ASVs in Top 20 Phyla in Miscanthus", ) +
+    labs(
+      title = "ASVs in Top 20 Phyla in Miscanthus",
+      subtitle = "16S data only"
+    ) +
     theme(
       plot.title = element_text(hjust = 0, size = 14, face = "bold"),
       panel.grid = element_blank(),
@@ -238,14 +241,16 @@ if (length(mxg_asv_list) >= 2) {
 }
 
 ## Saving UpSet plot ----
-ggsave(
-  filename = "data/output/figures/mxg_upset_abundance.svg",
-  plot = mxg_upset,
-  width = 250,
-  height = 225,
-  units = "mm",
-  dpi = 600
-)
+if (!file.exists("data/output/figures/mxg_upset_abundance.svg")) {
+  ggsave(
+    filename = "data/output/figures/mxg_upset_abundance.svg",
+    plot = mxg_upset,
+    width = 250,
+    height = 225,
+    units = "mm",
+    dpi = 600
+  )
+}
 
 # SECTION 6: MXG Intersection summary tables ----
 
@@ -307,9 +312,9 @@ compare_shared_unique <- mxg_asv_df_annotated |>
   count(sharing, phylum) |>
   pivot_wider(names_from = sharing, values_from = n, values_fill = 0)
 
-cat("\n", rep("=", 50), "\n")
+cat("\n", rep("=", 40), "\n")
 cat("ASV Sharing Summary\n")
-cat(rep("=", 50), "\n")
+cat(rep("=", 40), "\n")
 print(shared_mxg_asv_summary)
 
 cat("\n", rep("=", 40), "\n")
@@ -325,219 +330,14 @@ cat("\n", rep("=", 40), "\n")
 cat("Details of Shared ASVs:\n")
 print(mxg_shared_asvs)
 
-# SECTION 7: Shared ASVs by Threshold - UpSet Plots ----
-
-# Load shared ASV data from 07_abund_occupancy.R
-load("data/output/rdata/shared_asvs_by_threshold_07.rda")
-
-# Ensure asv_data is available (should be loaded from SECTION 1)
-if (!exists("asv_data")) {
-  asv_data <- create_asv_upset_data(main_16S_physeq_list)
-}
-
-## VALIDATION: Check that threshold_0.0 matches create_asv_upset_data() ----
-cat("\n", rep("=", 60), "\n")
-cat("VALIDATION: Comparing threshold_0.0 with create_asv_upset_data()\n")
-cat(rep("=", 60), "\n\n")
-
-# Get the crop-level ASVs from create_asv_upset_data (flattened)
-upset_data_crop_asvs <- purrr::flatten(asv_data$presence_list)
-
-# Get the crop-level ASVs from threshold_0.0
-threshold_0_crop_asvs <- all_shared_asvs_by_crop_by_threshold$threshold_0.0$core_by_crop
-
-# Compare counts
-cat("Crop-level comparison:\n")
-all_crop_names <- union(
-  names(upset_data_crop_asvs),
-  names(threshold_0_crop_asvs)
-)
-
-validation_results <- purrr::map_dfr(all_crop_names, function(crop_name) {
-  upset_count <- length(upset_data_crop_asvs[[crop_name]])
-  threshold_count <- length(threshold_0_crop_asvs[[crop_name]])
-  match <- upset_count == threshold_count
-
-  tibble(
-    crop = crop_name,
-    upset_data_count = upset_count,
-    threshold_0_count = threshold_count,
-    match = match
-  )
-})
-
-print(validation_results)
-
-# Overall summary
-all_match <- all(validation_results$match, na.rm = TRUE)
-if (all_match) {
-  cat("\n✓ VALIDATION PASSED: All crop-level counts match!\n")
-} else {
-  cat("\n✗ VALIDATION FAILED: Some crop-level counts do not match.\n")
-  cat("Mismatches:\n")
-  print(validation_results %>% filter(!match))
-}
-
-# Project-level validation
-cat("\n\nProject-level comparison:\n")
-cat("Checking if project-level threshold_0.0 equals union of crop ASVs:\n\n")
-
-project_validation <- purrr::map_dfr(
-  names(shared_asvs_by_threshold$threshold_0.0$core_by_project),
-  function(proj_name) {
-    # Get project-level ASVs at threshold 0.0
-    project_asvs <- shared_asvs_by_threshold$threshold_0.0$core_by_project[[
-      proj_name
-    ]]
-
-    # Get corresponding crop-level ASVs and take their union
-    # Match crops to this project (e.g., ef_MXG, ef_SB for ef_16S)
-    crop_pattern <- paste0("^", proj_name, "_")
-    matching_crops <- grep(
-      crop_pattern,
-      names(threshold_0_crop_asvs),
-      value = TRUE
-    )
-
-    if (length(matching_crops) > 0) {
-      crop_union <- unique(unlist(threshold_0_crop_asvs[matching_crops]))
-
-      # Compare
-      project_count <- length(project_asvs)
-      union_count <- length(crop_union)
-      match <- project_count == union_count
-
-      # Also check if the actual ASVs are the same
-      same_asvs <- setequal(project_asvs, crop_union)
-
-      tibble(
-        project = proj_name,
-        project_level_count = project_count,
-        crop_union_count = union_count,
-        counts_match = match,
-        asvs_identical = same_asvs
-      )
-    } else {
-      tibble(
-        project = proj_name,
-        project_level_count = length(project_asvs),
-        crop_union_count = NA,
-        counts_match = NA,
-        asvs_identical = NA
-      )
-    }
-  }
-)
-
-print(project_validation)
-
-if (all(project_validation$asvs_identical, na.rm = TRUE)) {
-  cat(
-    "\n✓ VALIDATION PASSED: Project-level ASVs equal union of crop-level ASVs!\n"
-  )
-} else {
-  cat(
-    "\n✗ VALIDATION FAILED: Project-level ASVs do not equal union of crop-level ASVs.\n"
-  )
-}
-
-cat("\n", rep("=", 60), "\n\n")
-
-cat("\n", rep("=", 40), "\n")
-cat("UpSet Plots for Shared ASVs at Different Thresholds\n")
-cat(rep("=", 40), "\n\n")
-
-# Create UpSet plots for each threshold
-threshold_upset_plots <- purrr::imap(
-  shared_asvs_by_threshold,
-  function(sharing_data, threshold_name) {
-    # Get the project-level ASV lists
-    asv_list <- sharing_data$core_by_project
-
-    # Create binary dataframe for upset plot
-    upset_df <- create_binary_df_from_flat(asv_list) |>
-      rename(asv = item)
-
-    # Add taxonomic information
-    asv_tax_info <- asv_data$attributes |>
-      select(asv, phylum, class, genus) |>
-      distinct()
-
-    upset_df_annotated <- upset_df |>
-      left_join(asv_tax_info, by = "asv")
-
-    # Create UpSet plot
-    set_cols <- names(asv_list)
-    n_projects <- length(set_cols)
-
-    plot_obj <- upset(
-      upset_df_annotated,
-      intersect = set_cols,
-      n_intersections = 20,
-      base_annotations = list(
-        "Intersection size" = intersection_size(
-          bar_number_threshold = 1,
-          fill = "#1f77b4",
-          text = list(vjust = -0.5)
-        )
-      ),
-      queries = list(
-        upset_query(
-          intersect = set_cols,
-          color = 'darkgreen',
-          fill = 'darkgreen',
-          only_components = c('intersections_matrix', 'Intersection size')
-        )
-      ),
-      set_sizes = upset_set_size(
-        geom = geom_bar(fill = "#2ca02c")
-      ),
-      sort_sets = "descending",
-      sort_intersections = "descending",
-      width_ratio = 0.15
-    ) +
-      labs(
-        title = paste0("Shared ASVs Between Projects (", threshold_name, ")")
-      ) +
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        panel.grid = element_blank()
-      )
-
-    # Save plot
-    ggsave(
-      filename = paste0(
-        "data/output/figures/shared_asvs_",
-        threshold_name,
-        "_upset.svg"
-      ),
-      plot = plot_obj,
-      width = 250,
-      height = 200,
-      units = "mm",
-      dpi = 600
-    )
-
-    return(plot_obj)
-  }
-)
-
-# Display the plots
-purrr::walk(threshold_upset_plots, print)
-
-cat("\n", rep("=", 60), "\n")
-cat("UpSet plots saved to data/output/figures/\n")
-cat(rep("=", 60), "\n")
-
-
-# SECTION 3: Shared ASVs in Miscanthus Between Projects at Different Thresholds ----
+# SECTION 7: Shared ASVs in Miscanthus Between Projects at Different Thresholds ----
 
 # Define thresholds to test
 # These represent the proportion of samples where an ASV must be present
 # to be considered "core" (e.g., 0.6 = present in 60% of samples)
 
 # Getting our "core" ASVs in MXG at different thresholds
-main_16S_mxg_shared_list <- purrr::map(
+mxg_prevalence_physeq_16S <- purrr::map(
   main_16S_mxg_physeq_list,
   function(physeq_obj) {
     get_prevalent_rare(
@@ -553,30 +353,33 @@ main_16S_mxg_shared_list <- purrr::map(
 thresholds <- c(0.0, 0.6, 0.7, 0.8, 0.9)
 
 # Get project names from the phyloseq list (focusing on DNA projects)
-project_names <- grep("_DNA$", names(main_16S_mxg_shared_list), value = TRUE)
+project_names <- grep("_DNA$", names(mxg_prevalence_physeq_16S), value = TRUE)
 
 ## PROJECT-MXG-THRESHOLD-LEVEL ANALYSIS ----
 # Extract core Miscanthus ASVs for each project at each threshold
 
-mxg_shared_asvs_by_threshold <- purrr::map(thresholds, function(threshold) {
-  project_asvs <- purrr::map(project_names, function(proj_name) {
-    physeq_object <- main_16S_mxg_core_list
+mxg_prevalent_asvs_by_project_by_threshold <- purrr::map(
+  thresholds,
+  function(threshold) {
+    project_asvs <- purrr::map(project_names, function(proj_name) {
+      physeq_object <- mxg_prevalence_physeq_16S
 
-    taxa_names(physeq_object[[proj_name]][[paste0(
-      "prevalent_",
-      as.character(threshold * 100)
-    )]])
-  }) %>%
-    set_names(gsub("_DNA$", "", project_names))
+      taxa_names(physeq_object[[proj_name]][[paste0(
+        "prevalent_",
+        as.character(threshold * 100)
+      )]])
+    }) %>%
+      set_names(gsub("_DNA$", "", project_names))
 
-  return(project_asvs)
-}) %>%
+    return(project_asvs)
+  }
+) %>%
   set_names(paste0("threshold_", thresholds))
 
 
 # Calculate shared ASVs between all projects at each threshold (PROJECT-LEVEL)
-mxg_shared_asvs_by_threshold <- purrr::imap(
-  mxg_core_asvs_by_threshold,
+mxg_shared_asvs_by_project_by_threshold <- purrr::imap(
+  mxg_prevalent_asvs_by_project_by_threshold,
   function(asv_list, threshold_name) {
     # Get all unique ASVs across all projects
     all_asvs <- unique(unlist(asv_list))
@@ -603,7 +406,7 @@ mxg_shared_asvs_by_threshold <- purrr::imap(
 # Needs to be calculated with "main_16S_physeq_list" to include all crops
 
 # Extract core ASVs for each crop within each project at each threshold
-all_core_asvs_by_crop_by_threshold <- purrr::map(
+all_crops_prevalent_asvs_by_threshold <- purrr::map(
   thresholds,
   function(threshold) {
     # For each project, get ASVs by crop
@@ -642,8 +445,8 @@ all_core_asvs_by_crop_by_threshold <- purrr::map(
 
 ## All crops core ASVs at different thresholds
 # Calculate shared ASVs between all crops at each threshold (CROP-LEVEL)
-all_shared_asvs_by_crop_by_threshold <- purrr::imap(
-  core_asvs_by_crop_by_threshold,
+all_crops_shared_asvs_by_threshold <- purrr::imap(
+  all_crops_prevalent_asvs_by_threshold,
   function(asv_list, threshold_name) {
     # Get all unique ASVs across all crops
     all_asvs <- unique(unlist(asv_list))
@@ -667,22 +470,24 @@ all_shared_asvs_by_crop_by_threshold <- purrr::imap(
 )
 
 # Save the shared ASV data
-save(
-  mxg_core_asvs_by_threshold,
-  mxg_shared_asvs_by_threshold,
-  all_core_asvs_by_crop_by_threshold,
-  all_shared_asvs_by_crop_by_threshold,
-  file = "data/output/rdata/shared_asvs_by_threshold_07.rda"
-)
+if (!file.exists("data/output/rdata/shared_asvs_by_threshold_08.rda")) {
+  save(
+    mxg_prevalent_asvs_by_project_by_threshold,
+    mxg_shared_asvs_by_project_by_threshold,
+    all_crops_prevalent_asvs_by_threshold,
+    all_crops_shared_asvs_by_threshold,
+    file = "data/output/rdata/shared_asvs_by_threshold_08.rda"
+  )
+}
 
-# SECTION 3: Summary Statistics of Shared ASVs at Different Thresholds ----
+# SECTION 8: Summary Statistics of Shared ASVs at Different Thresholds ----
 # Print summary statistics - PROJECT-MXG-THRESHOLD LEVEL
 cat("\n", rep("=", 40), "\n")
 cat("Shared ASVs Between Projects - PROJECT LEVEL Summary\n")
 cat(rep("=", 40), "\n\n")
 
 purrr::iwalk(
-  mxg_shared_asvs_by_threshold,
+  mxg_shared_asvs_by_project_by_threshold,
   function(sharing_data, threshold_name) {
     cat("Threshold:", threshold_name, "\n")
     cat(
@@ -709,7 +514,7 @@ cat("Shared ASVs Between Crops - CROP LEVEL Summary\n")
 cat(rep("=", 40), "\n\n")
 
 purrr::iwalk(
-  all_shared_asvs_by_crop_by_threshold,
+  all_crops_shared_asvs_by_threshold,
   function(sharing_data, threshold_name) {
     cat("Threshold:", threshold_name, "\n")
     cat(

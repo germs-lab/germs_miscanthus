@@ -105,8 +105,8 @@ alpha_plot_workflow <- function(alpha_data, physeq_name, comp_map) {
   theme_settings <- list(
     theme_minimal(),
     theme(
-      plot.title = element_text(size = 8),
-      plot.subtitle = element_text(size = 6),
+      plot.title = element_text(size = 12),
+      plot.subtitle = element_text(size = 10),
       axis.text.x = element_text(angle = 45, hjust = 1),
       legend.position = "none"
     )
@@ -214,8 +214,28 @@ main_beta_diversity_results <- calculate_beta_diversity_nested(
   distance = "bray"
 )
 
+# SECTION 5: Alpha Diversity Summary Statistics
 
-# SECTION 4: Beta Diversity Plots (PCoA)
+# Summary table of alpha diversity by project and crop
+alpha_summary <- alpha_diversity_df_16S %>%
+  group_by(project, crop) %>%
+  summarise(
+    n = n(),
+    mean_observed = mean(observed, na.rm = TRUE),
+    sd_observed = sd(observed, na.rm = TRUE),
+    mean_shannon = mean(shannon, na.rm = TRUE),
+    sd_shannon = sd(shannon, na.rm = TRUE),
+    mean_simpson = mean(simpson, na.rm = TRUE),
+    sd_simpson = sd(simpson, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+cat("\n", rep("=", 40), "\n")
+cat("Alpha Diversity Summary by Project and Crop\n")
+cat(rep("=", 40), "\n")
+print(alpha_summary)
+
+# SECTION 5: Beta Diversity Plots (PCoA)
 
 beta_plot_workflow <- function(beta_data, physeq_name) {
   plot_title <- gsub("_physeq$", " ", physeq_name) %>%
@@ -265,84 +285,15 @@ main_beta_diversity_plots <-
 cat("\n", rep("=", 40), "\n")
 cat("Beta Diversity Project and Crop\n")
 cat(rep("=", 40), "\n")
-print(beta_diversity_plots)
+print(beta_diversity_plots_16S)
 
 
 # Checkpoint
 alpha_beta_plots <- list(
-  alpha_diversity_plots = alpha_diversity_plots,
-  beta_diversity_plots = beta_diversity_plots
+  alpha_diversity_plots = alpha_diversity_plots_16S,
+  beta_diversity_plots = beta_diversity_plots_16S
 )
 # save(
 #   alpha_beta_plots,
 #   file = "data/output/rdata/alpha_beta_plots.rda"
 # )
-
-# SECTION 5: PERMANOVA Analysis
-
-# # Perform PERMANOVA for each phyloseq object
-# set.seed(123)
-# permanova_results <- purrr::imap(
-#   main_mxg_physeq_list,
-#   function(project_list, project_name) {
-#     purrr::imap(project_list, function(physeq_obj, physeq_name) {
-#       # Get distance matrix
-#       dist_matrix <- phyloseq::distance(physeq_obj, method = "bray")
-
-#       # Get sample data
-#       sampledf <- data.frame(sample_data(physeq_obj))
-
-#       # Run PERMANOVA (adonis2)
-#       perm_result <- vegan::adonis2(
-#         dist_matrix ~ crop,
-#         data = sampledf,
-#         permutations = 999
-#       )
-
-#       # Return results with metadata
-#       list(
-#         physeq_name = physeq_name,
-#         project = project_name,
-#         permanova = perm_result,
-#         n_samples = nsamples(physeq_obj)
-#       )
-#     })
-#   }
-# )
-
-# # Display PERMANOVA results
-# cat("\n", rep("=", 60), "\n")
-# cat("PERMANOVA Results Summary\n")
-# cat(rep("=", 60), "\n\n")
-
-# purrr::iwalk(permanova_results, function(project_list, project_name) {
-#   cat("\nPROJECT:", toupper(project_name), "\n")
-#   cat(rep("-", 40), "\n")
-
-#   purrr::iwalk(project_list, function(result, physeq_name) {
-#     cat("\n", physeq_name, "(n =", result$n_samples, "samples)\n")
-#     print(result$permanova)
-#     cat("\n")
-#   })
-# })
-
-# SECTION 6: Summary Statistics
-
-# Summary table of alpha diversity by project and crop
-alpha_summary <- alpha_diversity_df %>%
-  group_by(project, region, crop) %>%
-  summarise(
-    n = n(),
-    mean_observed = mean(observed, na.rm = TRUE),
-    sd_observed = sd(observed, na.rm = TRUE),
-    mean_shannon = mean(shannon, na.rm = TRUE),
-    sd_shannon = sd(shannon, na.rm = TRUE),
-    mean_simpson = mean(simpson, na.rm = TRUE),
-    sd_simpson = sd(simpson, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-cat("\n", rep("=", 40), "\n")
-cat("Alpha Diversity Summary by Project and Crop\n")
-cat(rep("=", 40), "\n")
-print(alpha_summary)

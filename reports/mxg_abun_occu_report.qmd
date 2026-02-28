@@ -1,5 +1,5 @@
 ---
-title: "Miscanthus: Abundance-Occupancy Report"
+title: "Miscanthus: Abundance-Occupancy and Shared ASVs Report"
 author:
   - "Bolívar Aponte Rolón"
 date: last-modified
@@ -14,6 +14,8 @@ format:
   pdf:
     documentclass: scrartcl
     papersize: letter
+    toc: true
+    toc-depth: 3
 
 execute:
   echo: true
@@ -23,25 +25,29 @@ execute:
   freeze: auto
   # fig-width: 10
   # fig-height: 7
-  # fig-dpi: 300
+  fig-dpi: 150
   # fig-format: "png"
 ---
+
+
 
 # About this report
 
 This Quarto report executes two existing analysis scripts:
 
--   `06_abund_occupancy.R` — Abudnace-Coccupancy Analyses
+-   `06_alpha_beta_div.R` — Community Diversity Analyses
+-   `07_abund_occupancy.R` — Abundance-Occupancy Analyses
+-   `08_shared_asvs_upset_plots.R` — Shared ASVs Analyses
 
-Both scripts assume project-root working directory (for sourcing `R/utils/00_setup.R`). Place this `.qmd` at the repository root so relative paths resolve as expected.
+::: callout-note
+Scripts assume project-root working directory (for sourcing `R/utils/00_setup.R`). Place this `.qmd` at the repository root so relative paths resolve as expected.
 
 If your environment needs it, ensure all packages used by the scripts are installed before rendering.
 
-::: callout-note
 Render from the repository root:
 
 -   CLI: `quarto render mxg_abun_occu_report.qmd --execute-dir .`
--   R: `quarto::quarto_render("mxg_abun_occu_report.qm")`
+-   R: `quarto::quarto_render("mxg_abun_occu_report.qmd")`
 :::
 
 ```{r}
@@ -51,24 +57,74 @@ Render from the repository root:
 knitr::knit_hooks$set(document = function(x) x)
 # sets the working directory for code execution to the repo root
 knitr::opts_knit$set(root.dir = here::here())
+knitr::opts_chunk$set(
+  fig.width = 10,
+  fig.height = 7,
+  out.width = "100%",
+  fig.align = "center"
+)
 ```
+
+
 
 # Section 1 — Abundace-Occupancy Analyses
 
-This section runs the full workflow in [06_abund_occupancy.R](R/06_abund_occupancy.R), including:
+Addresses the following questions:
 
-- Abundance-Occupancy plots
+1.  What are the abundance-occupancy patterns in Miscanthus microbiomes across different projects, regions, and sample types?
+
+2.  How do these patterns vary by timing (EF), year (LAMPS 2018), and site (LAMPS 2022)?
+
+This section runs the full workflow in [07_abund_occupancy.R](R/07_abund_occupancy.R), including:
+
+-   Abundance-Occupancy plots
+
 ```{r}
 #| label: run-abundance-occupancy
 #| results: 'markup'
 #| fig-cap-location: bottom
 source(
-  "R/06_abund_occupancy.R",
+  "R/07_abund_occupancy.R",
   local = knitr::knit_global(),
-  echo = TRUE,
+  echo = FALSE,
   print.eval = TRUE
 )
 ```
+
+
+
+# Section 2 — Alpha Diversity Analyses
+
+This section runs [06_alpha_beta_div.R](R/06_alpha_beta_div.R), including:
+
+-   Richness and alpha diversity summaries
+-   Beta diversity ordinations
+
+```{r}
+#| label: run-diversity
+#| results: 'hold'
+#| fig-cap-location: bottom
+source("R/06_alpha_beta_div.R", local = knitr::knit_global())
+```
+
+
+
+# Section 3 — Shared ASVs Analyses
+
+This section runs [08_shared_asvs.R](R/08_shared_asvs.R), including: - Upset plots of shared ASVs across projects, regions, and sample types - Summary tables of shared ASVs at different prevlence thresholds
+
+```{r}
+#| label: run-shared-asvs
+#| results: 'hold'
+#| fig-cap-location: bottom
+source(
+  "R/08_shared_asvs_upset_plots.R",
+  local = knitr::knit_global(),
+  echo = FALSE,
+  print.eval = TRUE
+)
+```
+
 
 
 # Session information

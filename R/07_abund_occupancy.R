@@ -105,6 +105,7 @@ purrr::walk(abundance_occ_plots_all, function(project_plots) {
 
     purrr::walk(miscanthus_plots, function(crop_plots) {
       print(crop_plots$threshold_0.6)
+      cat("\n\\newpage\n\n")
     })
   })
 })
@@ -218,22 +219,42 @@ region_plots <- purrr::imap(target_regions, function(region, index) {
 
 
 # Display individual region plots
-purrr::walk(region_plots, print)
+purrr::walk(region_plots, function(plots) {
+  print(plots)
+  cat("\n\\newpage\n\n")
+})
 
 # Save all plots
 purrr::iwalk(region_plots, function(plot, region_name) {
-  ggsave(
-    filename = paste0(
-      "data/output/figures/abundance_occupancy_",
-      region_name,
-      ".png"
-    ),
-    plot = plot,
-    width = 300,
-    height = 250,
-    dpi = 300,
-    units = "mm"
+  check_names <- paste0(
+    "data/output/figures/abundance_occupancy_",
+    region_name,
+    ".png"
   )
+  saving_ggs <- function(plot, check_names) {
+    ggsave(
+      filename = check_names,
+      plot = plot,
+      width = 300,
+      height = 250,
+      dpi = 300,
+      units = "mm"
+    )
+  }
+  if (!file.exists(check_names)) {
+    message("Saving plot for ", region_name, " to ", check_names)
+
+    saving_ggs(plot, check_names)
+  } else {
+    message(
+      "File already exists for ",
+      region_name,
+      ": ",
+      check_names,
+      "\nOverwriting file."
+    )
+    saving_ggs(plot, check_names)
+  }
 })
 
 # SECTION 2: Abundance-Occupancy by time and location ----
@@ -351,26 +372,33 @@ panel_list <- list(
   LAMPS_2022 = site_panel
 )
 
-purrr::walk(panel_list, print)
+purrr::walk(panel_list, function(plots) {
+  print(plots)
+  cat("\n\\newpage\n\n")
+})
+
 
 # Save panels
 purrr::iwalk(
   panel_list,
   function(panel, project_name) {
     panel_type <- case_when(
-      identical(panel, timing_panel) ~ "timing_panel",
-      identical(panel, year_panel) ~ "year_panel",
-      identical(panel, site_panel) ~ "site_panel"
+      project_name == "EF" ~ "timing_panel",
+      project_name == "LAMPS_2018" ~ "year_panel",
+      project_name == "LAMPS_2022" ~ "site_panel"
+    )
+
+    panel_filename <- paste0(
+      "data/output/figures/abundance_occupancy_",
+      project_name,
+      "_",
+      panel_type,
+      ".png"
     )
 
     ggsave(
-      filename = paste0(
-        "data/output/figures/abundance_occupancy_",
-        project_name,
-        "_",
-        panel_type,
-        ".png"
-      ),
+      filename = panel_filename,
+      plot = panel,
       width = 300,
       height = 250,
       dpi = 300,
