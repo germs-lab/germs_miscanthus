@@ -297,15 +297,11 @@ subset_physeq_by_variable <- function(physeq_obj, variable, levels) {
 }
 
 ## Building main_16S_mxg_physeq_list ----
-crop_patterns <- c("MXG", "M", "Miscanthus")
-main_16S_mxg_physeq_list <- purrr::map(
+main_16S_mxg_physeq_list <- subset_to_miscanthus(
   main_16S_physeq_list,
-  function(physeq_obj) {
-    ps_subset <- subset_samples(physeq_obj, crop %in% crop_patterns) %>%
-      filter_taxa(function(x) sum(x) > 0, TRUE)
-    return(ps_subset)
-  }
+  crop_patterns = c("MXG", "M", "Miscanthus")
 )
+
 # TO-DO eliminate this logic and just subset by crop in the original phyloseq objects, but for now this is a quick way to get the Miscanthus-only phyloseq objects for the abundance-occupancy by time/location analysis.
 
 # EF: Subset by "timing" (temporal proxy)

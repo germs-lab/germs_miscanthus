@@ -337,6 +337,11 @@ print(mxg_shared_asvs)
 # to be considered "core" (e.g., 0.6 = present in 60% of samples)
 
 # Getting our "core" ASVs in MXG at different thresholds
+main_16S_mxg_physeq_list <- subset_to_miscanthus(
+  main_16S_physeq_list,
+  crop_patterns = c("MXG", "M", "Miscanthus")
+)
+
 mxg_prevalence_physeq_16S <- purrr::map(
   main_16S_mxg_physeq_list,
   function(physeq_obj) {

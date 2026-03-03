@@ -120,6 +120,10 @@ transform_to_hellinger_single <- function(project_list) {
 }
 
 ## Relative abundance ----
+main_16S_mxg_physeq_list <- subset_to_miscanthus(
+  main_16S_physeq_list,
+  crop_patterns = c("MXG", "M", "Miscanthus")
+)
 main_16S_mxg_relab_psq_list <- transform_to_relab(main_16S_mxg_physeq_list)
 
 ## Hellinger transformation ----
