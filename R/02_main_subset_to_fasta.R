@@ -53,10 +53,6 @@ main_16S_physeq_list <- list(
   lamps_2018_16S_DNA = lamps_2018_16S_DNA,
   lamps_2022_16S_DNA = lamps_2022_physeq_list$lamps_2022_16S_physeq
 )
-# save( # Replaced in 05_rebuild_and_transform.R
-#   main_16S_physeq_list,
-#   file = "data/output/rdata/main_16S_physeq_list_02.rda"
-# )
 
 ## MXG physeq lists ----
 # To subset the actual phyloseq object by MXG
@@ -88,10 +84,6 @@ main_mxg_physeq_list <- purrr::imap(
 ) %>%
   set_names(names(.) %>% str_remove("_physeq_list$"))
 
-# save( # Replaced in 05_rebuild_and_transform.R
-#   main_mxg_physeq_list,
-#   file = "data/output/rdata/main_mxg_physeq_list_02.rda"
-# )
 
 # Need this one to keep DNA and RNA nucleotides for FASTA
 mxg_lamps_2018 <- purrr::map(
