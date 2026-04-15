@@ -15,19 +15,22 @@ subset_to_miscanthus <- function(
   rename_suffix = "_DNA"
 ) {
   # Helper function to subset a single phyloseq object
-  subset_single_physeq <- function(ps, check_nucleotide = TRUE) {
-    # Subset to crops
-    ps_subset <- subset_samples(ps, crop %in% crop_patterns) %>%
+  .subset_single_physeq <- function(
+    ps,
+    check_nucleotide = TRUE,
+    .crop_patterns = crop_patterns
+  ) {
+    keep <- sample_data(ps)$crop %in% .crop_patterns
+    ps_subset <- prune_samples(keep, ps) |>
       filter_taxa(function(x) sum(x) > 0, TRUE)
 
-    # Optionally subset to DNA nucleotide
     if (
       check_nucleotide &&
         filter_DNA_only &&
         "nucleotide" %in% colnames(sample_data(ps_subset))
     ) {
-      ps_subset <- ps_subset %>%
-        subset_samples(nucleotide == "DNA") %>%
+      keep_dna <- sample_data(ps_subset)$nucleotide == "DNA"
+      ps_subset <- prune_samples(keep_dna, ps_subset) |>
         filter_taxa(function(x) sum(x > 0) > 0, TRUE)
     }
 
@@ -36,7 +39,7 @@ subset_to_miscanthus <- function(
 
   # Check if input is a single phyloseq object
   if (inherits(physeq_input, "phyloseq")) {
-    return(subset_single_physeq(physeq_input, check_nucleotide = TRUE))
+    return(.subset_single_physeq(physeq_input, check_nucleotide = TRUE))
   }
 
   # Handle nested list structure
@@ -44,6 +47,13 @@ subset_to_miscanthus <- function(
     result <- purrr::imap(
       physeq_input,
       function(project_list, project_name) {
+        if (inherits(project_list, "phyloseq")) {
+          return(.subset_single_physeq(
+            project_list,
+            check_nucleotide = TRUE,
+            .crop_patterns = crop_patterns
+          ))
+        }
         purrr::imap(project_list, function(physeq_obj, physeq_name) {
           # Skip non-16S objects if filtering
           if (
@@ -53,7 +63,11 @@ subset_to_miscanthus <- function(
           }
 
           # Subset the phyloseq object
-          subset_single_physeq(physeq_obj, check_nucleotide = TRUE)
+          .subset_single_physeq(
+            physeq_obj,
+            check_nucleotide = TRUE,
+            .crop_patterns = crop_patterns
+          )
         }) %>%
           # Keep only non-NULL objects and rename
           purrr::discard(is.null) %>%
