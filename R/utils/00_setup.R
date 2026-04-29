@@ -14,10 +14,10 @@ invisible(
   lapply(
     c(
       "conflicted",
+      "data.table",
       "phyloseq",
       "vegan",
       "tidyverse",
-      "data.table",
       "janitor",
       #"mia",
       "microbiome",

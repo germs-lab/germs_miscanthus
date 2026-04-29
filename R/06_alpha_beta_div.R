@@ -10,6 +10,8 @@
 
 source("R/utils/00_setup.R")
 
+# Pre-process
+main_mxg_physeq_list <- subset_to_miscanthus(main_physeq_list) # Contains  16S, ITS and AMF
 
 # SECTION 1: Alpha Diversity Analysis ----
 
@@ -208,10 +210,41 @@ beta_diversity_results_16S <- calculate_beta_diversity(
   distance = "bray"
 )
 
-main_beta_diversity_results <- calculate_beta_diversity_nested(
+mxg_beta_diversity_results <- calculate_beta_diversity(
+  main_mxg_physeq_list,
+  method = "PCoA",
+  distance = "bray",
+  nested = TRUE
+)
+
+
+combined_df <- purrr::imap_dfr(
+  phyloseq_list,
+  function(project_list, project_name) {
+    purrr::imap_dfr(
+      project_list,
+      function(physeq_obj, physeq_name) {
+        physeq_filtered <- physeq_obj %>%
+          prune_samples(sample_sums(.) > 0, .) %>%
+          prune_taxa(taxa_sums(.) > 0, .) %>%
+          psmelt() %>%
+          select(OTU, Sample, Abundance) |>
+          mutate(project = project_name, nucleotide = )
+      }
+    )
+  }
+)
+test <- phyloseq::psmelt(main_mxg_physeq_list$ef$ef_16S_DNA) |>
+  select(OTU, Sample, Abundance) |>
+  mutate(project = "ef", nucleotide = "16S")
+# group_by(project, crop) %>%
+# summarise(n = n(), .groups = "drop")
+
+main_beta_diversity_results <- calculate_beta_diversity(
   main_physeq_list,
   method = "PCoA",
-  distance = "bray"
+  distance = "bray",
+  nested = TRUE
 )
 
 # SECTION 5: Alpha Diversity Summary Statistics
@@ -236,39 +269,40 @@ cat(rep("=", 40), "\n")
 print(alpha_summary)
 
 # SECTION 5: Beta Diversity Plots (PCoA)
-
-beta_plot_workflow <- function(beta_data, physeq_name) {
-  plot_title <- gsub("_physeq$", " ", physeq_name) %>%
-    str_to_upper(.)
-  # Ordination plot colored by crop
-  p_ordination <- plot_ordination(
-    beta_data$physeq,
-    beta_data$ordination,
-    type = "samples",
-    color = "crop"
-  ) +
-    geom_point(size = 3, alpha = 0.7) +
-    labs(
-      title = ifelse(
-        class(beta_data$ordination) == "nmds",
-        paste("NMDS (Bray-Curtis) -", plot_title),
-        paste("PCoA (Bray-Curtis) -", plot_title)
-      ),
-      color = "Crop"
-    ) +
-    theme_bw() +
-    theme(legend.position = "right")
-
-  return(p_ordination)
-}
-
-
-# Create beta diversity plots for each phyloseq object
+## Beta diversity plots for each phyloseq object
 beta_diversity_plots_16S <-
   purrr::imap(beta_diversity_results_16S, function(beta_data, physeq_name) {
     beta_plot_workflow(beta_data = beta_data, physeq_name = physeq_name)
   })
 
+mxg_beta_diversity_plots <- purrr::imap(
+  mxg_beta_diversity_results,
+  function(project_list, project_name) {
+    purrr::imap(project_list, function(beta_data, physeq_name) {
+      beta_plot_workflow(
+        beta_data = beta_data,
+        physeq_name = physeq_name,
+        color = "crop"
+      )
+    })
+  }
+)
+
+combined_df <- purrr::imap_dfr(
+  main_mxg_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap_dfr(
+      project_list,
+      function(physeq_obj, physeq_name) {
+        physeq_filtered <- physeq_obj %>%
+          prune_samples(sample_sums(.) > 0, .) %>%
+          prune_taxa(taxa_sums(.) > 0, .) %>%
+          psmelt() %>%
+          mutate(project = project_name, physeq_name = physeq_name)
+      }
+    )
+  }
+)
 
 main_beta_diversity_plots <-
   purrr::imap(
@@ -286,7 +320,7 @@ cat("\n", rep("=", 40), "\n")
 cat("Beta Diversity Project and Crop\n")
 cat(rep("=", 40), "\n")
 print(beta_diversity_plots_16S)
-
+print(mxg_beta_diversity_plots$ef)
 
 # Checkpoint
 alpha_beta_plots <- list(
