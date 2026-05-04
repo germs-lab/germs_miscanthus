@@ -47,12 +47,17 @@ run_spiec <- function(
   rep.num = 20,
   ncores = 4
 ) {
-  pulsar_params <- list(rep.num = rep.num, ncores = ncores)
+  pulsar_params <- list(
+    rep.num = rep.num,
+    ncores = ncores,
+    seed = 10010
+  )
   if (is.null(ps2)) {
     spiec.easi(
       data = ps1,
       method = method,
       nlambda = nlambda,
+      verbose = TRUE,
       lambda.min.ratio = lambda.min.ratio,
       pulsar.params = pulsar_params
     )
@@ -61,87 +66,75 @@ run_spiec <- function(
       datalist = list(ps1, ps2),
       method = method,
       nlambda = nlambda,
+      verbose = TRUE,
       lambda.min.ratio = lambda.min.ratio,
       pulsar.params = pulsar_params
     )
   }
 }
 
-#' Convert a SpiecEasi fit to a signed, weighted igraph object.
-#' Vertex attribute `kingdom` is set to "Bacteria" or "Fungi".
-#' Edge attribute `sign` encodes positive (+1) / negative (-1) association.
-#'
-
-spiec_to_igraph <- function(
-  fit,
-  aligned_ps1,
-  method = "mb",
-  mode = "maxabs",
-  aligned_ps2 = NULL
-) {
-  stars_refit <- getRefit(fit)
-  if (method == "mb") {
-    opt_mat <- symBeta(getOptBeta(fit), mode = mode)
-  } else if (method == "glasso") {
-    opt_mat <- symBeta(getOptCov(fit), mode = mode)
-  } else {
-    stop("Unsupported method: ", method)
-  }
-
-  diag(opt_mat) <- 0
-
-  g <- graph_from_adjacency_matrix(
-    opt_mat,
-    mode = "undirected",
-    weighted = TRUE,
-    diag = FALSE
-  )
-
-  bact_ids <- taxa_names(aligned_ps1)
-  if (!is.null(aligned_ps2)) {
-    fung_ids <- taxa_names(aligned_ps2)
-    V(g)$name <- c(bact_ids, fung_ids)
-    V(g)$kingdom <- c(
-      rep("Bacteria", length(bact_ids)),
-      rep("Fungi", length(fung_ids))
-    )
-  } else {
-    V(g)$name <- bact_ids
-    V(g)$kingdom <- rep("Bacteria", length(bact_ids))
-  }
-  # E(g)$sign <- sign(E(g)$weight)
-  E(g)$sign <- sign(as.numeric(E(g)$weight))
-  g
-}
-
 
 plot_igraph <- function(
   fit,
-  aligned_ps1,
-  source_matrix,
+  aligned_matrix1,
+  aligned_matrix2 = NULL,
+  adj_matrix = "StARS-refit",
   type,
   color,
   method = "mb",
   mode = "maxabs",
   label = NULL,
-  kingdom = "Bacteria"
+  main_title = NULL,
+  kingdom = c("Bacteria", "Fungi")
 ) {
-  #TODO: this function is a bit redundant with spiec_to_igraph; consider merging them and just returning the igraph object, then plotting separately. The main reason for keeping them separate for now is that this function can also return the ggplot object from plot_network, which is more flexible for downstream customization.
-  vnames <- taxa_names(aligned_ps1)
+  # Vertex names
+  vnames_1 <- colnames(aligned_matrix1) #samples must be columns
+  vnames_2 <- if (!is.null(aligned_matrix2)) {
+    colnames(aligned_matrix2)
+  } else {
+    character(0)
+  }
+  if (!is.null(aligned_matrix2)) {
+    vnames <- c(vnames_1, vnames_2)
+  } else {
+    vnames <- vnames_1
+  }
+
+  # Kingdom assignment
+  kingdom_attr <- if (!is.null(aligned_matrix2)) {
+    c(rep("Bacteria", length(vnames_1)), rep("Fungi", length(vnames_2)))
+  } else {
+    rep(kingdom[1], length(vnames_1))
+  }
+
+  # Stars refit matrix (binary adjacency)
   stars_refit <- getRefit(fit)
+
   if (method == "mb") {
     opt_mat <- symBeta(getOptBeta(fit), mode = mode)
+    diag(opt_mat) <- 0
   } else if (method == "glasso") {
     opt_mat <- symBeta(getOptCov(fit), mode = mode)
+    diag(opt_mat) <- 0
   } else {
     stop("Unsupported method: ", method)
   }
 
+  # Adjacency matrix for igraph construction
+  if (adj_matrix == "StARS-refit") {
+    adj <- getRefit(fit)
+  } else if (adj_matrix == "optMat") {
+    adj <- opt_mat
+  } else {
+    stop("Unsupported adj_matrix option: ", adj_matrix)
+  }
+
+  # Build igraph object
   ig_obj <- adj2igraph(
-    getRefit(fit),
+    adj,
     vertex.attr = list(
       name = vnames,
-      kingdom = rep(kingdom, length(vnames))
+      kingdom = kingdom_attr
     )
   )
 
@@ -151,17 +144,37 @@ plot_igraph <- function(
   }
 
   # pull edge signs from the weighted beta matrix
-  edge_idx <- igraph::get.edgelist(ig_obj, names = FALSE)
+  edge_idx <- igraph::as_edgelist(ig_obj, names = FALSE)
   E(ig_obj)$sign <- sign(as.numeric(opt_mat[edge_idx]))
+  E(ig_obj)$weight <- abs(as.numeric(opt_mat[edge_idx]))
 
-  p <- phyloseq::plot_network(
-    ig_obj,
-    aligned_ps1,
-    type = type,
-    color = color,
-    label = label
-  )
-  return(p)
+  # Plot with phyloseq's plot_network
+  vsize <- rowMeans(clr(aligned_matrix1, 1)) + 6
+  am.coord <- layout_with_fr(ig_obj)
+
+  p1 <- ggraph(ig_obj, layout = am.coord) +
+    geom_edge_link(aes(color = sign), alpha = 0.5) +
+    geom_node_point(aes(color = kingdom), size = vsize) +
+    labs(title = main_title) +
+    theme_graph()
+
+  if (!is.null(aligned_matrix2)) {
+    p2 <- plot(
+      ig_obj,
+      layout = am.coord,
+      vertex.size = vsize,
+      vertex.label = NA,
+      main = main_title
+    )
+    p <- cowplot::plot_grid(p1, p2, ncol = 2)
+  } else {
+    p <- p1
+  }
+
+  return(list(
+    igraph_obj = ig_obj,
+    plot = p
+  ))
 }
 
 #' Network-level summary statistics for one igraph object.

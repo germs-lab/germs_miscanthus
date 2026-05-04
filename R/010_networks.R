@@ -22,6 +22,7 @@
 source("R/utils/00_setup.R")
 library("SpiecEasi") # v1.1.3+
 library("igraph")
+library("ggraph")
 
 # ── 1. Load data ──────────────────────────────────────────────────────────────
 
@@ -71,7 +72,15 @@ joint_filtered <- purrr::map2(
 # Per site: pair bacteria and fungi phyloseq objects without requiring shared
 # sample names. SpiecEasi accepts two phyloseq objects directly for cross-kingdom
 # inference; sample order must match, so we sort by sample name within each site.
-aligned <- purrr::map(sites, function(s) {
+aligned_matrices <- purrr::map(sites, function(s) {
+  extract_matrices <- function(ps) {
+    mat <- as.matrix(as.data.frame(otu_table(ps)))
+    if (!taxa_are_rows(ps)) {
+      mat <- t(mat)
+    }
+    mat
+  }
+
   ps_b <- bact_filtered[[s]]
   ps_f <- fungi_filtered[[s]]
   ps_j <- joint_filtered[[s]]
@@ -80,6 +89,10 @@ aligned <- purrr::map(sites, function(s) {
   ps_b <- prune_samples(sort(sample_names(ps_b)), ps_b)
   ps_f <- prune_samples(sort(sample_names(ps_f)), ps_f)
   ps_j <- prune_samples(sort(sample_names(ps_j)), ps_j)
+
+  ps_b_mat <- extract_matrices(ps_b)
+  ps_f_mat <- extract_matrices(ps_f)
+  ps_j_mat <- extract_matrices(ps_j)
 
   message(
     s,
@@ -97,7 +110,7 @@ aligned <- purrr::map(sites, function(s) {
     ntaxa(ps_j)
   )
 
-  list(ps1 = ps_b, ps2 = ps_f, ps3 = ps_j)
+  list(ps1 = ps_b_mat, ps2 = ps_f_mat, ps3 = ps_j_mat)
 }) |>
   set_names(sites)
 
@@ -107,45 +120,46 @@ cat("\nRunning SpiecEasi (this may take several minutes per site)...\n")
 
 fits <- purrr::map(sites, function(s) {
   cat(" Site:", s, "\n")
+  ncores <- 1
   list(
     mb = list(
       bact_only = run_spiec(
-        aligned[[s]]$ps1,
+        aligned_matrices[[s]]$ps1,
         method = "mb",
         rep.num = 50,
-        ncores = 1
+        ncores = ncores
       ),
       fungi_only = run_spiec(
-        aligned[[s]]$ps2,
+        aligned_matrices[[s]]$ps2,
         method = "mb",
         rep.num = 50,
-        ncores = 1
+        ncores = ncores
       ),
       joint_kingdom = run_spiec(
-        aligned[[s]]$ps3,
+        aligned_matrices[[s]]$ps3,
         method = "mb",
         rep.num = 50,
-        ncores = 1
+        ncores = ncores
       )
     ),
     glasso = list(
       bact_only = run_spiec(
-        aligned[[s]]$ps1,
+        aligned_matrices[[s]]$ps1,
         method = "glasso",
         rep.num = 50,
-        ncores = 1
+        ncores = ncores
       ),
       fungi_only = run_spiec(
-        aligned[[s]]$ps2,
+        aligned_matrices[[s]]$ps2,
         method = "glasso",
         rep.num = 50,
-        ncores = 1
+        ncores = ncores
       ),
       joint_kingdom = run_spiec(
-        aligned[[s]]$ps3,
+        aligned_matrices[[s]]$ps3,
         method = "glasso",
         rep.num = 50,
-        ncores = 1
+        ncores = ncores
       )
     )
   )
@@ -155,87 +169,25 @@ fits <- purrr::map(sites, function(s) {
 
 # ── 5. Build igraph objects ───────────────────────────────────────────────────
 
-## getRefit
-ig.mb <- adj2igraph(getRefit(fits$ef$bact_only))
-vsize <- rowMeans(clr(bact_filtered$ef@otu_table, 1)) + 6
-am.coord <- layout_with_fr(ig.mb)
+#
 
-plot(
-  ig.mb,
-  layout = am.coord,
-  vertex.size = vsize,
-  vertex.label = NA,
-  main = "MB"
-)
-
-
-beta_mat <- symBeta(getOptBeta(fits$ef$bact_only), mode = "maxabs")
-diag(beta_mat) <- 0
-
-g <- graph_from_adjacency_matrix(
-  beta_mat,
-  mode = "undirected",
-  weighted = TRUE,
-  diag = FALSE
-)
-
-bact_ids <- taxa_names(aligned$ef$ps1)
-if (!is.null(ps2)) {
-  fung_ids <- taxa_names(ps2)
-  V(g)$name <- c(bact_ids, fung_ids)
-  V(g)$kingdom <- c(
-    rep("Bacteria", length(bact_ids)),
-    rep("Fungi", length(fung_ids))
-  )
-} else {
-  V(g)$name <- bact_ids
-  V(g)$kingdom <- rep("Bacteria", length(bact_ids))
-}
-E(g)$sign <- sign(as.numeric(E(g)$weight))
-g
-
-graphs <- purrr::map(sites, function(s) {
-  list(
-    bact_only = spiec_to_igraph(
-      fits[[s]]$bact_only,
-      aligned[[s]]$ps1
-    ),
-    fungi_only = spiec_to_igraph(
-      fits[[s]]$fungi_only,
-      aligned[[s]]$ps2
-    )
-  )
-}) |>
-  set_names(sites)
-
-graphs <- purrr::map(sites, function(s) {
+network_plots2 <- purrr::map(sites, function(s) {
   list(
     mb = list(
-      bact_only = spiec_to_igraph(fits[[s]]$mb$bact_only, aligned[[s]]$ps1),
-      fungi_only = spiec_to_igraph(fits[[s]]$mb$fungi_only, aligned[[s]]$ps2),
-      joint_kingdom = spiec_to_igraph(
-        fits[[s]]$mb$joint_kingdom,
-        aligned[[s]]$ps1,
-        aligned_ps2 = aligned[[s]]$ps2
-      )
-    ),
-    glasso = list(
-      bact_only = spiec_to_igraph(fits[[s]]$glasso$bact_only, aligned[[s]]$ps1),
-      fungi_only = spiec_to_igraph(
-        fits[[s]]$glasso$fungi_only,
-        aligned[[s]]$ps2
-      ),
-      joint_kingdom = spiec_to_igraph(
-        fits[[s]]$glasso$joint_kingdom,
-        aligned[[s]]$ps1,
-        aligned_ps2 = aligned[[s]]$ps2
+      bact_only = plot_igraph(
+        fit = fits[[s]]$mb$bact_only, # remove $ef
+        aligned_matrix1 = aligned_matrices[[s]]$ps1,
+        adj_matrix = "StARS-refit",
+        method = "mb",
+        mode = "maxabs",
+        label = NULL,
+        kingdom = c("Bacteria")
       )
     )
   )
 }) |>
   set_names(sites)
 
-graphs$ef$bact_only
 # ── 6. Summary statistics ─────────────────────────────────────────────────────
 
 net_stats <- purrr::map_dfr(sites, function(s) {
