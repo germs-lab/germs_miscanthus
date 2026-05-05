@@ -628,40 +628,60 @@ edge_colour <- ifelse(
 set.seed(42)
 layout <- igraph::layout_with_fr(my_graph)
 
-plot(
-  my_graph,
-  layout = layout,
-  vertex.color = node_colour,
-  vertex.size = node_size,
-  vertex.label = NA, # hide long ASV names
-  vertex.frame.color = "white",
-  edge.color = edge_colour,
-  edge.width = 0.8,
-  edge.curved = 0.2,
-  margin = 0
-)
+layout_bi <- igraph::layout_as_bipartite(my_graph)
 
-legend(
-  "bottomleft",
-  legend = c("Bacteria", "Fungi", "Positive", "Negative"),
-  # pch    = 21,
-  # pt.bg  = c("#4C8CBF", "#E8A838"),
-  pch = c(21, 21, NA, NA),
-  lty = c(NA, NA, 1, 1),
-  col = c("white", "white", "#2ECC71", "#E05C5C"),
-  pt.bg = c("#4C8CBF", "#E8A838", NA, NA),
-  #col = "white",
-  pt.cex = 2,
-  bty = "n",
-  text.col = "grey20"
-)
+ef_bipartite_network <- ggraph(my_graph, layout = layout) +
+  geom_edge_arc(
+    aes(colour = link_sign),
+    width = 0.4,
+    alpha = 0.7,
+    circular = FALSE,
+    strength = 0.1
+  ) +
+  geom_node_point(aes(color = "white", size = node_size * 1.03), shape = 21) +
+  geom_node_point(aes(colour = kingdom, size = node_size)) +
+  scale_edge_colour_manual(
+    values = c("positive" = "#2ECC71", "negative" = "#E05C5C"),
+    name = "Link sign"
+  ) +
+  scale_colour_manual(
+    values = c("Bacteria" = "#4C8CBF", "Fungi" = "#E8A838"),
+    name = "Kingdom"
+  ) +
+  scale_size_continuous(range = c(1, 8), guide = "none") +
+  theme_graph() +
+  labs(title = "EF bipartite network")
 
 
-layout <- igraph::layout_as_bipartite(my_graph)
+ef_bipartite_network
+# plot(
+#   my_graph,
+#   layout = layout,
+#   vertex.color = node_colour,
+#   vertex.size = node_size,
+#   vertex.label = NA, # hide long ASV names
+#   vertex.frame.color = "white",
+#   edge.color = edge_colour,
+#   edge.width = 0.8,
+#   edge.curved = 0.2,
+#   margin = 0
+# )
 
+# legend(
+#   "bottomleft",
+#   legend = c("Bacteria", "Fungi", "Positive", "Negative"),
+#   pch = c(21, 21, NA, NA),
+#   lty = c(NA, NA, 1, 1),
+#   col = c("white", "white", "#2ECC71", "#E05C5C"),
+#   pt.bg = c("#4C8CBF", "#E8A838", NA, NA),
+#   pt.cex = 2,
+#   bty = "n",
+#   text.col = "grey20"
+# )
 
 ggsave(
-  "data/output/networks/igraph_bipartite_layout.png",
+  filename = "data/output/networks/ef_bipartite_network.png",
+  plot = ef_bipartite_network,
   width = 10,
   height = 8,
   dpi = 300
