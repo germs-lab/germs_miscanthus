@@ -598,3 +598,71 @@ ggsave(
   height = 8,
   dpi = 300
 )
+
+
+## igraph ----
+library(igraph)
+
+# Assign node type: bacteria vs fungi
+V(my_graph)$kingdom <- ifelse(
+  V(my_graph)$name %in% ef_bact_in_adj,
+  "Bacteria",
+  "Fungi"
+)
+
+V(my_graph)$type <- V(my_graph)$kingdom == "Fungi"
+
+# Node aesthetics
+node_colour <- ifelse(V(my_graph)$kingdom == "Bacteria", "#4C8CBF", "#E8A838")
+node_size <- sqrt(igraph::degree(my_graph)) * 3 # scale by degree
+
+# Edge colour by sign (positive/negative correlations)
+edge_colour <- ifelse(
+  E(my_graph)$link_sign == "positive",
+  "#2ECC71AA",
+  "#E05C5CAA"
+)
+
+
+# Layout: Fruchterman-Reingold works well for bipartite-ish networks
+set.seed(42)
+layout <- igraph::layout_with_fr(my_graph)
+
+plot(
+  my_graph,
+  layout = layout,
+  vertex.color = node_colour,
+  vertex.size = node_size,
+  vertex.label = NA, # hide long ASV names
+  vertex.frame.color = "white",
+  edge.color = edge_colour,
+  edge.width = 0.8,
+  edge.curved = 0.2,
+  margin = 0
+)
+
+legend(
+  "bottomleft",
+  legend = c("Bacteria", "Fungi", "Positive", "Negative"),
+  # pch    = 21,
+  # pt.bg  = c("#4C8CBF", "#E8A838"),
+  pch = c(21, 21, NA, NA),
+  lty = c(NA, NA, 1, 1),
+  col = c("white", "white", "#2ECC71", "#E05C5C"),
+  pt.bg = c("#4C8CBF", "#E8A838", NA, NA),
+  #col = "white",
+  pt.cex = 2,
+  bty = "n",
+  text.col = "grey20"
+)
+
+
+layout <- igraph::layout_as_bipartite(my_graph)
+
+
+ggsave(
+  "data/output/networks/igraph_bipartite_layout.png",
+  width = 10,
+  height = 8,
+  dpi = 300
+)
