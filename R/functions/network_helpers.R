@@ -85,12 +85,13 @@ plot_igraph <- function(
   mode = "maxabs",
   label = NULL,
   main_title = NULL,
+  main_title2 = NULL,
   kingdom = c("Bacteria", "Fungi")
 ) {
   # Vertex names
-  vnames_1 <- colnames(aligned_matrix1) #samples must be columns
+  vnames_1 <- rownames(aligned_matrix1) #samples must be columns
   vnames_2 <- if (!is.null(aligned_matrix2)) {
-    colnames(aligned_matrix2)
+    rownames(aligned_matrix2)
   } else {
     character(0)
   }
@@ -130,41 +131,51 @@ plot_igraph <- function(
   }
 
   # Build igraph object
-  ig_obj <- adj2igraph(
-    adj,
-    vertex.attr = list(
-      name = vnames,
-      kingdom = kingdom_attr
+  ig_building <- function() {
+    ig_obj <- adj2igraph(
+      adj,
+      vertex.attr = list(
+        name = vnames,
+        kingdom = kingdom_attr
+      )
     )
-  )
 
-  if (igraph::ecount(ig_obj) == 0) {
-    warning("Network has no edges; returning NULL.")
-    return(NULL)
+    if (igraph::ecount(ig_obj) == 0) {
+      warning("Network has no edges; returning NULL.")
+      return(NULL)
+    }
+
+    # pull edge signs from the weighted beta matrix
+    edge_idx <- igraph::as_edgelist(ig_obj, names = FALSE)
+    E(ig_obj)$sign <- sign(as.numeric(opt_mat[edge_idx]))
+    E(ig_obj)$weight <- abs(as.numeric(opt_mat[edge_idx]))
+
+    # Plot with phyloseq's plot_network
+    vsize <- rowMeans(clr(aligned_matrix1, 1)) + 6
+    am.coord <- layout_with_fr(ig_obj)
+
+    return(list(
+      ig_obj = ig_obj,
+      vsize = vsize,
+      am.coord = am.coord
+    ))
   }
+  ig_build <- ig_building()
 
-  # pull edge signs from the weighted beta matrix
-  edge_idx <- igraph::as_edgelist(ig_obj, names = FALSE)
-  E(ig_obj)$sign <- sign(as.numeric(opt_mat[edge_idx]))
-  E(ig_obj)$weight <- abs(as.numeric(opt_mat[edge_idx]))
-
-  # Plot with phyloseq's plot_network
-  vsize <- rowMeans(clr(aligned_matrix1, 1)) + 6
-  am.coord <- layout_with_fr(ig_obj)
-
-  p1 <- ggraph(ig_obj, layout = am.coord) +
+  p1 <- ggraph(ig_build$ig_obj, layout = ig_build$am.coord) +
     geom_edge_link(aes(color = sign), alpha = 0.5) +
-    geom_node_point(aes(color = kingdom), size = vsize) +
+    geom_node_point(aes(color = kingdom), size = ig_build$vsize) +
     labs(title = main_title) +
     theme_graph()
 
   if (!is.null(aligned_matrix2)) {
+    ig_build_2 <- ig_building()
     p2 <- plot(
-      ig_obj,
-      layout = am.coord,
-      vertex.size = vsize,
+      ig_build_2$ig_obj,
+      layout = ig_build_2$am.coord,
+      vertex.size = ig_build_2$vsize,
       vertex.label = NA,
-      main = main_title
+      main = main_title2
     )
     p <- cowplot::plot_grid(p1, p2, ncol = 2)
   } else {
@@ -172,7 +183,8 @@ plot_igraph <- function(
   }
 
   return(list(
-    igraph_obj = ig_obj,
+    igraph_obj1 = ig_build$ig_obj,
+    igraph_obj2 = if (!is.null(aligned_matrix2)) ig_build_2$ig_obj else NULL,
     plot = p
   ))
 }
