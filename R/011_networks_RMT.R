@@ -31,7 +31,7 @@ source("R/functions/rmt_approach/rand_adj_gen.R")
 #   [build_network()]      - .cor2tran():correlation matrix → list(graph, trans_mat) (single cutoff)
 #                          - .add_attributes(): adds node attributes: degree, module, zi/pi roles. link attributes: kingdom (bacteria/fungi)
 
-#   [build_cross_network()]- correlation matrix → list(graph, trans_mat) (separate within/cross cutoffs)
+#   [build_asym_network()]- correlation matrix → list(graph, trans_mat) (separate within/cross cutoffs)
 #       │
 #       ▼
 # [network_properties()]   - calculates network-level properties: node/edge counts, density, transitivity, modularity, power law fit, etc.
@@ -105,16 +105,30 @@ source("R/functions/rmt_approach/rand_adj_gen.R")
   igraph::V(graph)$biomarker <- igraph::V(graph)$name
   igraph::V(graph)$node_degree <- centr_degree(graph)$res
 
-  module_separation <- cluster_fast_greedy(graph)
-  module_membership <- membership(module_separation)
-  pi <- part_coeff(g = graph, memb = module_membership)
-  zi <- within_module_deg_z_score(g = graph, memb = module_membership)
-  role <- rep("peripherals", igraph::vcount(graph))
-  role[which(pi >= 6.2 & zi < 2.5)] <- "connector"
-  role[which(pi >= 6.2 & zi >= 2.5)] <- "network_hub"
-  role[which(pi < 6.2 & zi >= 2.5)] <- "module_hub"
+  module_separation <- tryCatch(
+    cluster_fast_greedy(graph),
+    error = function(e) NULL
+  )
 
-  igraph::V(graph)$module_membership <- module_membership
+  if (
+    !is.null(module_separation) &&
+      length(unique(membership(module_separation))) > 1
+  ) {
+    module_membership <- membership(module_separation)
+    pi <- part_coeff(g = graph, memb = module_membership)
+    zi <- within_module_deg_z_score(g = graph, memb = module_membership)
+    role <- rep("peripherals", igraph::vcount(graph))
+    role[which(pi >= 6.2 & zi < 2.5)] <- "connector"
+    role[which(pi >= 6.2 & zi >= 2.5)] <- "network_hub"
+    role[which(pi < 6.2 & zi >= 2.5)] <- "module_hub"
+  } else {
+    module_membership <- rep(NA_integer_, igraph::vcount(graph))
+    pi <- rep(NA_real_, igraph::vcount(graph))
+    zi <- rep(NA_real_, igraph::vcount(graph))
+    role <- rep(NA_character_, igraph::vcount(graph))
+  }
+
+  igraph::V(graph)$module_membership <- as.integer(module_membership)
   igraph::V(graph)$pi <- pi
   igraph::V(graph)$zi <- zi
   igraph::V(graph)$vertex_role <- role
@@ -172,16 +186,16 @@ build_network <- function(
   )
 }
 
-# build_cross_network: correlation matrix → list(graph, trans_mat) with asymmetric cutoffs
+# build_asym_network: correlation matrix → list(graph, trans_mat) with asymmetric cutoffs
 # Like build_network() but applies separate thresholds for within-kingdom edges
 # (within_cutoff) and cross-kingdom bacteria–fungi edges (bf_cutoff).
 # Use this when B–F correlations are structurally weaker than within-kingdom ones.
-build_cross_network <- function(
+build_asym_network <- function(
   cor_mat,
   bact_ids,
   fungi_ids,
   within_cutoff,
-  bf_cutoff
+  bxf_cutoff
 ) {
   nodes <- rownames(cor_mat)
   b_ids <- intersect(bact_ids, nodes)
@@ -200,17 +214,17 @@ build_cross_network <- function(
   )
   mask[b_ids, b_ids] <- abs(sub_mat[b_ids, b_ids]) >= within_cutoff
   mask[f_ids, f_ids] <- abs(sub_mat[f_ids, f_ids]) >= within_cutoff
-  mask[b_ids, f_ids] <- abs(sub_mat[b_ids, f_ids]) >= bf_cutoff
+  mask[b_ids, f_ids] <- abs(sub_mat[b_ids, f_ids]) >= bxf_cutoff
   mask[f_ids, b_ids] <- t(mask[b_ids, f_ids])
   sub_mat[!mask] <- 0
 
-  # .cor2tran logic ---- applies cutoff, keeps/rmvs nodes, drops isolates
-  sub_mat <- .cor2tran(
-    cor_mat = sub_mat,
-    cutoff = cutoff,
-    keep = keep,
-    rmv = rmv
-  )
+  # # .cor2tran logic ---- applies cutoff, keeps/rmvs nodes, drops isolates
+  # sub_mat <- .cor2tran(
+  #   cor_mat = sub_mat,
+  #   cutoff = cutoff,
+  #   keep = keep,
+  #   rmv = rmv
+  # )
 
   # Make the graph (0/1 for absence/presence of edges, regardless of sign)
   adj <- (sub_mat != 0) * 1L
@@ -531,14 +545,40 @@ save(
 # my_cor_matrix <- read.table("example_data/correlation_matrix_bipartite.txt")
 # my_cutoff <- 0.757 # the correlation cutoff was determined in MENAP (http://ieg4.rccc.ou.edu/MENA/)
 
-ef_subpt_net <- build_network(
-  cor_mat = subbipartite_cor_matrices[[1]], # ef site
+# Within-kingdom networks
+
+ef_bact_net <- build_network(
+  cor_mat = full_cor_matrices[[1]], # ef site
+  bact_ids = rownames(aligned_matrices$ef$matx_b),
+  fungi_ids = rownames(aligned_matrices$ef$matx_f),
+  cutoff = 0.25, # Testing with this cutoff.
+  kind = "bacteria"
+)
+
+ef_fungi_net <- build_network(
+  cor_mat = full_cor_matrices[[1]], # ef site
+  bact_ids = rownames(aligned_matrices$ef$matx_b),
+  fungi_ids = rownames(aligned_matrices$ef$matx_f),
+  cutoff = 0.25, # Testing with this cutoff.
+  kind = "fungi"
+)
+
+ef_bxf_net <- build_network(
+  cor_mat = bxf_cor_matrices[[1]], # ef site
   bact_ids = rownames(aligned_matrices$ef$matx_b),
   fungi_ids = rownames(aligned_matrices$ef$matx_f),
   cutoff = 0.25, # Testing with this cutoff. I need to determine with MENAP.
   kind = "cross"
 ) # list(graph, trans_mat) for the network containing all fungal-bacterial links
 
+#  how cross-kingdom edges restructure a network that also has within-kingdom edges
+ef_asym_net <- build_asym_network(
+  cor_mat = full_cor_matrices[[1]], # ef site
+  bact_ids = rownames(aligned_matrices$ef$matx_b),
+  fungi_ids = rownames(aligned_matrices$ef$matx_f),
+  within_cutoff = 0.25,
+  bxf_cutoff = 0.25
+)
 
 # tran_matrix_nonAMF = build_network(
 #   cor_mat   = my_cor_matrix, bact_ids = ..., fungi_ids = ...,
@@ -934,7 +974,7 @@ ef_bf_cutoff <- unname(quantile(abs(cor_cross), 0.95))
 cat("B-F cutoff:", round(ef_bf_cutoff, 3), "\n")
 
 # Rebuild cross network with the B-F specific cutoff
-ef_cross_g2 <- build_cross_network(
+ef_cross_g2 <- build_asym_network(
   joint_cor_matrices$ef,
   ef_bact_id,
   ef_fungi_id,
