@@ -33,173 +33,19 @@ align_samples <- function(ps1, ps2) {
   )
 }
 
-#' Run SpiecEasi on one (bacteria-only / fungi-only) or two (cross-kingdom)
-#' phyloseq objects.
-#' @param ps1     primary phyloseq (bacteria)
-#' @param ps2     optional second phyloseq (fungi); triggers multi.spiec.easi
-#' @param method  "mb" (neighbourhood selection) or "glasso"
-run_spiec <- function(
-  ps1,
-  ps2 = NULL,
-  method = "mb",
-  nlambda = 20,
-  lambda.min.ratio = 1e-2,
-  rep.num = 20,
-  ncores = 4
-) {
-  pulsar_params <- list(
-    rep.num = rep.num,
-    ncores = ncores,
-    seed = 10010
-  )
-  if (is.null(ps2)) {
-    spiec.easi(
-      data = ps1,
-      method = method,
-      nlambda = nlambda,
-      verbose = TRUE,
-      lambda.min.ratio = lambda.min.ratio,
-      pulsar.params = pulsar_params
-    )
-  } else {
-    multi.spiec.easi(
-      datalist = list(ps1, ps2),
-      method = method,
-      nlambda = nlambda,
-      verbose = TRUE,
-      lambda.min.ratio = lambda.min.ratio,
-      pulsar.params = pulsar_params
-    )
-  }
-}
-
-
-plot_igraph <- function(
-  fit,
-  aligned_matrix1,
-  aligned_matrix2 = NULL,
-  adj_matrix = "StARS-refit",
-  type,
-  color,
-  method = "mb",
-  mode = "maxabs",
-  label = NULL,
-  main_title = NULL,
-  main_title2 = NULL,
-  kingdom = c("Bacteria", "Fungi")
-) {
-  # Vertex names
-  vnames_1 <- rownames(aligned_matrix1) #samples must be columns
-  vnames_2 <- if (!is.null(aligned_matrix2)) {
-    rownames(aligned_matrix2)
-  } else {
-    character(0)
-  }
-  if (!is.null(aligned_matrix2)) {
-    vnames <- c(vnames_1, vnames_2)
-  } else {
-    vnames <- vnames_1
-  }
-
-  # Kingdom assignment
-  kingdom_attr <- if (!is.null(aligned_matrix2)) {
-    c(rep("Bacteria", length(vnames_1)), rep("Fungi", length(vnames_2)))
-  } else {
-    rep(kingdom[1], length(vnames_1))
-  }
-
-  # Stars refit matrix (binary adjacency)
-  stars_refit <- getRefit(fit)
-
-  if (method == "mb") {
-    opt_mat <- symBeta(getOptBeta(fit), mode = mode)
-    diag(opt_mat) <- 0
-  } else if (method == "glasso") {
-    opt_mat <- symBeta(getOptCov(fit), mode = mode)
-    diag(opt_mat) <- 0
-  } else {
-    stop("Unsupported method: ", method)
-  }
-
-  # Adjacency matrix for igraph construction
-  if (adj_matrix == "StARS-refit") {
-    adj <- getRefit(fit)
-  } else if (adj_matrix == "optMat") {
-    adj <- opt_mat
-  } else {
-    stop("Unsupported adj_matrix option: ", adj_matrix)
-  }
-
-  # Build igraph object
-  ig_building <- function() {
-    ig_obj <- adj2igraph(
-      adj,
-      vertex.attr = list(
-        name = vnames,
-        kingdom = kingdom_attr
-      )
-    )
-
-    if (igraph::ecount(ig_obj) == 0) {
-      warning("Network has no edges; returning NULL.")
-      return(NULL)
-    }
-
-    # pull edge signs from the weighted beta matrix
-    edge_idx <- igraph::as_edgelist(ig_obj, names = FALSE)
-    E(ig_obj)$sign <- sign(as.numeric(opt_mat[edge_idx]))
-    E(ig_obj)$weight <- abs(as.numeric(opt_mat[edge_idx]))
-
-    # Plot with phyloseq's plot_network
-    vsize <- rowMeans(clr(aligned_matrix1, 1)) + 6
-    am.coord <- layout_with_fr(ig_obj)
-
-    return(list(
-      ig_obj = ig_obj,
-      vsize = vsize,
-      am.coord = am.coord
-    ))
-  }
-  ig_build <- ig_building()
-
-  p1 <- ggraph(ig_build$ig_obj, layout = ig_build$am.coord) +
-    geom_edge_link(aes(color = sign), alpha = 0.5) +
-    geom_node_point(aes(color = kingdom), size = ig_build$vsize) +
-    labs(title = main_title) +
-    theme_graph()
-
-  if (!is.null(aligned_matrix2)) {
-    ig_build_2 <- ig_building()
-    p2 <- plot(
-      ig_build_2$ig_obj,
-      layout = ig_build_2$am.coord,
-      vertex.size = ig_build_2$vsize,
-      vertex.label = NA,
-      main = main_title2
-    )
-    p <- cowplot::plot_grid(p1, p2, ncol = 2)
-  } else {
-    p <- p1
-  }
-
-  return(list(
-    igraph_obj1 = ig_build$ig_obj,
-    igraph_obj2 = if (!is.null(aligned_matrix2)) ig_build_2$ig_obj else NULL,
-    plot = p
-  ))
-}
 
 #' Network-level summary statistics for one igraph object.
-net_summary <- function(g, site, type) {
-  n_v <- vcount(g)
-  n_e <- ecount(g)
-  n_pos <- sum(E(g)$sign == 1, na.rm = TRUE)
-  n_neg <- sum(E(g)$sign == -1, na.rm = TRUE)
+network_summary <- function(graph, site, kind) {
+  n_v <- vcount(graph) #nodes
+  n_e <- ecount(graph)
+  n_pos <- sum(E(graph)$link_sign == "positive", na.rm = TRUE)
+  n_neg <- sum(E(graph)$link_sign == "negative", na.rm = TRUE)
 
-  bf_edges <- if ("Fungi" %in% V(g)$kingdom) {
-    e_ends <- ends(g, E(g))
-    bact_v <- V(g)$name[V(g)$kingdom == "Bacteria"]
-    fung_v <- V(g)$name[V(g)$kingdom == "Fungi"]
+  # Edge count logic for cross-kingdom networks: count only edges between bacteria and fungi
+  bf_edges <- if ("Fungi" %in% V(graph)$kingdom) {
+    e_ends <- igraph::as_edgelist(graph)
+    bact_v <- V(graph)$name[V(graph)$kingdom == "Bacteria"]
+    fung_v <- V(graph)$name[V(graph)$kingdom == "Fungi"]
     sum(
       (e_ends[, 1] %in% bact_v & e_ends[, 2] %in% fung_v) |
         (e_ends[, 2] %in% bact_v & e_ends[, 1] %in% fung_v)
@@ -208,31 +54,56 @@ net_summary <- function(g, site, type) {
     NA_integer_
   }
 
+  # Density and connectance calculations
   max_edges <- n_v * (n_v - 1) / 2
-  wc <- cluster_louvain(g)
+  multi_level_comm <- cluster_louvain(graph)
+  grdy <- cluster_fast_greedy(graph)
 
-  nestedness_val <- tryCatch(
+  # Nestedness calculation
+  full_nodf <- NA_real_
+  full_nodf <- tryCatch(
     {
-      adj <- as_adjacency_matrix(g, sparse = FALSE)
+      adj <- as_adjacency_matrix(graph, sparse = FALSE)
       vegan::nestednodf(adj)$statistic[["NODF"]]
     },
     error = function(e) NA_real_
   )
 
-  tibble::tibble(
+  sub_matx_nodf <- NA_real_
+  if (kind == "cross" && length(b) > 1 && length(f) > 1) {
+    adj_b <- igraph::as_adjacency_matrix(graph, sparse = FALSE)
+    bpt <- adj_b[b, f]
+    nodf <- tryCatch(
+      bipartite::networklevel(bpt, index = "NODF")[["NODF"]],
+      error = function(e) NA_real_
+    )
+  }
+
+  summary_results <- tibble::tibble(
     site = site,
-    network_type = type,
+    network_type = kind,
     n_taxa = n_v,
     n_edges = n_e,
-    density = graph.density(g),
+    max_edges = max_edges,
+    positive_links = n_pos,
+    negative_links = n_neg,
+    density_connectance = edge_density(graph),
     connectance = if (max_edges > 0) n_e / max_edges else NA_real_,
     bf_edge_fraction = if (!is.na(bf_edges)) bf_edges / n_e else NA_real_,
-    pos_neg_ratio = if (n_neg > 0) n_pos / n_neg else NA_real_,
-    transitivity = transitivity(g, type = "global"),
-    modularity = modularity(wc),
-    nestedness_NODF = nestedness_val
+    pos_neg_link_ratio = if (n_neg > 0) n_pos / (n_pos + n_neg) else NA_real_,
+    transitivity_avgCC = transitivity(
+      graph,
+      type = "average",
+      isolates = "zero"
+    ),
+    cl_modularity = modularity(multi_level_comm),
+    grdy_modularity = modularity(grdy),
+    full_nestedness_NODF = full_nodf,
+    subnetwork_nestedness_NODF = sub_matx_nodf
   )
+  return(summary_results)
 }
+
 
 #' Per-ASV centrality shift: bacteria-only graph vs. bacterial subgraph of the
 #' cross-kingdom network.
@@ -260,3 +131,22 @@ centrality_shift <- function(g_bact, g_cross, site) {
     eig_cross = eig_c[shared]
   )
 }
+
+# centrality_shift <- function(g_bact, g_cross, bact_ids) {
+#   shared <- intersect(V(g_bact)$name, V(g_cross)$name)
+#   shared <- intersect(shared, bact_ids)
+
+#   deg_b <- igraph::degree(g_bact)[shared]
+#   deg_c <- igraph::degree(g_cross)[shared]
+#   btw_b <- igraph::betweenness(g_bact, normalized = TRUE)[shared]
+#   btw_c <- igraph::betweenness(g_cross, normalized = TRUE)[shared]
+#   eig_b <- igraph::eigen_centrality(g_bact)$vector[shared]
+#   eig_c <- igraph::eigen_centrality(g_cross)$vector[shared]
+
+#   tibble(
+#     node = shared,
+#     delta_degree = deg_c - deg_b,
+#     delta_betweenness = btw_c - btw_b,
+#     delta_eigenvector = eig_c - eig_b
+#   )
+# }

@@ -22,14 +22,20 @@ spider_matrix <- do.call(rbind, spider)
 rownames(spider_matrix) <- names(spider)
 
 cat("\n=== Example 1: Spider Dataset ===\n")
-cat("Matrix dimensions:", nrow(spider_matrix), "samples x", ncol(spider_matrix), "species\n")
+cat(
+  "Matrix dimensions:",
+  nrow(spider_matrix),
+  "samples x",
+  ncol(spider_matrix),
+  "species\n"
+)
 
 # Run improved p_iNEXT with combined output (compatible with ggiNEXT)
 result_combined <- p_iNEXT(
   x = spider_matrix,
   q = c(0, 1, 2),
   nCores = 2,
-  combine = TRUE,  # Returns single iNEXT object
+  combine = TRUE, # Returns single iNEXT object
   verbose = TRUE
 )
 
@@ -38,7 +44,12 @@ cat("\nOutput class:", class(result_combined), "\n")
 cat("Output components:", names(result_combined), "\n")
 
 # Plot with standard ggiNEXT
-p1 <- ggiNEXT(result_combined, type = 1, facet.var = "Order.q", color.var = "Assemblage")
+p1 <- ggiNEXT(
+  result_combined,
+  type = 1,
+  facet.var = "Order.q",
+  color.var = "Assemblage"
+)
 print(p1 + ggtitle("Spider Dataset - Rarefaction Curves (Improved p_iNEXT)"))
 
 # ============================================================================
@@ -62,8 +73,11 @@ result_improved <- p_iNEXT(
 p_orig <- ggiNEXT(result_original, type = 1, facet.var = "Order.q")
 p_impr <- ggiNEXT(result_improved, type = 1, facet.var = "Order.q")
 
-cat("Original iNEXT output structure matches improved version:", 
-    all(names(result_original) == names(result_improved)), "\n")
+cat(
+  "Original iNEXT output structure matches improved version:",
+  all(names(result_original) == names(result_improved)),
+  "\n"
+)
 
 # ============================================================================
 # Example 3: Using List Output (Individual iNEXT Objects)
@@ -76,7 +90,7 @@ result_list <- p_iNEXT(
   x = spider_matrix,
   q = c(0),
   nCores = 2,
-  combine = FALSE,  # Returns list of iNEXT objects
+  combine = FALSE, # Returns list of iNEXT objects
   verbose = TRUE
 )
 
@@ -115,8 +129,12 @@ p_custom <- ggplot(
   )
 ) +
   geom_line(size = 1.2) +
-  facet_wrap(~size_based.Order.q, 
-             labeller = labeller(size_based.Order.q = c("0" = "q = 0", "1" = "q = 1", "2" = "q = 2"))) +
+  facet_wrap(
+    ~size_based.Order.q,
+    labeller = labeller(
+      size_based.Order.q = c("0" = "q = 0", "1" = "q = 1", "2" = "q = 2")
+    )
+  ) +
   labs(
     x = "Number of Individuals",
     y = "Species Diversity",
@@ -188,8 +206,11 @@ system.time({
   )
 })
 
-cat("\nBoth strategies produce same results:",
-    identical(result_seq$DataInfo, result_par$DataInfo), "\n")
+cat(
+  "\nBoth strategies produce same results:",
+  identical(result_seq$DataInfo, result_par$DataInfo),
+  "\n"
+)
 
 # ============================================================================
 # Example 7: Combining Results Later
@@ -222,17 +243,17 @@ cat("\n=== Example 8: Phyloseq Workflow (Conceptual) ===\n")
 # Uncomment and modify for actual use
 
 # library(phyloseq)
-# 
+#
 # # Load your phyloseq object
 # physeq <- readRDS("path/to/phyloseq.rds")
-# 
+#
 # # Extract OTU table (transpose so samples are rows)
 # otu_mat <- as.matrix(t(otu_table(physeq)))
-# 
+#
 # # Calculate endpoint
 # max_lib_size <- max(rowSums(otu_mat))
 # endpoint <- max_lib_size * 2
-# 
+#
 # # Run parallel iNEXT
 # result <- p_iNEXT(
 #   x = otu_mat,
@@ -243,7 +264,7 @@ cat("\n=== Example 8: Phyloseq Workflow (Conceptual) ===\n")
 #   combine = TRUE,
 #   verbose = TRUE
 # )
-# 
+#
 # # Plot
 # ggiNEXT(result, type = 1, facet.var = "Order.q") +
 #   theme_bw() +
@@ -262,7 +283,7 @@ cat("To run performance test, uncomment the code below\n")
 # set.seed(123)
 # n_samples <- 20
 # n_species <- 100
-# 
+#
 # # Generate synthetic abundance data
 # synthetic_data <- matrix(
 #   rpois(n_samples * n_species, lambda = 5),
@@ -271,9 +292,9 @@ cat("To run performance test, uncomment the code below\n")
 # )
 # rownames(synthetic_data) <- paste0("Sample", 1:n_samples)
 # colnames(synthetic_data) <- paste0("Species", 1:n_species)
-# 
+#
 # cat("\nPerformance test with", n_samples, "samples and", n_species, "species\n")
-# 
+#
 # # Sequential
 # cat("Sequential processing...\n")
 # time_seq <- system.time({
@@ -285,7 +306,7 @@ cat("To run performance test, uncomment the code below\n")
 #     verbose = FALSE
 #   )
 # })
-# 
+#
 # # Parallel (2 cores)
 # cat("Parallel processing (2 cores)...\n")
 # time_par2 <- system.time({
@@ -297,7 +318,7 @@ cat("To run performance test, uncomment the code below\n")
 #     verbose = FALSE
 #   )
 # })
-# 
+#
 # # Parallel (4 cores)
 # cat("Parallel processing (4 cores)...\n")
 # time_par4 <- system.time({
@@ -309,12 +330,12 @@ cat("To run performance test, uncomment the code below\n")
 #     verbose = FALSE
 #   )
 # })
-# 
+#
 # cat("\nTiming Results:\n")
 # cat("Sequential:", time_seq["elapsed"], "seconds\n")
-# cat("Parallel (2 cores):", time_par2["elapsed"], "seconds - Speedup:", 
+# cat("Parallel (2 cores):", time_par2["elapsed"], "seconds - Speedup:",
 #     round(time_seq["elapsed"] / time_par2["elapsed"], 2), "x\n")
-# cat("Parallel (4 cores):", time_par4["elapsed"], "seconds - Speedup:", 
+# cat("Parallel (4 cores):", time_par4["elapsed"], "seconds - Speedup:",
 #     round(time_seq["elapsed"] / time_par4["elapsed"], 2), "x\n")
 
 cat("\n=== All Examples Completed Successfully ===\n")

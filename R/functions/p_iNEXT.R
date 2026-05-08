@@ -93,7 +93,9 @@ p_iNEXT <- function(
   if (is.null(rownames(x))) {
     rownames(x) <- paste0("Sample", seq_len(nrow(x)))
     if (verbose) {
-      message("No row names found. Assigning default names: Sample1, Sample2, ...")
+      message(
+        "No row names found. Assigning default names: Sample1, Sample2, ..."
+      )
     }
   }
 
@@ -105,9 +107,11 @@ p_iNEXT <- function(
   if (any(species_num <= 0)) {
     empty_samples <- rownames(x)[species_num <= 0]
     if (verbose) {
-      message(sprintf("Removing %d empty sample(s): %s",
-                     length(empty_samples),
-                     paste(empty_samples, collapse = ", ")))
+      message(sprintf(
+        "Removing %d empty sample(s): %s",
+        length(empty_samples),
+        paste(empty_samples, collapse = ", ")
+      ))
     }
     x <- x[species_num > 0, , drop = FALSE]
     library_size <- library_size[species_num > 0]
@@ -136,10 +140,16 @@ p_iNEXT <- function(
   }
 
   if (verbose) {
-    message(sprintf("Using %d core(s). Available cores: %d",
-                   mc, available_cores))
-    message(sprintf("Processing %d sample(s) with q = [%s]",
-                   nr, paste(q, collapse = ", ")))
+    message(sprintf(
+      "Using %d core(s). Available cores: %d",
+      mc,
+      available_cores
+    ))
+    message(sprintf(
+      "Processing %d sample(s) with q = [%s]",
+      nr,
+      paste(q, collapse = ", ")
+    ))
   }
 
   # Set up parallel plan
@@ -154,7 +164,9 @@ p_iNEXT <- function(
     } else if (plan_strategy == "sequential") {
       future::plan(future::sequential)
     } else {
-      stop("Invalid plan_strategy. Choose 'multisession', 'multicore', or 'sequential'")
+      stop(
+        "Invalid plan_strategy. Choose 'multisession', 'multicore', or 'sequential'"
+      )
     }
   } else {
     if (verbose && (mc == 1 || nr == 1)) {
@@ -175,26 +187,29 @@ p_iNEXT <- function(
       gc(verbose = FALSE, full = FALSE)
 
       # Run iNEXT for this sample
-      tryCatch({
-        iNEXT::iNEXT(
-          x = x[i, ],
-          q = q,
-          datatype = datatype,
-          endpoint = endpoint,
-          knots = knots,
-          conf = conf,
-          nboot = nboot
-        )
-      }, error = function(e) {
-        list(
-          error = TRUE,
-          sample_name = rownames(x)[i],
-          message = as.character(e)
-        )
-      })
+      tryCatch(
+        {
+          iNEXT::iNEXT(
+            x = x[i, ],
+            q = q,
+            datatype = datatype,
+            endpoint = endpoint,
+            knots = knots,
+            conf = conf,
+            nboot = nboot
+          )
+        },
+        error = function(e) {
+          list(
+            error = TRUE,
+            sample_name = rownames(x)[i],
+            message = as.character(e)
+          )
+        }
+      )
     },
     future.seed = TRUE,
-    future.scheduling = 2.0  # Dynamic load balancing
+    future.scheduling = 2.0 # Dynamic load balancing
   )
 
   # Name the results
@@ -205,10 +220,12 @@ p_iNEXT <- function(
   if (any(errors)) {
     error_samples <- names(out)[errors]
     error_messages <- sapply(out[errors], function(x) x$message)
-    warning(sprintf("iNEXT failed for %d sample(s): %s\nMessages: %s",
-                   sum(errors),
-                   paste(error_samples, collapse = ", "),
-                   paste(error_messages, collapse = "; ")))
+    warning(sprintf(
+      "iNEXT failed for %d sample(s): %s\nMessages: %s",
+      sum(errors),
+      paste(error_samples, collapse = ", "),
+      paste(error_messages, collapse = "; ")
+    ))
     # Remove failed samples
     out <- out[!errors]
   }
@@ -218,7 +235,10 @@ p_iNEXT <- function(
   }
 
   if (verbose) {
-    message(sprintf("Completed processing %d sample(s) successfully", length(out)))
+    message(sprintf(
+      "Completed processing %d sample(s) successfully",
+      length(out)
+    ))
   }
 
   # Return results
@@ -265,7 +285,10 @@ combine_iNEXT_list <- function(inext_list) {
     df$Assemblage <- sample_name
     return(df)
   })
-  all_size_based <- do.call(rbind, all_size_based[!sapply(all_size_based, is.null)])
+  all_size_based <- do.call(
+    rbind,
+    all_size_based[!sapply(all_size_based, is.null)]
+  )
 
   all_coverage_based <- lapply(names(inext_list), function(sample_name) {
     obj <- inext_list[[sample_name]]
@@ -276,7 +299,10 @@ combine_iNEXT_list <- function(inext_list) {
     df$Assemblage <- sample_name
     return(df)
   })
-  all_coverage_based <- do.call(rbind, all_coverage_based[!sapply(all_coverage_based, is.null)])
+  all_coverage_based <- do.call(
+    rbind,
+    all_coverage_based[!sapply(all_coverage_based, is.null)]
+  )
 
   # Combine AsyEst (asymptotic estimates)
   all_asy_est <- lapply(names(inext_list), function(sample_name) {
@@ -304,7 +330,10 @@ combine_iNEXT_list <- function(inext_list) {
     df$Assemblage <- sample_name
     return(df)
   })
-  all_data_info <- do.call(rbind, all_data_info[!sapply(all_data_info, is.null)])
+  all_data_info <- do.call(
+    rbind,
+    all_data_info[!sapply(all_data_info, is.null)]
+  )
   rownames(all_data_info) <- all_data_info$Assemblage
 
   # Create combined iNEXT object
@@ -352,7 +381,10 @@ flatten_iNEXT_results <- function(inext_obj) {
 
     # Add prefix to distinguish size vs coverage based
     colnames(size_based) <- paste0("size_based.", colnames(size_based))
-    colnames(coverage_based) <- paste0("coverage_based.", colnames(coverage_based))
+    colnames(coverage_based) <- paste0(
+      "coverage_based.",
+      colnames(coverage_based)
+    )
 
     # Merge by Assemblage and Order.q
     result <- merge(
@@ -514,13 +546,25 @@ gg_inext_custom <- function(
   # Colors
   if (length(unique(inext_data$sample)) <= 8) {
     cbPalette <- rev(c(
-      "#999999", "#E69F00", "#56B4E9", "#009E73",
-      "#330066", "#CC79A7", "#0072B2", "#D55E00"
+      "#999999",
+      "#E69F00",
+      "#56B4E9",
+      "#009E73",
+      "#330066",
+      "#CC79A7",
+      "#0072B2",
+      "#D55E00"
     ))
   } else {
     cbPalette <- rev(c(
-      "#999999", "#E69F00", "#56B4E9", "#009E73",
-      "#330066", "#CC79A7", "#0072B2", "#D55E00"
+      "#999999",
+      "#E69F00",
+      "#56B4E9",
+      "#009E73",
+      "#330066",
+      "#CC79A7",
+      "#0072B2",
+      "#D55E00"
     ))
     cbPalette <- c(
       cbPalette,

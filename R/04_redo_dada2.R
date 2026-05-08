@@ -24,11 +24,11 @@ cat("Taxonomy assignment\n")
 cat(rep("=", 40), "\n")
 
 taxa <- assignTaxonomy(
-    new_16S_DNA_seqtab,
-    silva.ref,
-    multithread = TRUE,
-    minBoot = 50,
-    tryRC = TRUE
+  new_16S_DNA_seqtab,
+  silva.ref,
+  multithread = TRUE,
+  minBoot = 50,
+  tryRC = TRUE
 ) # Multithread = FALSE in Windows. TRUE in Mac/Linux.
 
 
@@ -50,8 +50,8 @@ cat("Saving\n")
 cat(rep("=", 40), "\n")
 
 write.csv(
-    taxa,
-    "data/output/taxonomy/new_16S_DNA_tax.csv"
+  taxa,
+  "data/output/taxonomy/new_16S_DNA_tax.csv"
 )
 
 cat("\n", rep("=", 40), "\n")

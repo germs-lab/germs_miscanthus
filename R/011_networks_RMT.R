@@ -17,7 +17,7 @@ library(brainGraph)
 library(bipartite)
 
 source("R/functions/rmt_approach/fit_power_law.R")
-source("R/functions/rmt_approach/global.R")
+source("R/functions/rmt_approach/network_properties.R")
 source("R/functions/rmt_approach/bpt.R")
 source("R/functions/rmt_approach/rand_adj_gen.R")
 
@@ -28,16 +28,16 @@ source("R/functions/rmt_approach/rand_adj_gen.R")
 #   OTU tables
 #       │
 #       ▼
-#   [build_network()]      — correlation matrix → list(graph, trans_mat) (single cutoff)
-#   [build_cross_network()]— correlation matrix → list(graph, trans_mat) (separate within/cross cutoffs)
+#   [build_network()]      - .cor2tran():correlation matrix → list(graph, trans_mat) (single cutoff)
+#                          - .add_attributes(): adds node attributes: degree, module, zi/pi roles. link attributes: kingdom (bacteria/fungi)
+
+#   [build_cross_network()]- correlation matrix → list(graph, trans_mat) (separate within/cross cutoffs)
 #       │
 #       ▼
-#   [add_node_attribute()] — attach degree, module, zi/pi roles to vertices
-#       │
-#       ▼
-#   [net_summary()]        — tidy tibble of network-level metrics
-#   [centrality_shift()]   — compare node centrality: bacteria-only vs cross-kingdom
-#   [cyto_gephi_output()]  — export node/edge tables for Cytoscape / Gephi
+# [network_properties()]   - calculates network-level properties: node/edge counts, density, transitivity, modularity, power law fit, etc.
+#   [net_summary()]        - tidy tibble of network-level metrics
+#   [centrality_shift()]   - compare node centrality: bacteria-only vs cross-kingdom
+#   [cyto_gephi_output()]  - export node/edge tables for Cytoscape / Gephi
 
 ## Graph construction ----
 
@@ -46,14 +46,91 @@ source("R/functions/rmt_approach/rand_adj_gen.R")
 # drops isolated nodes, assigns edge sign and vertex kingdom.
 # Optionally subsets to a focal neighbourhood (keep) or excludes nodes (rmv).
 # Returns list: $graph = igraph object, $trans_mat = filtered correlation matrix.
+.cor2tran <- function(cor_mat, cutoff, keep = c(), rmv = c()) {
+  diag(cor_mat) <- 0
+  cor_mat[abs(cor_mat) < cutoff] <- 0
+
+  # drop isolated nodes
+  cor_mat <- cor_mat[rowSums(cor_mat) != 0, colSums(cor_mat) != 0]
+
+  # keep / rmv subsetting
+  if (length(keep) > 0 && length(rmv) > 0) {
+    stop("Provide either `keep` or `rmv`, not both.")
+  }
+
+  if (length(keep) > 0) {
+    keep_idx <- which(rownames(cor_mat) %in% keep)
+    if (length(keep_idx) == 0) {
+      stop("None of the `keep` nodes found.")
+    }
+    nb_idx <- unique(c(
+      keep_idx,
+      which(colSums(cor_mat[, keep_idx, drop = FALSE]) != 0)
+    ))
+    cor_mat <- cor_mat[nb_idx, nb_idx]
+  }
+
+  if (length(rmv) > 0) {
+    rmv_idx <- which(rownames(cor_mat) %in% rmv)
+    if (length(rmv_idx) > 0) cor_mat <- cor_mat[-rmv_idx, -rmv_idx]
+  }
+
+  # re-drop isolates after subsetting
+  cor_mat <- cor_mat[rowSums(cor_mat) != 0, colSums(cor_mat) != 0]
+
+  return(cor_mat)
+}
+
+
+.add_attributes <- function(graph, tran_mat, bact_ids, fungi_ids) {
+  # Graph annotation logic (same as in add_node_attribute() and add_link_attribute())
+
+  # Link sign assignment logic (same as in add_link_attribute())
+  if (igraph::ecount(graph) > 0) {
+    el <- igraph::as_edgelist(graph)
+    igraph::E(graph)$link_sign <- ifelse(
+      tran_mat[el] > 0,
+      "positive",
+      "negative"
+    )
+  }
+
+  igraph::V(graph)$kingdom <- ifelse(
+    igraph::V(graph)$name %in% bact_ids,
+    "Bacteria",
+    "Fungi"
+  )
+
+  # Node attribute assignment logic (same as in add_node_attribute())
+  igraph::V(graph)$biomarker <- igraph::V(graph)$name
+  igraph::V(graph)$node_degree <- centr_degree(graph)$res
+
+  module_separation <- cluster_fast_greedy(graph)
+  module_membership <- membership(module_separation)
+  pi <- part_coeff(g = graph, memb = module_membership)
+  zi <- within_module_deg_z_score(g = graph, memb = module_membership)
+  role <- rep("peripherals", igraph::vcount(graph))
+  role[which(pi >= 6.2 & zi < 2.5)] <- "connector"
+  role[which(pi >= 6.2 & zi >= 2.5)] <- "network_hub"
+  role[which(pi < 6.2 & zi >= 2.5)] <- "module_hub"
+
+  igraph::V(graph)$module_membership <- module_membership
+  igraph::V(graph)$pi <- pi
+  igraph::V(graph)$zi <- zi
+  igraph::V(graph)$vertex_role <- role
+
+  return(graph)
+}
+
+
 build_network <- function(
   cor_mat,
   bact_ids,
   fungi_ids,
   cutoff = my_cutoff,
   kind = "cross",
-  keep = character(0), # focal node names — subset to their neighbourhood
-  rmv = character(0) # node names to exclude
+  keep = c(), # focal node names - subset to their neighbourhood
+  rmv = c() # node names to exclude
 ) {
   nodes <- rownames(cor_mat)
   b_ids <- intersect(bact_ids, nodes)
@@ -63,39 +140,15 @@ build_network <- function(
 
   sub_mat <- cor_mat[idx, idx]
 
-  # cor2tran logic ----
-  diag(sub_mat) <- 0
-  sub_mat[abs(sub_mat) < cutoff] <- 0
+  # .cor2tran logic ---- applies cutoff, keeps/rmvs nodes, drops isolates
+  sub_mat <- .cor2tran(
+    cor_mat = sub_mat,
+    cutoff = cutoff,
+    keep = keep,
+    rmv = rmv
+  )
 
-  # drop isolated nodes
-  sub_mat <- sub_mat[rowSums(sub_mat) != 0, colSums(sub_mat) != 0]
-
-  # keep / rmv subsetting
-  if (length(keep) > 0 && length(rmv) > 0) {
-    stop("Provide either `keep` or `rmv`, not both.")
-  }
-
-  if (length(keep) > 0) {
-    keep_idx <- which(rownames(sub_mat) %in% keep)
-    if (length(keep_idx) == 0) {
-      stop("None of the `keep` nodes found.")
-    }
-    nb_idx <- unique(c(
-      keep_idx,
-      which(colSums(sub_mat[, keep_idx, drop = FALSE]) != 0)
-    ))
-    sub_mat <- sub_mat[nb_idx, nb_idx]
-  }
-
-  if (length(rmv) > 0) {
-    rmv_idx <- which(rownames(sub_mat) %in% rmv)
-    if (length(rmv_idx) > 0) sub_mat <- sub_mat[-rmv_idx, -rmv_idx]
-  }
-
-  # re-drop isolates after subsetting
-  sub_mat <- sub_mat[rowSums(sub_mat) != 0, colSums(sub_mat) != 0]
-  # ----
-
+  # Make the graph (0/1 for absence/presence of edges, regardless of sign)
   adj <- (sub_mat != 0) * 1L
   g <- igraph::graph_from_adjacency_matrix(
     adj,
@@ -103,18 +156,20 @@ build_network <- function(
     weighted = NULL
   )
 
-  if (igraph::ecount(g) > 0) {
-    el <- igraph::as_edgelist(g)
-    igraph::E(g)$link_sign <- ifelse(sub_mat[el] > 0, "positive", "negative")
-  }
-
-  igraph::V(g)$kingdom <- ifelse(
-    igraph::V(g)$name %in% bact_ids,
-    "Bacteria",
-    "Fungi"
+  # .add_attributes logic ---- applies node and link attributes based on the filtered graph
+  g <- .add_attributes(
+    g,
+    tran_mat = sub_mat,
+    bact_ids = bact_ids,
+    fungi_ids = fungi_ids
   )
 
-  list(graph = g, trans_mat = sub_mat)
+  return(
+    list(
+      graph = g,
+      trans_mat = sub_mat
+    )
+  )
 }
 
 # build_cross_network: correlation matrix → list(graph, trans_mat) with asymmetric cutoffs
@@ -149,9 +204,15 @@ build_cross_network <- function(
   mask[f_ids, b_ids] <- t(mask[b_ids, f_ids])
   sub_mat[!mask] <- 0
 
-  # drop isolated nodes
-  sub_mat <- sub_mat[rowSums(sub_mat) != 0, colSums(sub_mat) != 0]
+  # .cor2tran logic ---- applies cutoff, keeps/rmvs nodes, drops isolates
+  sub_mat <- .cor2tran(
+    cor_mat = sub_mat,
+    cutoff = cutoff,
+    keep = keep,
+    rmv = rmv
+  )
 
+  # Make the graph (0/1 for absence/presence of edges, regardless of sign)
   adj <- (sub_mat != 0) * 1L
   g <- igraph::graph_from_adjacency_matrix(
     adj,
@@ -159,37 +220,13 @@ build_cross_network <- function(
     weighted = NULL
   )
 
-  # Graph annotation logic (same as in add_node_attribute() and add_link_attribute())
-
-  # Link sign assignment logic (same as in add_link_attribute())
-  if (igraph::ecount(g) > 0) {
-    el <- igraph::as_edgelist(g)
-    igraph::E(g)$link_sign <- ifelse(sub_mat[el] > 0, "positive", "negative")
-  }
-
-  igraph::V(g)$kingdom <- ifelse(
-    igraph::V(g)$name %in% bact_ids,
-    "Bacteria",
-    "Fungi"
+  # .add_attributes logic ---- applies node and link attributes based on the filtered graph
+  g <- .add_attributes(
+    g,
+    tran_mat = sub_mat,
+    bact_ids = bact_ids,
+    fungi_ids = fungi_ids
   )
-
-  # Node attribute assignment logic (same as in add_node_attribute())
-  igraph::V(g)$biomarker <- igraph::V(g)$name
-  igraph::V(g)$node_degree <- centr_degree(g)$res
-
-  module_separation <- cluster_fast_greedy(g)
-  module_membership <- membership(module_separation)
-  pi <- part_coeff(g = g, memb = module_membership)
-  zi <- within_module_deg_z_score(g = g, memb = module_membership)
-  role <- rep("peripherals", igraph::vcount(g))
-  role[which(pi >= 6.2 & zi < 2.5)] <- "connector"
-  role[which(pi >= 6.2 & zi >= 2.5)] <- "network_hub"
-  role[which(pi < 6.2 & zi >= 2.5)] <- "module_hub"
-
-  igraph::V(g)$module_membership <- module_membership
-  igraph::V(g)$pi <- pi
-  igraph::V(g)$zi <- zi
-  igraph::V(g)$vertex_role <- role
 
   return(
     list(
@@ -199,77 +236,6 @@ build_cross_network <- function(
   )
 }
 
-## Graph annotation ----
-
-# # add_node_attribute: attaches computed node-level metrics as vertex attributes.
-# # Adds: biomarker label, degree, module membership (fast-greedy), participation
-# # coefficient (pi), within-module degree z-score (zi), and topological role
-# # (peripheral / connector / module hub / network hub).
-# add_node_attribute <- function(graph) {
-#   biomarker <- gsub("OTU_.*_", "", vertex_attr(graph)$name)
-
-#   OTU_name <- vertex_attr(graph)$name
-#   node_degree <- centr_degree(graph)$res
-
-#   module_separation <- cluster_fast_greedy(graph)
-#   module_membership <- membership(module_separation)
-#   pi <- part_coeff(g = graph, memb = module_membership)
-#   zi <- within_module_deg_z_score(g = graph, memb = module_membership)
-#   role <- rep("peripherals", gorder(graph))
-#   role[which(pi >= 6.2 & zi < 2.5)] <- "connector"
-#   role[which(pi >= 6.2 & zi >= 2.5)] <- "network_hub"
-#   role[which(pi < 6.2 & zi >= 2.5)] <- "module_hub"
-
-#   graph <- set_vertex_attr(graph, "biomarker", index = V(graph), biomarker)
-#   graph <- set_vertex_attr(graph, "node_degree", index = V(graph), node_degree)
-#   graph <- set_vertex_attr(
-#     graph,
-#     "module_membership",
-#     index = V(graph),
-#     module_membership
-#   )
-#   graph <- set_vertex_attr(graph, "pi", index = V(graph), pi)
-#   graph <- set_vertex_attr(graph, "zi", index = V(graph), zi)
-#   graph <- set_vertex_attr(graph, "vertex_role", index = V(graph), role)
-
-#   return(graph)
-# }
-
-# # add_link_attribute: attaches positive/negative sign to each edge.
-# # Reads sign from a transition matrix (values > 0 → "positive", < 0 →
-# # "negative") and stores it as the link_sign edge attribute.
-# # Note: build_network() and build_cross_network() assign link_sign internally,
-# # so this function is only needed when working with graphs built via cor2tran()
-# # + graph_from_adjacency_matrix().
-# add_link_attribute <- function(graph, tranmatx) {
-#   mat_p_n <- tranmatx
-#   mat_p_n[mat_p_n > 0] <- "positive"
-#   mat_p_n[mat_p_n < 0] <- "negative"
-
-#   edge_names <- unlist(strsplit(
-#     base::attr(E(graph), "vnames"),
-#     "|",
-#     fixed = T
-#   ))
-#   edge_rownames <- edge_names[seq(1, (length(edge_names) - 1), by = 2)]
-#   edge_colnames <- edge_names[seq(2, length(edge_names), by = 2)]
-#   edge_dir <- unlist(lapply(
-#     c(1:length(edge_rownames)),
-#     FUN = function(id, np_matrix, rownames, colnames) {
-#       dir <- np_matrix[
-#         which(rownames(np_matrix) == edge_rownames[id]),
-#         which(colnames(np_matrix) == edge_colnames[id])
-#       ]
-#     },
-#     np_matrix = mat_p_n,
-#     rownames = edge_rownames,
-#     colnames = edge_colnames
-#   ))
-
-#   graph <- set_edge_attr(graph, "link_sign", index = E(graph), edge_dir)
-
-#   return(graph)
-# }
 
 ## Network metrics ----
 
@@ -451,7 +417,7 @@ aligned_matrices <- purrr::map(sites, function(s) {
   ps_f <- fungi_filtered[[s]]
   ps_j <- joint_filtered[[s]]
 
-  # Sort samples independently — SpiecEasi will use positional correspondence
+  # Sort samples independently - SpiecEasi will use positional correspondence
   ps_b <- prune_samples(sort(sample_names(ps_b)), ps_b)
   ps_f <- prune_samples(sort(sample_names(ps_f)), ps_f)
   ps_j <- prune_samples(sort(sample_names(ps_j)), ps_j)
@@ -472,7 +438,7 @@ aligned_matrices <- purrr::map(sites, function(s) {
     ntaxa(ps_b),
     " | fungi ASVs: ",
     ntaxa(ps_f),
-    " | joint ASVs: ",
+    " | bipartite ASVs: ",
     ntaxa(ps_j)
   )
 
@@ -480,9 +446,18 @@ aligned_matrices <- purrr::map(sites, function(s) {
 }) |>
   set_names(sites)
 
-# Majority_corematrix ----
+# Correlation matrices ----
+## Majority_corematrix ----
+# Example with "ef" site.
 
-joint_cor_matrices <- purrr::imap(
+# full_cor_matrices (505×505 for ef):     bxf_cor_matrices result:
+# ┌─────────┬─────────┐                   ┌─────────┬─────────┐
+# │  B×B    │  B×F    │        →          │    0    │  B×F    │
+# ├─────────┼─────────┤                   ├─────────┼─────────┤
+# │  F×B    │  F×F    │                   │  F×B    │    0    │
+# └─────────┴─────────┘                   └─────────┴─────────┘
+
+full_cor_matrices <- purrr::imap(
   aligned_matrices,
   function(site_matx, site_name) {
     otu_matx <- aligned_matrices[[site_name]][["matx_j"]] #joint matrix with bacteria and fungi
@@ -504,17 +479,19 @@ joint_cor_matrices <- purrr::imap(
 )
 
 
-save(joint_cor_matrices, file = "data/output/networks/correlation_matrices.rda")
+save(
+  full_cor_matrices,
+  file = "data/output/networks/full_correlation_matrices.rda"
+)
 
 
-# Cormatrix for bipartite network ----
-load("data/output/networks/correlation_matrices.rda")
+## Cormatrix for bipartite network ----
+# load("data/output/networks/full_correlation_matrices.rda")
 
-## Bacteria and Fungi OTUs IDs in the correlation matrix ----
-# Since we know where they came from, we can directly get the id of 16S and ITS OTUs using the rownames of the aligned matrices.
+#Since we know where they came from, we can directly get the id of 16S and ITS OTUs using the rownames of the aligned matrices.
 
-bipartite_cor_matrices <- purrr::imap(
-  joint_cor_matrices,
+bxf_cor_matrices <- purrr::imap(
+  full_cor_matrices,
   function(cor_matrix, site_name) {
     bact_id <- rownames(aligned_matrices[[site_name]]$matx_b)
     fungi_id <- rownames(aligned_matrices[[site_name]]$matx_f)
@@ -528,7 +505,7 @@ bipartite_cor_matrices <- purrr::imap(
 )
 
 # Verify: check that within-kingdom blocks are zeroed
-purrr::imap(bipartite_cor_matrices, function(mat, site) {
+purrr::imap(bxf_cor_matrices, function(mat, site) {
   bact_id <- rownames(aligned_matrices[[site]]$matx_b)
   fungi_id <- rownames(aligned_matrices[[site]]$matx_f)
   list(
@@ -543,27 +520,25 @@ purrr::imap(bipartite_cor_matrices, function(mat, site) {
 
 
 save(
-  bipartite_cor_matrices,
-  file = "data/output/networks/bipartite_cor_matrices.rda"
+  bxf_cor_matrices,
+  file = "data/output/networks/bxf_correlation_matrices.rda"
 )
 
-# Subnetworks ----
+# Networks and Subnetworks ----
 
 # amf_node_list = read.table("example_data/OTU_list_AMF-in-network_22.txt")$V1
 
 # my_cor_matrix <- read.table("example_data/correlation_matrix_bipartite.txt")
 # my_cutoff <- 0.757 # the correlation cutoff was determined in MENAP (http://ieg4.rccc.ou.edu/MENA/)
 
-ef_bpt_net <- build_network(
-  cor_mat = bipartite_cor_matrices[[1]], # ef site
+ef_subpt_net <- build_network(
+  cor_mat = subbipartite_cor_matrices[[1]], # ef site
   bact_ids = rownames(aligned_matrices$ef$matx_b),
   fungi_ids = rownames(aligned_matrices$ef$matx_f),
   cutoff = 0.25, # Testing with this cutoff. I need to determine with MENAP.
   kind = "cross"
 ) # list(graph, trans_mat) for the network containing all fungal-bacterial links
 
-
-my_graph <- ef_bpt_net$graph
 
 # tran_matrix_nonAMF = build_network(
 #   cor_mat   = my_cor_matrix, bact_ids = ..., fungi_ids = ...,
@@ -578,8 +553,8 @@ my_graph <- ef_bpt_net$graph
 # write.table(tran_matrix_AMF$trans_mat, "example_data/transition-matrix_AMF-bacteria.txt", sep = "\t", quote = F)
 
 write.table(
-  ef_bpt_net$trans_mat,
-  "data/output/networks/ef_joint_transition-matrix2.txt",
+  ef_subpt_net$trans_mat,
+  "data/output/networks/ef_bxf_transition-matrix.txt",
   sep = "\t",
   quote = F
 )
@@ -588,14 +563,21 @@ write.table(
 # Calculates network topological features, node and link attributes, and
 # generates input files for visualization using Cytoscape and Gephi.
 
-########################
+# Subesetting
+my_graph <- ef_subpt_net$graph
+my_tranmatx <- ef_subpt_net$trans_mat
 
-my_tranmatx <- ef_bpt_net$trans_mat
 
-p_link <- sum(my_tranmatx > 0) / 2 # number of positive links
-n_link <- sum(my_tranmatx < 0) / 2 # number of negative links
-prop_p_link <- p_link / (p_link + n_link) # proportion of positive links
+# Graph properties
+ef_test <- network_properties(my_graph, power_law_engine = "OLS")
 
+ef_summary <- network_summary(
+  g = my_graph,
+  site = "ef",
+  kind = "Bacteria"
+)
+
+# Bipartite properties from the adjacency matrix
 adj_mat <- my_tranmatx
 adj_mat[adj_mat != 0] <- 1 # get adjacency matrix for the network. All links are indicated by 1 in adjacency matrix (for both + and - links).
 write.table(
@@ -604,22 +586,7 @@ write.table(
   sep = "\t"
 )
 
-# graph properties
-conn_nodes <- gorder(my_graph) # node number
-links <- ecount(my_graph) # link number
-r2 <- fit_power_law(my_graph) # r2 of power law fit
-avgK <- mean(centr_degree(my_graph)$res) # average degree
-avgCC <- transitivity(my_graph, type = "average", isolates = "zero") # average clustering coefficient. Zero for bipartite network (no triangular subnetwork).
-GD <- mean_distance(my_graph, directed = F, unconnected = T) # geodesic distance
-gd <- cluster_fast_greedy(my_graph) # greedy module separation
-modules <- length(gd) # number of modules
-M <- modularity(gd) # modularity
-largest_connected <- round(
-  max(component_distribution(my_graph) * conn_nodes),
-  0
-) # node number in the largest connected component
-
-# bipartite properties from the adjacency matrix
+# IDs of bacteria and fungi nodes in the adjacency matrix
 rows_16s <- rownames(aligned_matrices$ef$matx_b)[
   rownames(aligned_matrices$ef$matx_b) %in% rownames(adj_mat)
 ]
@@ -629,7 +596,8 @@ cols_its <- rownames(aligned_matrices$ef$matx_f)[
 
 bpt_matx <- adj_mat[rows_16s, cols_its]
 
-bipartite_result = networklevel(
+# Calculate bipartite network properties using the bipartite package.
+bipartite_result <- networklevel(
   index = c(
     "connectance",
     "nestedness",
@@ -643,10 +611,8 @@ bipartite_result = networklevel(
   bpt_matx
 )
 
-# add graph attributes — link_sign already set by build_network()
-my_graph <- add_node_attribute(graph = my_graph)
-
-#  output cytoscape and gephi input files for visualisation
+# Visualization
+#  Output cytoscape and gephi input files for visualisation
 cyto_gephi_output(graph_with_all_attributes = my_graph)
 
 # Random bipartite network generation and analysis ----
@@ -911,7 +877,7 @@ ef_metrics <- bind_rows(
 ef_metrics
 
 # New cutoff for EF bacteria network ----
-# EF bacteria network has 0 edges — cutoff is too high for this site.
+# EF bacteria network has 0 edges - cutoff is too high for this site.
 # Check what cutoff gives a reasonable network for EF bacteria
 cor_b <- joint_cor_matrices$ef[ef_bact_id, ef_bact_id]
 quantile(abs(cor_b[upper.tri(cor_b)]), probs = c(0.90, 0.95, 0.97, 0.99, 0.999))
@@ -954,7 +920,7 @@ ef_metrics
 
 # Another cutoff ----
 
-# cross network has 0 BF edges — the cross correlation matrix still has 0 bacteria-fungi entries
+# cross network has 0 BF edges - the cross correlation matrix still has 0 bacteria-fungi entries
 # because bipartite_cor_matrices zeroes those out. We need joint_cor_matrices (unzeroed) for cross.
 # Check cross-kingdom correlations in joint vs bipartite
 cor_cross <- joint_cor_matrices$ef[ef_bact_id, ef_fungi_id]
@@ -962,7 +928,7 @@ range(cor_cross)
 quantile(abs(cor_cross), probs = c(0.90, 0.95, 0.99))
 
 
-# Max B-F correlation is 0.39 — far below ef_cutoff (0.43).
+# Max B-F correlation is 0.39 - far below ef_cutoff (0.43).
 # Use a lower cross-kingdom cutoff based on the 95th percentile of B-F correlations
 ef_bf_cutoff <- unname(quantile(abs(cor_cross), 0.95))
 cat("B-F cutoff:", round(ef_bf_cutoff, 3), "\n")
