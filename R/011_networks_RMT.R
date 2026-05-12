@@ -21,358 +21,6 @@ source("R/functions/rmt_approach/network_properties.R")
 source("R/functions/rmt_approach/bpt.R")
 source("R/functions/rmt_approach/rand_adj_gen.R")
 
-# Functions ----
-#
-# Workflow overview:
-#
-#   OTU tables
-#       │
-#       ▼
-#   [build_network()]      - .cor2tran():correlation matrix → list(graph, trans_mat) (single cutoff)
-#                          - .add_attributes(): adds node attributes: degree, module, zi/pi roles. link attributes: kingdom (bacteria/fungi)
-
-#   [build_asym_network()]- correlation matrix → list(graph, trans_mat) (separate within/cross cutoffs)
-#       │
-#       ▼
-# [network_properties()]   - calculates network-level properties: node/edge counts, density, transitivity, modularity, power law fit, etc.
-#   [net_summary()]        - tidy tibble of network-level metrics
-#   [centrality_shift()]   - compare node centrality: bacteria-only vs cross-kingdom
-#   [cyto_gephi_output()]  - export node/edge tables for Cytoscape / Gephi
-
-## Graph construction ----
-
-# build_network: correlation matrix → list(graph, trans_mat)
-# Subsets to bacteria, fungi, or both kingdoms, applies a single |r| >= cutoff,
-# drops isolated nodes, assigns edge sign and vertex kingdom.
-# Optionally subsets to a focal neighbourhood (keep) or excludes nodes (rmv).
-# Returns list: $graph = igraph object, $trans_mat = filtered correlation matrix.
-.cor2tran <- function(cor_mat, cutoff, keep = c(), rmv = c()) {
-  diag(cor_mat) <- 0
-  cor_mat[abs(cor_mat) < cutoff] <- 0
-
-  # drop isolated nodes
-  cor_mat <- cor_mat[rowSums(cor_mat) != 0, colSums(cor_mat) != 0]
-
-  # keep / rmv subsetting
-  if (length(keep) > 0 && length(rmv) > 0) {
-    stop("Provide either `keep` or `rmv`, not both.")
-  }
-
-  if (length(keep) > 0) {
-    keep_idx <- which(rownames(cor_mat) %in% keep)
-    if (length(keep_idx) == 0) {
-      stop("None of the `keep` nodes found.")
-    }
-    nb_idx <- unique(c(
-      keep_idx,
-      which(colSums(cor_mat[, keep_idx, drop = FALSE]) != 0)
-    ))
-    cor_mat <- cor_mat[nb_idx, nb_idx]
-  }
-
-  if (length(rmv) > 0) {
-    rmv_idx <- which(rownames(cor_mat) %in% rmv)
-    if (length(rmv_idx) > 0) cor_mat <- cor_mat[-rmv_idx, -rmv_idx]
-  }
-
-  # re-drop isolates after subsetting
-  cor_mat <- cor_mat[rowSums(cor_mat) != 0, colSums(cor_mat) != 0]
-
-  return(cor_mat)
-}
-
-
-.add_attributes <- function(graph, tran_mat, bact_ids, fungi_ids) {
-  # Graph annotation logic (same as in add_node_attribute() and add_link_attribute())
-
-  # Link sign assignment logic (same as in add_link_attribute())
-  if (igraph::ecount(graph) > 0) {
-    el <- igraph::as_edgelist(graph)
-    igraph::E(graph)$link_sign <- ifelse(
-      tran_mat[el] > 0,
-      "positive",
-      "negative"
-    )
-  }
-
-  igraph::V(graph)$kingdom <- ifelse(
-    igraph::V(graph)$name %in% bact_ids,
-    "Bacteria",
-    "Fungi"
-  )
-
-  # Node attribute assignment logic (same as in add_node_attribute())
-  igraph::V(graph)$biomarker <- igraph::V(graph)$name
-  igraph::V(graph)$node_degree <- centr_degree(graph)$res
-
-  module_separation <- tryCatch(
-    cluster_fast_greedy(graph),
-    error = function(e) NULL
-  )
-
-  if (
-    !is.null(module_separation) &&
-      length(unique(membership(module_separation))) > 1
-  ) {
-    module_membership <- membership(module_separation)
-    pi <- part_coeff(g = graph, memb = module_membership)
-    zi <- within_module_deg_z_score(g = graph, memb = module_membership)
-    role <- rep("peripherals", igraph::vcount(graph))
-    role[which(pi >= 6.2 & zi < 2.5)] <- "connector"
-    role[which(pi >= 6.2 & zi >= 2.5)] <- "network_hub"
-    role[which(pi < 6.2 & zi >= 2.5)] <- "module_hub"
-  } else {
-    module_membership <- rep(NA_integer_, igraph::vcount(graph))
-    pi <- rep(NA_real_, igraph::vcount(graph))
-    zi <- rep(NA_real_, igraph::vcount(graph))
-    role <- rep(NA_character_, igraph::vcount(graph))
-  }
-
-  igraph::V(graph)$module_membership <- as.integer(module_membership)
-  igraph::V(graph)$pi <- pi
-  igraph::V(graph)$zi <- zi
-  igraph::V(graph)$vertex_role <- role
-
-  return(graph)
-}
-
-
-build_network <- function(
-  cor_mat,
-  bact_ids,
-  fungi_ids,
-  cutoff = my_cutoff,
-  kind = "cross",
-  keep = c(), # focal node names - subset to their neighbourhood
-  rmv = c() # node names to exclude
-) {
-  nodes <- rownames(cor_mat)
-  b_ids <- intersect(bact_ids, nodes)
-  f_ids <- intersect(fungi_ids, nodes)
-
-  idx <- switch(kind, bacteria = b_ids, fungi = f_ids, cross = c(b_ids, f_ids))
-
-  sub_mat <- cor_mat[idx, idx]
-
-  # .cor2tran logic ---- applies cutoff, keeps/rmvs nodes, drops isolates
-  sub_mat <- .cor2tran(
-    cor_mat = sub_mat,
-    cutoff = cutoff,
-    keep = keep,
-    rmv = rmv
-  )
-
-  # Make the graph (0/1 for absence/presence of edges, regardless of sign)
-  adj <- (sub_mat != 0) * 1L
-  g <- igraph::graph_from_adjacency_matrix(
-    adj,
-    mode = "undirected",
-    weighted = NULL
-  )
-
-  # .add_attributes logic ---- applies node and link attributes based on the filtered graph
-  g <- .add_attributes(
-    g,
-    tran_mat = sub_mat,
-    bact_ids = bact_ids,
-    fungi_ids = fungi_ids
-  )
-
-  return(
-    list(
-      graph = g,
-      trans_mat = sub_mat
-    )
-  )
-}
-
-# build_asym_network: correlation matrix → list(graph, trans_mat) with asymmetric cutoffs
-# Like build_network() but applies separate thresholds for within-kingdom edges
-# (within_cutoff) and cross-kingdom bacteria–fungi edges (bf_cutoff).
-# Use this when B–F correlations are structurally weaker than within-kingdom ones.
-build_asym_network <- function(
-  cor_mat,
-  bact_ids,
-  fungi_ids,
-  within_cutoff,
-  bxf_cutoff
-) {
-  nodes <- rownames(cor_mat)
-  b_ids <- intersect(bact_ids, nodes)
-  f_ids <- intersect(fungi_ids, nodes)
-  idx <- c(b_ids, f_ids)
-
-  sub_mat <- cor_mat[idx, idx]
-  diag(sub_mat) <- 0
-
-  # apply asymmetric cutoffs via a logical mask
-  mask <- matrix(
-    FALSE,
-    nrow = length(idx),
-    ncol = length(idx),
-    dimnames = list(idx, idx)
-  )
-  mask[b_ids, b_ids] <- abs(sub_mat[b_ids, b_ids]) >= within_cutoff
-  mask[f_ids, f_ids] <- abs(sub_mat[f_ids, f_ids]) >= within_cutoff
-  mask[b_ids, f_ids] <- abs(sub_mat[b_ids, f_ids]) >= bxf_cutoff
-  mask[f_ids, b_ids] <- t(mask[b_ids, f_ids])
-  sub_mat[!mask] <- 0
-
-  # # .cor2tran logic ---- applies cutoff, keeps/rmvs nodes, drops isolates
-  # sub_mat <- .cor2tran(
-  #   cor_mat = sub_mat,
-  #   cutoff = cutoff,
-  #   keep = keep,
-  #   rmv = rmv
-  # )
-
-  # Make the graph (0/1 for absence/presence of edges, regardless of sign)
-  adj <- (sub_mat != 0) * 1L
-  g <- igraph::graph_from_adjacency_matrix(
-    adj,
-    mode = "undirected",
-    weighted = NULL
-  )
-
-  # .add_attributes logic ---- applies node and link attributes based on the filtered graph
-  g <- .add_attributes(
-    g,
-    tran_mat = sub_mat,
-    bact_ids = bact_ids,
-    fungi_ids = fungi_ids
-  )
-
-  return(
-    list(
-      graph = g,
-      trans_mat = sub_mat
-    )
-  )
-}
-
-
-## Network metrics ----
-
-# net_summary: returns a one-row tibble of network-level metrics for a graph.
-# Metrics: node/edge counts, density, transitivity, fraction of cross-kingdom
-# edges, positive:negative edge ratio, modularity, and NODF nestedness
-# (cross-kingdom networks only).
-net_summary <- function(g, bact_ids, fungi_ids, kind) {
-  n <- igraph::vcount(g)
-  ec <- igraph::ecount(g)
-  el <- igraph::as_edgelist(g)
-  b <- intersect(V(g)$name, bact_ids)
-  f <- intersect(V(g)$name, fungi_ids)
-  bf_e <- sum(
-    (el[, 1] %in% b & el[, 2] %in% f) | (el[, 1] %in% f & el[, 2] %in% b)
-  )
-  pos <- sum(E(g)$link_sign == "positive")
-  cl <- igraph::cluster_louvain(g)
-
-  nodf <- NA_real_
-  if (kind == "cross" && length(b) > 1 && length(f) > 1) {
-    adj_b <- igraph::as_adjacency_matrix(g, sparse = FALSE)
-    bpt <- adj_b[b, f]
-    nodf <- tryCatch(
-      bipartite::networklevel(bpt, index = "NODF")[["NODF"]],
-      error = function(e) NA_real_
-    )
-  }
-
-  tibble(
-    kind = kind,
-    nodes = n,
-    edges = ec,
-    density = round(igraph::edge_density(g), 4),
-    transitivity = round(igraph::transitivity(g, type = "global"), 3),
-    frac_BF_edges = round(bf_e / max(ec, 1), 3),
-    pos_neg_ratio = round(pos / max(ec - pos, 1), 2),
-    modularity = round(igraph::modularity(cl), 3),
-    NODF_nestedness = round(nodf, 2)
-  )
-}
-
-# centrality_shift: compares node centrality for bacteria shared between a
-# bacteria-only graph and a cross-kingdom graph.
-# Returns a tibble with delta_degree, delta_betweenness, delta_eigenvector
-# for each shared bacterium. Positive deltas indicate centrality gained when
-# fungi are included in the network.
-centrality_shift <- function(g_bact, g_cross, bact_ids) {
-  shared <- intersect(V(g_bact)$name, V(g_cross)$name)
-  shared <- intersect(shared, bact_ids)
-
-  deg_b <- igraph::degree(g_bact)[shared]
-  deg_c <- igraph::degree(g_cross)[shared]
-  btw_b <- igraph::betweenness(g_bact, normalized = TRUE)[shared]
-  btw_c <- igraph::betweenness(g_cross, normalized = TRUE)[shared]
-  eig_b <- igraph::eigen_centrality(g_bact)$vector[shared]
-  eig_c <- igraph::eigen_centrality(g_cross)$vector[shared]
-
-  tibble(
-    node = shared,
-    delta_degree = deg_c - deg_b,
-    delta_betweenness = btw_c - btw_b,
-    delta_eigenvector = eig_c - eig_b
-  )
-}
-
-## Export ----
-
-# cyto_gephi_output: writes node and edge attribute tables for Cytoscape and
-# Gephi. Requires a graph with all vertex and edge attributes already attached
-# (via add_node_attribute() and add_link_attribute()).
-cyto_gephi_output <- function(graph_with_all_attributes) {
-  node_table <- as.data.frame(vertex.attributes(graph_with_all_attributes))
-
-  edge_table <- as.data.frame(edge.attributes(graph_with_all_attributes))
-  edge_names <- unlist(strsplit(
-    base::attr(E(graph_with_all_attributes), "vnames"),
-    "|",
-    fixed = T
-  ))
-  edge_table$node1 <- edge_names[seq(
-    from = 1,
-    to = (length(edge_names) - 1),
-    by = 2
-  )]
-  edge_table$node2 <- edge_names[seq(from = 2, to = length(edge_names), by = 2)]
-
-  gephi_node_table <- node_table
-  names(gephi_node_table)[1] <- "Id"
-
-  gephi_edge_table <- edge_table
-  names(gephi_edge_table)[2:3] <- c("Source", "Target")
-  gephi_edge_table$Type = rep("Undirected", nrow(gephi_edge_table))
-
-  write.table(
-    node_table,
-    "data/output/networks/cytoscape_node_attribute.txt",
-    sep = "\t",
-    row.names = F,
-    quote = F
-  )
-  write.table(
-    edge_table,
-    "data/output/networks/cytoscape_edge_attribute.txt",
-    sep = "\t",
-    row.names = F,
-    quote = F
-  )
-  write.table(
-    gephi_node_table,
-    "data/output/networks/gephi_node_attribute.csv",
-    sep = ",",
-    row.names = F,
-    quote = F
-  )
-  write.table(
-    gephi_edge_table,
-    "data/output/networks/gephi_edge_attribute.csv",
-    sep = ",",
-    row.names = F,
-    quote = F
-  )
-}
 
 # Pre-process ----
 
@@ -466,7 +114,7 @@ aligned_matrices <- purrr::map(sites, function(s) {
 
 # full_cor_matrices (505×505 for ef):     bxf_cor_matrices result:
 # ┌─────────┬─────────┐                   ┌─────────┬─────────┐
-# │  B×B    │  B×F    │        →          │    0    │  B×F    │
+# │  B×B    │  B×F    │        ->         │    0    │  B×F    │
 # ├─────────┼─────────┤                   ├─────────┼─────────┤
 # │  F×B    │  F×F    │                   │  F×B    │    0    │
 # └─────────┴─────────┘                   └─────────┴─────────┘
@@ -545,8 +193,46 @@ save(
 # my_cor_matrix <- read.table("example_data/correlation_matrix_bipartite.txt")
 # my_cutoff <- 0.757 # the correlation cutoff was determined in MENAP (http://ieg4.rccc.ou.edu/MENA/)
 
+# RMT cutoff for each site
+ef_rmt <- find_rmt_cutoff(
+  full_cor_matrices$ef,
+  cutoff_seq = seq(1, 0.10, by = -0.01),
+  n_bins = 15,
+  poly_degree = 5,
+  alpha = 0.05,
+  verbose = TRUE
+)
+ef_rmt$results
+ef_rmt$optimal_cutoff
+ef_rmt$plot
+
+lamps2018_rmt <- find_rmt_cutoff(
+  full_cor_matrices$lamps_2018,
+  cutoff_seq = seq(1, 0.10, by = -0.01),
+  n_bins = 15,
+  poly_degree = 5,
+  alpha = 0.05,
+  verbose = TRUE
+)
+lamps2018_rmt$results
+lamps2018_rmt$optimal_cutoff
+lamps2018_rmt$plot
+
+lamps2022_rmt <- find_rmt_cutoff(
+  full_cor_matrices$lamps_2022,
+  cutoff_seq = seq(1, 0.10, by = -0.01),
+  n_bins = 15,
+  poly_degree = 5,
+  alpha = 0.05,
+  verbose = TRUE
+)
+lamps2022_rmt$results
+lamps2022_rmt$optimal_cutoff
+lamps2022_rmt$plot
+
 # Within-kingdom networks
 
+## EF site
 ef_bact_net <- build_network(
   cor_mat = full_cor_matrices[[1]], # ef site
   bact_ids = rownames(aligned_matrices$ef$matx_b),
@@ -569,7 +255,7 @@ ef_bxf_net <- build_network(
   fungi_ids = rownames(aligned_matrices$ef$matx_f),
   cutoff = 0.25, # Testing with this cutoff. I need to determine with MENAP.
   kind = "cross"
-) # list(graph, trans_mat) for the network containing all fungal-bacterial links
+)
 
 #  how cross-kingdom edges restructure a network that also has within-kingdom edges
 ef_asym_net <- build_asym_network(
@@ -580,25 +266,105 @@ ef_asym_net <- build_asym_network(
   bxf_cutoff = 0.25
 )
 
-# tran_matrix_nonAMF = build_network(
-#   cor_mat   = my_cor_matrix, bact_ids = ..., fungi_ids = ...,
-#   cutoff    = my_cutoff, kind = "cross", rmv = amf_node_list
-# )
-# write.table(tran_matrix_nonAMF$trans_mat, "example_data/transition-matrix_nonAMF-bacteria.txt", sep = "\t", quote = F)
+## LAMPS 2018 site
+lamps_2018_bact_net <- build_network(
+  cor_mat = full_cor_matrices[[2]], # lamps_2018 site
+  bact_ids = rownames(aligned_matrices$lamps_2018$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2018$matx_f),
+  cutoff = 0.25, # Testing with this cutoff.
+  kind = "bacteria"
+)
+lamps_2018_fungi_net <- build_network(
+  cor_mat = full_cor_matrices[[2]], # lamps_2018 site
+  bact_ids = rownames(aligned_matrices$lamps_2018$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2018$matx_f),
+  cutoff = 0.25, # Testing with this cutoff.
+  kind = "fungi"
+)
+lamps_2018_bxf_net <- build_network(
+  cor_mat = bxf_cor_matrices[[2]], # lamps_2018 site
+  bact_ids = rownames(aligned_matrices$lamps_2018$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2018$matx_f),
+  cutoff = 0.25, # Testing with this cutoff. I need to determine with MENAP.
+  kind = "cross"
+)
+lamps_2018_asym_net <- build_asym_network(
+  cor_mat = full_cor_matrices[[2]], # lamps_2018 site
+  bact_ids = rownames(aligned_matrices$lamps_2018$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2018$matx_f),
+  within_cutoff = 0.25,
+  bxf_cutoff = 0.25
+)
 
-# tran_matrix_AMF = build_network(
-#   cor_mat   = my_cor_matrix, bact_ids = ..., fungi_ids = ...,
-#   cutoff    = my_cutoff, kind = "cross", keep = amf_node_list
-# )
-# write.table(tran_matrix_AMF$trans_mat, "example_data/transition-matrix_AMF-bacteria.txt", sep = "\t", quote = F)
+## LAMPS 2022 site
+lamps_2022_bact_net <- build_network(
+  cor_mat = full_cor_matrices[[3]], # lamps_2022 site
+  bact_ids = rownames(aligned_matrices$lamps_2022$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2022$matx_f),
+  cutoff = 0.25, # Testing with this cutoff.
+  kind = "bacteria"
+)
+lamps_2022_fungi_net <- build_network(
+  cor_mat = full_cor_matrices[[3]], # lamps_2022 site
+  bact_ids = rownames(aligned_matrices$lamps_2022$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2022$matx_f),
+  cutoff = 0.25, # Testing with this cutoff.
+  kind = "fungi"
+)
+lamps_2022_bxf_net <- build_network(
+  cor_mat = bxf_cor_matrices[[3]], # lamps_2022 site
+  bact_ids = rownames(aligned_matrices$lamps_2022$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2022$matx_f),
+  cutoff = 0.25, # Testing with this cutoff. I need to determine with MENAP.
+  kind = "cross"
+)
+lamps_2022_asym_net <- build_asym_network(
+  cor_mat = full_cor_matrices[[3]], # lamps_2022 site
+  bact_ids = rownames(aligned_matrices$lamps_2022$matx_b),
+  fungi_ids = rownames(aligned_matrices$lamps_2022$matx_f),
+  within_cutoff = 0.25,
+  bxf_cutoff = 0.25
+)
 
+# TODO
+waldo::compare(
+  ef_bxf_net$graph,
+  ef_asym_net$graph
+)
+# Save transition matrix
+all_networks <- list(
+  ef_bact_net = ef_bact_net,
+  ef_fungi_net = ef_fungi_net,
+  ef_bxf_net = ef_bxf_net,
+  ef_asym_net = ef_asym_net,
+  lamps_2018_bact_net = lamps_2018_bact_net,
+  lamps_2018_fungi_net = lamps_2018_fungi_net,
+  lamps_2018_bxf_net = lamps_2018_bxf_net,
+  lamps_2018_asym_net = lamps_2018_asym_net,
+  lamps_2022_bact_net = lamps_2022_bact_net,
+  lamps_2022_fungi_net = lamps_2022_fungi_net,
+  lamps_2022_bxf_net = lamps_2022_bxf_net,
+  lamps_2022_asym_net = lamps_2022_asym_net
+)
 write.table(
-  ef_subpt_net$trans_mat,
+  ef_bxf_net$trans_mat,
   "data/output/networks/ef_bxf_transition-matrix.txt",
   sep = "\t",
   quote = F
 )
 
+
+purrr::iwalk(
+  all_networks,
+  function(net, net_name) {
+    write.table(
+      net$trans_mat,
+      paste0("data/output/networks/", net_name, "_transition-matrix.txt"),
+      sep = "\t",
+      quote = FALSE
+    )
+  }
+)
 # Analyze networks ----
 # Calculates network topological features, node and link attributes, and
 # generates input files for visualization using Cytoscape and Gephi.
@@ -987,3 +753,145 @@ ef_metrics <- bind_rows(
   net_summary(ef_fungi_g2$graph, ef_bact_id, ef_fungi_id, "fungi"),
   net_summary(ef_cross_g2$graph, ef_bact_id, ef_fungi_id, "cross")
 )
+
+# Centrality shifts: bacteria-only → cross-kingdom ----
+# centrality_shift(g_bact, g_cross, site) compares degree/betweenness/eigenvector
+# centrality for bacteria in a bacteria-only graph vs. the bacterial subgraph of
+# the cross-kingdom network.
+
+# ── EF ──────────────────────────────────────────────────────────────────────
+
+ef_bact_id <- rownames(aligned_matrices$ef$matx_b)
+ef_fungi_id <- rownames(aligned_matrices$ef$matx_f)
+my_cutoff <- 0.25
+
+ef_bact_g <- build_network(
+  full_cor_matrices$ef,
+  ef_bact_id,
+  ef_fungi_id,
+  kind = "bacteria"
+)
+ef_fungi_g <- build_network(
+  full_cor_matrices$ef,
+  ef_bact_id,
+  ef_fungi_id,
+  kind = "fungi"
+)
+ef_bxf_g <- build_network(
+  bxf_cor_matrices$ef,
+  ef_bact_id,
+  ef_fungi_id,
+  kind = "cross"
+)
+ef_asym_g <- build_asym_network(
+  full_cor_matrices$ef,
+  ef_bact_id,
+  ef_fungi_id,
+  within_cutoff = my_cutoff,
+  bxf_cutoff = my_cutoff * 0.75
+)
+
+ef_shifts <- centrality_shift(ef_bact_g$graph, ef_bxf_g$graph, site = "ef")
+
+ef_metrics <- bind_rows(
+  network_summary(ef_bact_g$graph, site = "ef", kind = "bacteria"),
+  network_summary(ef_fungi_g$graph, site = "ef", kind = "fungi"),
+  network_summary(ef_bxf_g$graph, site = "ef", kind = "bxf"),
+  network_summary(ef_asym_g$graph, site = "ef", kind = "asym")
+)
+
+# ── LAMPS 2018 ───────────────────────────────────────────────────────────────
+
+lamps18_bact_id <- rownames(aligned_matrices$lamps_2018$matx_b)
+lamps18_fungi_id <- rownames(aligned_matrices$lamps_2018$matx_f)
+
+lamps18_bact_g <- build_network(
+  full_cor_matrices$lamps_2018,
+  lamps18_bact_id,
+  lamps18_fungi_id,
+  kind = "bacteria"
+)
+lamps18_fungi_g <- build_network(
+  full_cor_matrices$lamps_2018,
+  lamps18_bact_id,
+  lamps18_fungi_id,
+  kind = "fungi"
+)
+lamps18_bxf_g <- build_network(
+  bxf_cor_matrices$lamps_2018,
+  lamps18_bact_id,
+  lamps18_fungi_id,
+  kind = "cross"
+)
+lamps18_asym_g <- build_asym_network(
+  full_cor_matrices$lamps_2018,
+  lamps18_bact_id,
+  lamps18_fungi_id,
+  within_cutoff = my_cutoff,
+  bxf_cutoff = my_cutoff * 0.75
+)
+
+lamps18_shifts <- centrality_shift(
+  lamps18_bact_g$graph,
+  lamps18_bxf_g$graph,
+  site = "lamps_2018"
+)
+
+lamps18_metrics <- bind_rows(
+  network_summary(lamps18_bact_g$graph, site = "lamps_2018", kind = "bacteria"),
+  network_summary(lamps18_fungi_g$graph, site = "lamps_2018", kind = "fungi"),
+  network_summary(lamps18_bxf_g$graph, site = "lamps_2018", kind = "bxf"),
+  network_summary(lamps18_asym_g$graph, site = "lamps_2018", kind = "asym")
+)
+
+# ── LAMPS 2022 ───────────────────────────────────────────────────────────────
+
+lamps22_bact_id <- rownames(aligned_matrices$lamps_2022$matx_b)
+lamps22_fungi_id <- rownames(aligned_matrices$lamps_2022$matx_f)
+
+lamps22_bact_g <- build_network(
+  full_cor_matrices$lamps_2022,
+  lamps22_bact_id,
+  lamps22_fungi_id,
+  kind = "bacteria"
+)
+lamps22_fungi_g <- build_network(
+  full_cor_matrices$lamps_2022,
+  lamps22_bact_id,
+  lamps22_fungi_id,
+  kind = "fungi"
+)
+lamps22_bxf_g <- build_network(
+  bxf_cor_matrices$lamps_2022,
+  lamps22_bact_id,
+  lamps22_fungi_id,
+  kind = "cross"
+)
+lamps22_asym_g <- build_asym_network(
+  full_cor_matrices$lamps_2022,
+  lamps22_bact_id,
+  lamps22_fungi_id,
+  within_cutoff = my_cutoff,
+  bxf_cutoff = my_cutoff * 0.75
+)
+
+lamps22_shifts <- centrality_shift(
+  lamps22_bact_g$graph,
+  lamps22_bxf_g$graph,
+  site = "lamps_2022"
+)
+
+lamps22_metrics <- bind_rows(
+  network_summary(lamps22_bact_g$graph, site = "lamps_2022", kind = "bacteria"),
+  network_summary(lamps22_fungi_g$graph, site = "lamps_2022", kind = "fungi"),
+  network_summary(lamps22_bxf_g$graph, site = "lamps_2022", kind = "bxf"),
+  network_summary(lamps22_asym_g$graph, site = "lamps_2022", kind = "asym")
+)
+
+# ── Combined tables ───────────────────────────────────────────────────────────
+
+all_shifts <- bind_rows(ef_shifts, lamps18_shifts, lamps22_shifts)
+all_metrics <- bind_rows(ef_metrics, lamps18_metrics, lamps22_metrics)
+
+all_shifts
+all_metrics
