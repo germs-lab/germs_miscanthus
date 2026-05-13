@@ -10,20 +10,18 @@
 
 source("R/utils/00_setup.R")
 
-#--------------------------------------------------------
-# SECTION 1: Basic Exploration of Nested Phyloseq
-#--------------------------------------------------------
+# SECTION 1: Basic Exploration of Nested Phyloseq ----
 # Total abundance only
 
 # Energy Farm Collab
 # Examine the structure of your phyloseq list
-str(main_mxg_physeq_list, max.level = 2)
-names(main_mxg_physeq_list)
-length(main_mxg_physeq_list)
+str(main_physeq_list, max.level = 2)
+names(main_physeq_list)
+length(main_physeq_list)
 
 
 # Explore phyloseq
-purrr::iwalk(main_mxg_physeq_list, function(project_list, project_name) {
+purrr::iwalk(main_physeq_list, function(project_list, project_name) {
   cat("### PROJECT:", project_name, "###\n")
   purrr::iwalk(project_list, function(physeq_obj, region_name) {
     full_name <- paste(project_name, region_name, sep = "_")
@@ -33,7 +31,7 @@ purrr::iwalk(main_mxg_physeq_list, function(project_list, project_name) {
 
 # Summary tables
 physeq_summary <- purrr::imap_dfr(
-  main_mxg_physeq_list,
+  main_physeq_list,
   function(project_list, project_name) {
     purrr::imap_dfr(
       project_list,
@@ -60,16 +58,15 @@ physeq_summary <- purrr::imap_dfr(
 physeq_summary
 
 # Details for each phyloseq object in list
-nested_summary <- explore_nested_phyloseq(main_mxg_physeq_list)
+nested_summary <- explore_nested_phyloseq(main_physeq_list)
 
 nested_summary
 
-#--------------------------------------------------------
-# Read Count Analysis for Nested Phyloseq
-#--------------------------------------------------------
+
+# Read Count Analysis for Nested Phyloseq ----
 
 # Get read count data
-nested_read_counts <- analyze_read_counts(main_mxg_physeq_list)
+nested_read_counts <- analyze_read_counts(main_physeq_list)
 
 # Visualize read counts by project and sequencing type
 read_count_plots <- list(
@@ -131,14 +128,13 @@ read_count_plots <- list(
 # Display plots
 print(read_count_plots)
 
-# Rarafection curves ---------------------------------
-
-# Mapping for rarefaction curves - all datasets
+# Rarafection curves ----
+## Mapping for rarefaction curves - all datasets ----
 # This errors out with:
 # The total size of the 8 globals exported for future expression (‘FUN()’) is 600.41 MiB. This exceeds the maximum allowed size 100.00 MiB per by R option "future.globals.maxSize".
 
 # options(future.globals.maxSize = 1000 * 1024^2)
-# rarecurve_results <- main_mxg_physeq_list %>%
+# rarecurve_results <- main_physeq_list %>%
 #   purrr::imap(function(project_list, project_name) {
 #     purrr::imap(project_list, function(physeq_obj, physeq_name) {
 #       # Get phyloseq object name for plot title (clean up formatting)
@@ -185,7 +181,7 @@ print(read_count_plots)
 #     })
 #   })
 
-# Individual plotting of rare curves to avoid error on future.globals.maxSize
+## Individual plotting of rare curves to avoid error on future.globals.maxSize ----
 p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
   # Get phyloseq object name for plot title
 
@@ -249,42 +245,42 @@ p_iNEXt_list <- function(physeq_obj, q = c(0, 1, 2), nCores = 1, type = 1) {
   )
 }
 
-# Individual rarefaction curves for each dataset
+## Individual rarefaction curves for each dataset ----
 # This was complete block by block and saving to .rda object to avoid running again if failed
 
 ef_16S_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_ef$ef_16S_physeq,
+  main_physeq_list$mxg_ef$ef_16S_physeq,
   q = 0,
   nCores = 4,
   type = 1
 )
 ef_AMF_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_ef$ef_AMF_physeq,
+  main_physeq_list$mxg_ef$ef_AMF_physeq,
   q = 0,
   nCores = 4,
   type = 1
 )
 options(future.globals.maxSize = 1000 * 1024^2)
 lamps_16S_2018_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
+  main_physeq_list$mxg_lamps_2018$lamps_2018_16S_physeq,
   q = 0,
   nCores = 4,
   type = 1
 )
 lamps_ITS_2018_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2018$lamps_2018_ITS_physeq,
+  main_physeq_list$mxg_lamps_2018$lamps_2018_ITS_physeq,
   q = 0,
   nCores = 4,
   type = 1
 )
 lamps_16S_2022_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
+  main_physeq_list$mxg_lamps_2022$lamps_2022_16S_physeq,
   q = 0,
   nCores = 1,
   type = 1
 )
 lamps_AMF_2022_iNEXT <- p_iNEXt_list(
-  main_mxg_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
+  main_physeq_list$mxg_lamps_2022$lamps_2022_AMF_physeq,
   q = 0,
   nCores = 1,
   type = 1
@@ -312,7 +308,7 @@ cat("\n", rep("=", 40), "\n")
 cat("Rarefaction curves\n")
 cat(rep("=", 40), "\n")
 
-# Printing nicely ---------------------------
+# Printing nicely ----
 rarecurve_results %>%
   purrr::imap(function(project_list, project_name) {
     # Level 1: project_name = "mxg_ef"

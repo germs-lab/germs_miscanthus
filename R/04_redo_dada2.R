@@ -12,7 +12,9 @@
 library("Rcpp")
 library("dada2") #v1.38.0
 
-load("data/output/rdata/new_16S_DNS_seqtab.rda")
+load("data/output/rdata/new_16S_DNS_seqtab_02.rda")
+
+# SECTION 1: Taxonomy assignment with dada2::assignTaxonomy()
 
 set.seed(755) # random number generator for reproducibility
 silva.ref <- "data/input/databases/SILVA/silva_nr99_v138.2_toSpecies_trainset.fa" # CHANGE ME to location on your machine
@@ -22,11 +24,11 @@ cat("Taxonomy assignment\n")
 cat(rep("=", 40), "\n")
 
 taxa <- assignTaxonomy(
-    new_16S_DNA_seqtab,
-    silva.ref,
-    multithread = TRUE,
-    minBoot = 50,
-    tryRC = TRUE
+  new_16S_DNA_seqtab,
+  silva.ref,
+  multithread = TRUE,
+  minBoot = 50,
+  tryRC = TRUE
 ) # Multithread = FALSE in Windows. TRUE in Mac/Linux.
 
 
@@ -48,10 +50,10 @@ cat("Saving\n")
 cat(rep("=", 40), "\n")
 
 write.csv(
-    taxa,
-    "data/output/taxonomy/new_16S_DNA_tax.csv"
+  taxa,
+  "data/output/taxonomy/new_16S_DNA_tax.csv"
 )
 
 cat("\n", rep("=", 40), "\n")
-cat("Complete\n")
+cat("DADA2 Taxonomy Assignment Complete\n")
 cat(rep("=", 40), "\n")

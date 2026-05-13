@@ -11,6 +11,10 @@
 
 source("R/utils/00_setup.R")
 
+load("data/output/rdata/phyloseq/lamps_2018_physeq_list.rda")
+load("data/output/rdata/phyloseq/lamps_2022_physeq_list.rda")
+load("data/output/rdata/phyloseq/ef_physeq_list.rda")
+
 # Rebuild phyloseq objects ----
 ## Clean up to taxonomy table ----
 new_taxa_16S_DNA <- read.csv("data/output/taxonomy/new_16S_DNA_tax.csv") |>
@@ -22,6 +26,16 @@ rownames(new_taxa_16S_DNA) <- new_taxa_16S_DNA$sequence
 new_taxa_16S_DNA <- tax_table(as.matrix(new_taxa_16S_DNA))
 
 ## New main_16S_DNA_physeq_list ----
+lamps_2018_16S_DNA <- lamps_2018_physeq_list$lamps_2018_16S_physeq %>%
+  subset_samples(., nucleotide == "DNA") %>%
+  filter_taxa(., function(x) sum(x > 0) > 0, TRUE)
+
+main_16S_physeq_list <- list(
+  ef_16S_DNA = ef_physeq_list$ef_16S_physeq,
+  lamps_2018_16S_DNA = lamps_2018_16S_DNA,
+  lamps_2022_16S_DNA = lamps_2022_physeq_list$lamps_2022_16S_physeq
+)
+
 main_16S_physeq_list <- purrr::map(
   main_16S_physeq_list,
   function(project_names) {
@@ -38,6 +52,13 @@ purrr::map(main_16S_physeq_list, function(project_names) {
   dim(tax_table(project_names))
 })
 # All should have 8 columns (now it includes species column)
+
+## Save objects ----
+save(
+  main_16S_physeq_list,
+  file = "data/output/rdata/main_16S_physeq_list_05.rda"
+)
+
 
 # Relative Abundance Transformation ----
 transform_to_relab <- function(nested_list) {
@@ -99,10 +120,14 @@ transform_to_hellinger_single <- function(project_list) {
 }
 
 ## Relative abundance ----
-main_mxg_relab_psq_list <- transform_to_relab(main_mxg_physeq_list)
+main_16S_mxg_physeq_list <- subset_to_miscanthus(
+  main_16S_physeq_list,
+  crop_patterns = c("MXG", "M", "Miscanthus")
+)
+main_16S_mxg_relab_psq_list <- transform_to_relab(main_16S_mxg_physeq_list)
 
 ## Hellinger transformation ----
-main_mxg_hellgr_psq_list <- transform_to_hellinger(main_mxg_physeq_list)
+main_16S_mxg_hellgr_psq_list <- transform_to_hellinger(main_16S_mxg_physeq_list)
 main_hellgr_physeq_list <- transform_to_hellinger(main_physeq_list)
 
 main_16S_hellgr_physeq_list <- transform_to_hellinger_single(
@@ -110,44 +135,13 @@ main_16S_hellgr_physeq_list <- transform_to_hellinger_single(
 )
 
 ## Verify transformations ----
-purrr::map(main_mxg_relab_psq_list, function(project_list) {
+purrr::map(main_16S_mxg_relab_psq_list, function(project_list) {
   purrr::map(project_list, function(physeq_obj) {
     sample_sums(physeq_obj)
   })
 })
 
-main_hellgr_physeq_list$mxg_ef$ef_16S_physeq %>%
+main_hellgr_physeq_list$ef_physeq_list$ef_16S_physeq %>%
   otu_table() %>%
   as.matrix() %>%
   head() # Should see decimal values between 0 and 1
-
-
-# Phyloseq to DF
-# main_physeq_relabdf_list <- purrr::map(
-#   main_physeq_relab_list,
-#   function(project_list) {
-#     purrr::map(project_list, function(physeq_obj) {
-#       physeq2df(physeq_obj)
-#     })
-#   }
-# )
-
-# Save objects ----
-save(
-  main_mxg_physeq_list,
-  main_mxg_relab_psq_list,
-  main_mxg_hellgr_psq_list,
-  file = "data/output/rdata/main_mxg_psq_list.rda"
-)
-
-save(
-  main_hellgr_physeq_list,
-  file = "data/output/rdata/main_hellgr_physeq_list.rda"
-)
-
-save(main_16S_physeq_list, file = "data/output/rdata/main_16S_physeq_list.rda")
-
-save(
-  main_16S_hellgr_physeq_list,
-  file = "data/output/rdata/main_16S_hellgr_physeq_list.rda"
-)

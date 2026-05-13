@@ -10,9 +10,10 @@
 
 source("R/utils/00_setup.R")
 
-#--------------------------------------------------------
+# Pre-process
+main_mxg_physeq_list <- subset_to_miscanthus(main_physeq_list) # Contains  16S, ITS and AMF
+
 # SECTION 1: Alpha Diversity Analysis ----
-#--------------------------------------------------------
 
 # Calculate alpha diversity
 alpha_diversity_results_16S <- calculate_alpha_diversity(main_16S_physeq_list)
@@ -45,9 +46,8 @@ summary(alpha_diversity_df_16S[, c(
   "inv_simpson"
 )])
 
-#--------------------------------------------------------
+
 # SECTION 2: Alpha Diversity Plots ----
-#--------------------------------------------------------
 
 ## Define comparison mappings ----
 comparison_map <- list(
@@ -107,8 +107,8 @@ alpha_plot_workflow <- function(alpha_data, physeq_name, comp_map) {
   theme_settings <- list(
     theme_minimal(),
     theme(
-      plot.title = element_text(size = 8),
-      plot.subtitle = element_text(size = 6),
+      plot.title = element_text(size = 12),
+      plot.subtitle = element_text(size = 10),
       axis.text.x = element_text(angle = 45, hjust = 1),
       legend.position = "none"
     )
@@ -201,9 +201,7 @@ print(alpha_diversity_plots_16S)
 print(main_alpha_diversity_plots)
 
 
-#--------------------------------------------------------
 # SECTION 3: Beta Diversity Analysis ----
-#--------------------------------------------------------
 
 # # Calculate beta diversity (Bray-Curtis dissimilarity)
 beta_diversity_results_16S <- calculate_beta_diversity(
@@ -212,49 +210,99 @@ beta_diversity_results_16S <- calculate_beta_diversity(
   distance = "bray"
 )
 
-main_beta_diversity_results <- calculate_beta_diversity_nested(
-  main_physeq_list,
+mxg_beta_diversity_results <- calculate_beta_diversity(
+  main_mxg_physeq_list,
   method = "PCoA",
-  distance = "bray"
+  distance = "bray",
+  nested = TRUE
 )
 
 
-#--------------------------------------------------------
-# SECTION 4: Beta Diversity Plots (PCoA)
-#--------------------------------------------------------
+combined_df <- purrr::imap_dfr(
+  phyloseq_list,
+  function(project_list, project_name) {
+    purrr::imap_dfr(
+      project_list,
+      function(physeq_obj, physeq_name) {
+        physeq_filtered <- physeq_obj %>%
+          prune_samples(sample_sums(.) > 0, .) %>%
+          prune_taxa(taxa_sums(.) > 0, .) %>%
+          psmelt() %>%
+          select(OTU, Sample, Abundance) |>
+          mutate(project = project_name, nucleotide = )
+      }
+    )
+  }
+)
+test <- phyloseq::psmelt(main_mxg_physeq_list$ef$ef_16S_DNA) |>
+  select(OTU, Sample, Abundance) |>
+  mutate(project = "ef", nucleotide = "16S")
+# group_by(project, crop) %>%
+# summarise(n = n(), .groups = "drop")
 
-beta_plot_workflow <- function(beta_data, physeq_name) {
-  plot_title <- gsub("_physeq$", " ", physeq_name) %>%
-    str_to_upper(.)
-  # Ordination plot colored by crop
-  p_ordination <- plot_ordination(
-    beta_data$physeq,
-    beta_data$ordination,
-    type = "samples",
-    color = "crop"
-  ) +
-    geom_point(size = 3, alpha = 0.7) +
-    labs(
-      title = ifelse(
-        class(beta_data$ordination) == "nmds",
-        paste("NMDS (Bray-Curtis) -", plot_title),
-        paste("PCoA (Bray-Curtis) -", plot_title)
-      ),
-      color = "Crop"
-    ) +
-    theme_bw() +
-    theme(legend.position = "right")
+main_beta_diversity_results <- calculate_beta_diversity(
+  main_physeq_list,
+  method = "PCoA",
+  distance = "bray",
+  nested = TRUE
+)
 
-  return(p_ordination)
-}
+# SECTION 5: Alpha Diversity Summary Statistics
 
+# Summary table of alpha diversity by project and crop
+alpha_summary <- alpha_diversity_df_16S %>%
+  group_by(project, crop) %>%
+  summarise(
+    n = n(),
+    mean_observed = mean(observed, na.rm = TRUE),
+    sd_observed = sd(observed, na.rm = TRUE),
+    mean_shannon = mean(shannon, na.rm = TRUE),
+    sd_shannon = sd(shannon, na.rm = TRUE),
+    mean_simpson = mean(simpson, na.rm = TRUE),
+    sd_simpson = sd(simpson, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-# Create beta diversity plots for each phyloseq object
+cat("\n", rep("=", 40), "\n")
+cat("Alpha Diversity Summary by Project and Crop\n")
+cat(rep("=", 40), "\n")
+print(alpha_summary)
+
+# SECTION 5: Beta Diversity Plots (PCoA)
+## Beta diversity plots for each phyloseq object
 beta_diversity_plots_16S <-
   purrr::imap(beta_diversity_results_16S, function(beta_data, physeq_name) {
     beta_plot_workflow(beta_data = beta_data, physeq_name = physeq_name)
   })
 
+mxg_beta_diversity_plots <- purrr::imap(
+  mxg_beta_diversity_results,
+  function(project_list, project_name) {
+    purrr::imap(project_list, function(beta_data, physeq_name) {
+      beta_plot_workflow(
+        beta_data = beta_data,
+        physeq_name = physeq_name,
+        color = "crop"
+      )
+    })
+  }
+)
+
+combined_df <- purrr::imap_dfr(
+  main_mxg_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap_dfr(
+      project_list,
+      function(physeq_obj, physeq_name) {
+        physeq_filtered <- physeq_obj %>%
+          prune_samples(sample_sums(.) > 0, .) %>%
+          prune_taxa(taxa_sums(.) > 0, .) %>%
+          psmelt() %>%
+          mutate(project = project_name, physeq_name = physeq_name)
+      }
+    )
+  }
+)
 
 main_beta_diversity_plots <-
   purrr::imap(
@@ -271,88 +319,15 @@ main_beta_diversity_plots <-
 cat("\n", rep("=", 40), "\n")
 cat("Beta Diversity Project and Crop\n")
 cat(rep("=", 40), "\n")
-print(beta_diversity_plots)
-
+print(beta_diversity_plots_16S)
+print(mxg_beta_diversity_plots$ef)
 
 # Checkpoint
 alpha_beta_plots <- list(
-  alpha_diversity_plots = alpha_diversity_plots,
-  beta_diversity_plots = beta_diversity_plots
+  alpha_diversity_plots = alpha_diversity_plots_16S,
+  beta_diversity_plots = beta_diversity_plots_16S
 )
 # save(
 #   alpha_beta_plots,
 #   file = "data/output/rdata/alpha_beta_plots.rda"
 # )
-
-#--------------------------------------------------------
-# SECTION 5: PERMANOVA Analysis
-#--------------------------------------------------------
-
-# # Perform PERMANOVA for each phyloseq object
-# set.seed(123)
-# permanova_results <- purrr::imap(
-#   main_mxg_physeq_list,
-#   function(project_list, project_name) {
-#     purrr::imap(project_list, function(physeq_obj, physeq_name) {
-#       # Get distance matrix
-#       dist_matrix <- phyloseq::distance(physeq_obj, method = "bray")
-
-#       # Get sample data
-#       sampledf <- data.frame(sample_data(physeq_obj))
-
-#       # Run PERMANOVA (adonis2)
-#       perm_result <- vegan::adonis2(
-#         dist_matrix ~ crop,
-#         data = sampledf,
-#         permutations = 999
-#       )
-
-#       # Return results with metadata
-#       list(
-#         physeq_name = physeq_name,
-#         project = project_name,
-#         permanova = perm_result,
-#         n_samples = nsamples(physeq_obj)
-#       )
-#     })
-#   }
-# )
-
-# # Display PERMANOVA results
-# cat("\n", rep("=", 60), "\n")
-# cat("PERMANOVA Results Summary\n")
-# cat(rep("=", 60), "\n\n")
-
-# purrr::iwalk(permanova_results, function(project_list, project_name) {
-#   cat("\nPROJECT:", toupper(project_name), "\n")
-#   cat(rep("-", 40), "\n")
-
-#   purrr::iwalk(project_list, function(result, physeq_name) {
-#     cat("\n", physeq_name, "(n =", result$n_samples, "samples)\n")
-#     print(result$permanova)
-#     cat("\n")
-#   })
-# })
-
-#--------------------------------------------------------
-# SECTION 6: Summary Statistics
-#--------------------------------------------------------
-
-# Summary table of alpha diversity by project and crop
-alpha_summary <- alpha_diversity_df %>%
-  group_by(project, region, crop) %>%
-  summarise(
-    n = n(),
-    mean_observed = mean(observed, na.rm = TRUE),
-    sd_observed = sd(observed, na.rm = TRUE),
-    mean_shannon = mean(shannon, na.rm = TRUE),
-    sd_shannon = sd(shannon, na.rm = TRUE),
-    mean_simpson = mean(simpson, na.rm = TRUE),
-    sd_simpson = sd(simpson, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-cat("\n", rep("=", 40), "\n")
-cat("Alpha Diversity Summary by Project and Crop\n")
-cat(rep("=", 40), "\n")
-print(alpha_summary)

@@ -118,11 +118,14 @@ p_iNEXT_deep_parallel <- function(
   # Check total cores
   available_cores <- parallelly::availableCores()
   total_cores_needed <- sample_cores * bootstrap_cores
-  
+
   if (total_cores_needed > available_cores) {
     warning(sprintf(
       "Requested %d total cores (%d sample x %d bootstrap) but only %d available. Adjusting...",
-      total_cores_needed, sample_cores, bootstrap_cores, available_cores
+      total_cores_needed,
+      sample_cores,
+      bootstrap_cores,
+      available_cores
     ))
     # Adjust to fit available cores
     if (sample_cores > available_cores) {
@@ -136,14 +139,18 @@ p_iNEXT_deep_parallel <- function(
   if (verbose) {
     message(sprintf(
       "Deep parallelization: %d sample cores x %d bootstrap cores = ~%d total cores",
-      sample_cores, bootstrap_cores, sample_cores * bootstrap_cores
+      sample_cores,
+      bootstrap_cores,
+      sample_cores * bootstrap_cores
     ))
     message(sprintf("Available cores: %d", available_cores))
   }
 
   # Warning about memory
   if (verbose && total_cores_needed > 4) {
-    message("WARNING: Deep parallelization uses more memory. Monitor system resources.")
+    message(
+      "WARNING: Deep parallelization uses more memory. Monitor system resources."
+    )
   }
 
   # Set up nested future plans
@@ -168,31 +175,42 @@ p_iNEXT_deep_parallel <- function(
   }
 
   # Modified iNEXT function with internal parallelization
-  iNEXT_parallel_bootstrap <- function(Spec, q, datatype, endpoint, knots, conf, nboot, bootstrap_cores) {
+  iNEXT_parallel_bootstrap <- function(
+    Spec,
+    q,
+    datatype,
+    endpoint,
+    knots,
+    conf,
+    nboot,
+    bootstrap_cores
+  ) {
     # This is a simplified version that parallelizes the bootstrap
     # In practice, this would require deeper integration with iNEXT internals
-    
+
     # For now, we'll use the standard iNEXT but with guidance that
     # future versions could parallelize the bootstrap loop
-    
+
     # The bottleneck in iNEXT is in lines like:
     # Abun.Mat <- rmultinom(nboot, n, Prob.hat)
     # ses_m <- apply(matrix(apply(Abun.Mat, 2, function(x) TD.m.est(x, m, q)), ...), ...)
-    
+
     # To parallelize this, we would need to:
     # 1. Split nboot into chunks
     # 2. Process each chunk in parallel
     # 3. Combine results
-    
+
     # However, this requires modifying iNEXT source code
     # For now, fall back to standard iNEXT with a note
-    
+
     if (bootstrap_cores > 1) {
       # Future enhancement: split bootstrap into chunks
       # For now, use standard iNEXT
-      warning("Bootstrap-level parallelization not yet implemented. Using standard iNEXT.")
+      warning(
+        "Bootstrap-level parallelization not yet implemented. Using standard iNEXT."
+      )
     }
-    
+
     iNEXT::iNEXT(
       x = Spec,
       q = q,
@@ -210,24 +228,27 @@ p_iNEXT_deep_parallel <- function(
     function(i) {
       gc(verbose = FALSE, full = FALSE)
 
-      tryCatch({
-        iNEXT_parallel_bootstrap(
-          Spec = x[i, ],
-          q = q,
-          datatype = datatype,
-          endpoint = endpoint,
-          knots = knots,
-          conf = conf,
-          nboot = nboot,
-          bootstrap_cores = bootstrap_cores
-        )
-      }, error = function(e) {
-        list(
-          error = TRUE,
-          sample_name = rownames(x)[i],
-          message = as.character(e)
-        )
-      })
+      tryCatch(
+        {
+          iNEXT_parallel_bootstrap(
+            Spec = x[i, ],
+            q = q,
+            datatype = datatype,
+            endpoint = endpoint,
+            knots = knots,
+            conf = conf,
+            nboot = nboot,
+            bootstrap_cores = bootstrap_cores
+          )
+        },
+        error = function(e) {
+          list(
+            error = TRUE,
+            sample_name = rownames(x)[i],
+            message = as.character(e)
+          )
+        }
+      )
     },
     future.seed = TRUE,
     future.scheduling = 2.0
@@ -293,20 +314,20 @@ p_iNEXT_deep_parallel <- function(
 #'    # PARALLEL VERSION:
 #'    Prob.hat <- EstiBootComm.Ind(Spec)
 #'    Abun.Mat <- rmultinom(nboot, n, Prob.hat)
-#'    
+#'
 #'    # Split bootstrap replicates into chunks
-#'    boot_chunks <- split(seq_len(nboot), 
+#'    boot_chunks <- split(seq_len(nboot),
 #'                         cut(seq_len(nboot), breaks = bootstrap_cores))
-#'    
+#'
 #'    # Process each chunk in parallel
 #'    boot_results <- future.apply::future_lapply(boot_chunks, function(chunk_idx) {
 #'      chunk_mat <- Abun.Mat[, chunk_idx, drop = FALSE]
 #'      apply(chunk_mat, 2, function(x) TD.m.est(x, m, q))
 #'    }, future.seed = TRUE)
-#'    
+#'
 #'    # Combine results
 #'    all_boot_results <- do.call(cbind, boot_results)
-#'    ses_m <- apply(matrix(all_boot_results, nrow = length(Dq.hat)), 
+#'    ses_m <- apply(matrix(all_boot_results, nrow = length(Dq.hat)),
 #'                   1, sd, na.rm=TRUE)
 #'    ```
 #'
@@ -342,7 +363,7 @@ p_iNEXT_deep_parallel <- function(
 #' # Process samples in batches to manage memory
 #' batch_size <- 10
 #' batches <- split(seq_len(nrow(x)), ceiling(seq_len(nrow(x)) / batch_size))
-#' 
+#'
 #' all_results <- lapply(batches, function(batch_idx) {
 #'   p_iNEXT(
 #'     x[batch_idx, ],
@@ -351,7 +372,7 @@ p_iNEXT_deep_parallel <- function(
 #'     combine = FALSE
 #'   )
 #' })
-#' 
+#'
 #' # Combine all batches
 #' all_results <- unlist(all_results, recursive = FALSE)
 #' combined <- combine_iNEXT_list(all_results)

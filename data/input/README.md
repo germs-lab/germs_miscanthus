@@ -11,6 +11,8 @@ LOCAL_BASE="/home/baponte/gdrive_local/post_doc/DOE-CABBI/bolivar/germs_miscanth
 
 ## Summary
 
+***This was originally copied from the GERMS lab Box. Since then Iowa State has ditched Box unlimited storage thus GERMS lab moxed to Google Drive. It should hold the same directory structure***. -BAR 2026-27-02
+
 | Dataset | Origin (Box) | Destination (local) |
 |------------------------|------------------------|------------------------|
 | LAMPS — RNA amplicon sequencing | Box:GERMS-DATAMAN/DOE-CABBI/LAMPS/RNA\\ amplicon\\ sequencing/ | /home/baponte/gdrive_local/post_doc/DOE-CABBI/bolivar/germs_miscanthus/data/input/LAMPS/RNA_amplicon_sequencing/ |
@@ -18,7 +20,13 @@ LOCAL_BASE="/home/baponte/gdrive_local/post_doc/DOE-CABBI/bolivar/germs_miscanth
 | Energy Farm Collab — 16S | Box:GERMS-DATAMAN/DOE-CABBI/Energy Farm Collab/R/files_for_phyloseq_16S/ | /home/baponte/gdrive_local/post_doc/DOE-CABBI/bolivar/germs_miscanthus/data/input/energy_farm_collab/files_for_phyloseq_16S/ |
 | Energy Farm Collab — AMF | Box:GERMS-DATAMAN/DOE-CABBI/Energy Farm Collab/R/files_for_phyloseq_AMF/ | /home/baponte/gdrive_local/post_doc/DOE-CABBI/bolivar/germs_miscanthus/data/input/energy_farm_collab/files_for_phyloseq_AMF/ |
 
-Notes: - Corrected destination typos for clarity and consistency: - LAMPS DNA destination: added missing slash and fixed spelling to `.../LAMPS/DNA_amplicon_sequencing/` (was `LAMPSDNA_amplicon_sequnencing`). - Energy Farm AMF destination: fixed to `.../files_for_phyloseq_AMF/` (was `files_for_phylose_AMF`).
+**Notes:**
+
+-   Corrected destination typos for clarity and consistency:
+
+-   LAMPS DNA destination: added missing slash and fixed spelling to `.../LAMPS/DNA_amplicon_sequencing/` (was `LAMPSDNA_amplicon_sequnencing`).
+
+-   Energy Farm AMF destination: fixed to `.../files_for_phyloseq_AMF/` (was `files_for_phylose_AMF`).
 
 ## Details and `rclone` commands
 
