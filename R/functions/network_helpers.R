@@ -9,13 +9,14 @@
 # [align_taxa()/align_samples()] - align phyloseq objects to shared taxa/samples
 #       │
 #       ▼
-#   [build_network()]      - .cor2tran():correlation matrix → list(graph, trans_mat) (single cutoff)
+#   [build_network()]      - .cor2tran():correlation matrix -> list(graph, trans_mat) (single cutoff)
 #                          - .add_attributes(): adds node attributes: degree, module, zi/pi roles. link attributes: kingdom (bacteria/fungi)
 
-#   [build_asym_network()]- correlation matrix → list(graph, trans_mat) (separate within/cross cutoffs)
+#   [build_asym_network()]- correlation matrix -> list(graph, trans_mat) (separate within/cross cutoffs)
 #       │
 #       ▼
 # [network_properties()]   - calculates network-level properties: node/edge counts, density, transitivity, modularity, power law fit, etc.
+# [network_summary()]
 #   [centrality_shift()]   - compare node centrality: e.g.,bacteria-only vs cross-kingdom
 #   [cyto_gephi_output()]  - export node/edge tables for Cytoscape / Gephi
 
@@ -82,26 +83,26 @@ align_samples <- function(ps1, ps2) {
 
 # Matrix types and network topologies:
 
-# * full_cor_matrices — B×B ✓, F×F ✓, B×F ✓ → Mixed: all within + cross edges
-# * bxf_cor_matrices — B×B 0, F×F 0, B×F ✓ → Strict bipartite: B×F edges only
-# * build_asym_network(full_cor_matrices) — B×B ✓ within_cutoff, F×F ✓ within_cutoff, B×F ✓ bxf_cutoff → Mixed with asymmetric cutoffs
+# * full_cor_matrices — B×B ✓, F×F ✓, B×F ✓ -> Mixed: all within + cross edges
+# * bxf_cor_matrices — B×B 0, F×F 0, B×F ✓ -> Strict bipartite: B×F edges only
+# * build_asym_network(full_cor_matrices) — B×B ✓ within_cutoff, F×F ✓ within_cutoff, B×F ✓ bxf_cutoff -> Mixed with asymmetric cutoffs
 
 # Practical implication for your analysis:
 
-# ef_bxf_net → use for bipartite ecological metrics (networklevel(), NODF)
-# ef_bact_net / ef_fungi_net → use for within-kingdom topology and RMT null model
-# build_asym_network(full_cor_matrices) → use when you want to ask how cross-kingdom edges restructure a network that also has within-kingdom edges
+# ef_bxf_net -> use for bipartite ecological metrics (networklevel(), NODF)
+# ef_bact_net / ef_fungi_net -> use for within-kingdom topology and RMT null model
+# build_asym_network(full_cor_matrices) -> use when you want to ask how cross-kingdom edges restructure a network that also has within-kingdom edges
 
 ## Graph construction ----
 
-# build_network: correlation matrix → list(graph, trans_mat)
+# build_network: correlation matrix -> list(graph, trans_mat)
 # Subsets to bacteria, fungi, or both kingdoms, applies a single |r| >= cutoff,
 # drops isolated nodes, assigns edge sign and vertex kingdom.
 # Optionally subsets to a focal neighbourhood (keep) or excludes nodes (rmv).
 # Returns list: $graph = igraph object, $trans_mat = filtered correlation matrix.
 .cor2tran <- function(cor_mat, cutoff, keep = c(), rmv = c()) {
-  diag(cor_mat) <- 0
-  cor_mat[abs(cor_mat) < cutoff] <- 0
+  diag(cor_mat) <- 0 # Diagonal thresholding is redundant but ensures no self-loops if the input matrix isn't pre-zeroed on the diagonal.
+  cor_mat[abs(cor_mat) < cutoff] <- 0 # Zero out weak correlations
 
   # drop isolated nodes
   cor_mat <- cor_mat[rowSums(cor_mat) != 0, colSums(cor_mat) != 0]
@@ -136,7 +137,10 @@ align_samples <- function(ps1, ps2) {
 
 
 .add_attributes <- function(graph, tran_mat, bact_ids, fungi_ids) {
-  # Graph annotation logic (same as in add_node_attribute() and add_link_attribute())
+  if (igraph::vcount(graph) == 0) {
+    cli::cli_alert("Returning the same graph object. No vertices found")
+    return(graph)
+  }
 
   # Link sign assignment logic (same as in add_link_attribute())
   if (igraph::ecount(graph) > 0) {
@@ -239,7 +243,7 @@ build_network <- function(
   )
 }
 
-# build_asym_network: correlation matrix → list(graph, trans_mat) with asymmetric cutoffs
+# build_asym_network: correlation matrix -> list(graph, trans_mat) with asymmetric cutoffs
 # Like build_network() but applies separate thresholds for within-kingdom edges
 # (within_cutoff) and cross-kingdom bacteria–fungi edges (bf_cutoff).
 # Use this when B–F correlations are structurally weaker than within-kingdom ones.
@@ -514,77 +518,90 @@ cyto_gephi_output <- function(graph_with_all_attributes) {
 
 ## RMT cutoff ----
 
-# find_rmt_cutoff: Random Matrix Theory-based correlation threshold selection.
-#
-# Algorithm (Zhou et al. 2010 / Luo et al. 2006 — the MENA approach):
-#   For each candidate cutoff in `cutoff_seq`:
-#     1. Threshold `cor_mat`: zero entries where |r| < cutoff.
-#     2. Compute eigenvalues of the symmetric thresholded matrix.
-#     3. Unfold eigenvalues: map them through a polynomial-smoothed empirical
-#        CDF so that spacings have unit mean (removes the bulk shape).
-#     4. Compute Nearest Neighbor Spacing Distribution (NNSD):
-#        s_i = lambda_{i+1} - lambda_i of the unfolded eigenvalues.
-#     5. Bin NNSD into `n_bins` bins over s in [0, 3] and chi-square test
-#        against:
-#          - Poisson:       p(s) = exp(-s)           (random, no structure)
-#          - Wigner (GOE):  p(s) = (pi/2)*s*exp(-pi/4*s^2)  (structured)
-#   Optimal cutoff: highest threshold at which Poisson is still *rejected*
-#   (p_poisson < alpha) — i.e., the network retains biological signal.
-#
-# @param cor_mat      Symmetric correlation matrix (output of full_cor_matrices
-#                     or bxf_cor_matrices). Diagonal is ignored.
-# @param cutoff_seq   Numeric vector of candidate thresholds to sweep,
-#                     e.g. seq(0.50, 0.10, by = -0.01).
-# @param n_bins       Number of histogram bins for NNSD (default 15).
-# @param poly_degree  Degree of polynomial used to unfold eigenvalues (default 5).
-# @param alpha        Significance level for Poisson rejection (default 0.05).
-# @param verbose      Print progress for each cutoff step (default FALSE).
-#
-# @return A list with:
-#   $results        tibble — one row per cutoff: cutoff, n_eigenvalues,
-#                   chi2_poisson, p_poisson, chi2_wigner, p_wigner,
-#                   poisson_rejected, wigner_rejected.
-#   $optimal_cutoff scalar — highest cutoff where poisson_rejected is TRUE.
-#   $plot           ggplot — chi2 statistics vs. cutoff with transition marked.
-#
-# Usage:
-#   rmt <- find_rmt_cutoff(full_cor_matrices$ef)
-#   rmt$optimal_cutoff
-#   rmt$plot
-#   rmt$results
+#' find_rmt_cutoff: Random Matrix Theory-based correlation threshold selection.
+#'
+#' Algorithm (Zhou et al. 2010 / Luo et al. 2006 — the MENA approach):
+#'   For each candidate cutoff in `cutoff_seq`:
+#'     1. Threshold `cor_mat`: zero entries where |r| < cutoff.
+#'     2. Compute eigenvalues of the symmetric thresholded matrix.
+#'     3. Unfold eigenvalues via a natural cubic spline fit to the empirical
+#'        staircase function N(E).
+#'        This maps the eigenvalues so that spacings have unit mean (removes
+#'        the bulk shape).
+#'     4. Compute Nearest Neighbor Spacing Distribution (NNSD):
+#'        s_i = lambda_{i+1} - lambda_i of the unfolded eigenvalues.
+#'     5. Bin NNSD into `n_bins` bins over s in [0, 3] and chi-square test
+#'        against:
+#'          - Poisson:       p(s) = exp(-s)           (random, no structure)
+#'          - Wigner (Gaussian orthogonal ensemble -GOE):  p(s) = (pi/2)*s*exp
+#'            (-pi/4*s^2)  (structured)
+#'   Optimal cutoff: highest threshold at which Poisson is still *rejected*
+#'   (p_poisson < alpha) — i.e., the network retains biological signal.
+#'
+#' @param cor_mat      Symmetric correlation matrix (output of full_cor_matrices
+#'                     or bxf_cor_matrices). Diagonal is ignored.
+#' @param bact_ids     Character vector of bacterial OTU IDs.
+#' @param fungi_ids    Character vector of fungal OTU IDs.
+#' @param kind         "bacteria", "fungi", or "cross" - which submatrix to analyze.
+#'
+#' @param cutoff_seq   Numeric vector of candidate thresholds to sweep,
+#'                     e.g. seq(0.50, 0.10, by = -0.01).
+#' @param n_bins       Number of histogram bins for NNSD (default 15).
+#' @param alpha        Significance level for Poisson rejection (default 0.05).
+#' @param verbose      Print progress for each cutoff step (default FALSE).
+#'
+#' @return A list with:
+#'   $results        tibble — one row per cutoff: cutoff, n_eigenvalues,
+#'                   chi2_poisson, p_poisson, chi2_wigner, p_wigner,
+#'                   poisson_rejected, wigner_rejected.
+#'   $optimal_cutoff scalar — highest cutoff where poisson_rejected is TRUE.
+#'   $plot           ggplot — chi2 statistics vs. cutoff with transition marked.
+#'
+#' @examples
+#' rmt <- find_rmt_cutoff(full_cor_matrices$ef)
+#' rmt$optimal_cutoff
+#' rmt$plot
+#' rmt$results
+#'
+
 find_rmt_cutoff <- function(
   cor_mat,
+  bact_ids = NULL,
+  fungi_ids = NULL,
+  kind = "cross",
   cutoff_seq = seq(0.50, 0.10, by = -0.01),
   n_bins = 15,
-  poly_degree = 5,
   alpha = 0.05,
   verbose = FALSE
 ) {
-  # 0. Helpers ----───────
+  # 0. Helpers ----
 
   # Wigner-Dyson (GOE) density over bin midpoints
-  .wigner_pdf <- function(s) (pi / 2) * s * exp(-(pi / 4) * s^2)
+  .wigner_phf <- function(s) (pi / 2) * s * exp(-(pi / 4) * s^2)
 
   # Poisson density over bin midpoints
-  .poisson_pdf <- function(s) exp(-s)
+  .poisson_phf <- function(s) exp(-s)
 
-  # Unfold eigenvalues: polynomial fit to empirical CDF → unit-mean spacings
-  .unfold <- function(eigs, degree) {
+  # Unfold eigenvalues via a natural cubic spline fit to the empirical staircase function N(E).
+  .unfold <- function(eigs) {
     eigs <- sort(eigs)
     n <- length(eigs)
-    ecdf_vals <- seq_len(n) / n
-    fit <- stats::lm(ecdf_vals ~ poly(eigs, degree, raw = TRUE))
-    unfolded <- stats::fitted(fit) * n
-    sort(unfolded)
+    staircase <- seq_len(n) # N(E_i) = i
+
+    # Natural cubic spline interpolating the staircase N_av(E)
+    spline_fn <- stats::splinefun(x = eigs, y = staircase, method = "natural")
+
+    # Unfolded spectrum: e_i = N_av(E_i)
+    spline_fn(eigs)
   }
 
   # Chi-square GOF: observed vs. expected bin counts
-  .chisq_gof <- function(spacings, pdf_fn, breaks) {
+  .chisq_gof <- function(spacings, phf_fn, breaks) {
     obs <- as.numeric(
       graphics::hist(spacings, breaks = breaks, plot = FALSE)$counts
     )
     mids <- (breaks[-length(breaks)] + breaks[-1]) / 2
-    expected_probs <- pdf_fn(mids)
+    expected_probs <- phf_fn(mids)
     expected_probs <- expected_probs / sum(expected_probs)
     exp_counts <- expected_probs * length(spacings)
 
@@ -604,8 +621,42 @@ find_rmt_cutoff <- function(
   }
 
   # 1. Prepare matrix ----
-  mat0 <- cor_mat
-  diag(mat0) <- 0
+  cli::cli_h1("Finding RMT cutoff for kind='{kind}'")
+
+  nodes <- rownames(cor_mat)
+
+  if (!is.null(bact_ids)) {
+    cli::cli_alert_info(
+      "Filtering to {length(intersect(bact_ids, nodes))} bacterial IDs for kind='{kind}'."
+    )
+    b_ids <- intersect(bact_ids, nodes)
+  } else {
+    b_ids <- character(0)
+  }
+  if (!is.null(fungi_ids)) {
+    cli::cli_alert_info(
+      "Filtering to {length(intersect(fungi_ids, nodes))} fungal IDs for kind='{kind}'."
+    )
+    f_ids <- intersect(fungi_ids, nodes)
+  } else {
+    f_ids <- character(0)
+  }
+
+  idx <- switch(kind, bacteria = b_ids, fungi = f_ids, cross = c(b_ids, f_ids))
+
+  mat0 <- cor_mat[idx, idx]
+
+  if (is.null(bact_ids) && is.null(fungi_ids)) {
+    cli::cli_alert_info(
+      "No bacterial or fungal IDs provided. Analyzing the full matrix."
+    )
+    mat0 <- cor_mat
+  }
+
+  cli::cli_alert_info(
+    "Analyzing a {nrow(mat0)}×{ncol(mat0)} matrix for kind='{kind}'."
+  )
+  diag(mat0) <- 0 # Avoid self-loops
 
   breaks <- seq(0, 3, length.out = n_bins + 1)
 
@@ -613,6 +664,12 @@ find_rmt_cutoff <- function(
   results_list <- vector("list", length(cutoff_seq))
   spacings_cache <- list() # named by cutoff string; populated for every valid step
 
+  progressbar_calc_rmt <- cli::cli_progress_bar(
+    name = "Calculating RMT cutoff",
+    total = length(cutoff_seq),
+    format = "{cli::pb_bar} {cli::pb_percent} | ETA: {cli::pb_eta}",
+    .auto_close = TRUE
+  )
   for (i in seq_along(cutoff_seq)) {
     thr <- cutoff_seq[i]
     mat_thr <- mat0
@@ -625,7 +682,11 @@ find_rmt_cutoff <- function(
 
     if (n_keep < 10) {
       if (verbose) {
-        message(sprintf("cutoff %.3f -> %d nodes, skipping", thr, n_keep))
+        cli::cli_inform(sprintf(
+          "cutoff %.3f -> %d nodes, skipping",
+          thr,
+          n_keep
+        ))
       }
       results_list[[i]] <- tibble::tibble(
         cutoff = thr,
@@ -647,7 +708,7 @@ find_rmt_cutoff <- function(
     eigs <- eigs[-which.max(eigs)]
 
     # Unfold
-    unfolded <- tryCatch(.unfold(eigs, poly_degree), error = function(e) NULL)
+    unfolded <- tryCatch(.unfold(eigs), error = function(e) NULL)
     if (is.null(unfolded) || length(unfolded) < 5) {
       results_list[[i]] <- tibble::tibble(
         cutoff = thr,
@@ -669,11 +730,11 @@ find_rmt_cutoff <- function(
     # Cache spacings for the NNSD panel plot (step 5)
     spacings_cache[[as.character(round(thr, 4))]] <- spacings
 
-    res_p <- .chisq_gof(spacings, .poisson_pdf, breaks)
-    res_w <- .chisq_gof(spacings, .wigner_pdf, breaks)
+    res_p <- .chisq_gof(spacings, .poisson_phf, breaks)
+    res_w <- .chisq_gof(spacings, .wigner_phf, breaks)
 
     if (verbose) {
-      message(sprintf(
+      cli::cli_inform(sprintf(
         "cutoff %.3f | n=%d | chi2_Poisson=%.2f (p=%.3f) | chi2_Wigner=%.2f (p=%.3f)",
         thr,
         length(eigs),
@@ -694,6 +755,8 @@ find_rmt_cutoff <- function(
       poisson_rejected = !is.na(res_p$p) & res_p$p < alpha,
       wigner_rejected = !is.na(res_w$p) & res_w$p < alpha
     )
+
+    cli::cli_progress_update(id = progressbar_calc_rmt)
   }
 
   results <- dplyr::bind_rows(results_list)
@@ -704,7 +767,7 @@ find_rmt_cutoff <- function(
   candidates <- results |> dplyr::filter(poisson_rejected == TRUE)
 
   if (nrow(candidates) == 0) {
-    warning(
+    cli::cli_alert_warning(
       "find_rmt_cutoff: Poisson never rejected across the cutoff range. ",
       "The matrix may lack signal or cutoff_seq range is inappropriate. ",
       "Returning NA for optimal_cutoff."
@@ -714,7 +777,16 @@ find_rmt_cutoff <- function(
     optimal <- max(candidates$cutoff)
   }
 
+  cli::cli_alert_success(
+    "RMT cutoff analysis complete. Optimal cutoff: {round(optimal, 3)}"
+  )
+
   # 4. Diagnostic chi-squared plot ----
+  cli::cli_h2("RMT cutoff diagnostic plots")
+  cli::cli_alert_info(
+    "Generating RMT cutoff diagnostic plot: chi-squared vs. cutoff with optimal marked."
+  )
+
   plot_df <- results |>
     dplyr::filter(!is.na(chi2_poisson)) |>
     tidyr::pivot_longer(
@@ -770,12 +842,16 @@ find_rmt_cutoff <- function(
   # 5. NNSD panel plot: top-3 valid cutoffs vs. theoretical distributions ----
   # Select the 3 cutoffs with the most spacings (most connected networks) that
   # are spread across the tested range (low / mid / high relative to optimal).
+
+  cli::cli_alert_info(
+    "Generating NNSD panel plot for selected cutoffs: observed vs. Poisson and Wigner-Dyson."
+  )
   valid_keys <- names(spacings_cache)
   valid_thr <- as.numeric(valid_keys)
 
   if (length(valid_thr) >= 3) {
     # Evenly sample 3 indices across the sorted valid cutoff range
-    sorted_idx <- base::order(valid_thr, decreasing = TRUE) # high → low cutoff
+    sorted_idx <- base::order(valid_thr, decreasing = TRUE) # high -> low cutoff
     panel_idx <- sorted_idx[round(seq(1, length(sorted_idx), length.out = 3))]
     panel_thr <- valid_thr[panel_idx]
   } else {

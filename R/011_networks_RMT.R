@@ -47,13 +47,15 @@ site_fungi_list <- list(
 )
 
 # Prevalence-filter each site independently
+# These should be informed by abundance occupancy curves and the distribution of prevalence values for each dataset. For now, I'm using 10% on all datasets as a starting point for exploratory analysis, but this should be data-driven and may differ for bacteria vs fungi and across sites. See "reports/mxg_abun_occu_report.pdf" for more details on the curves.
+
 bact_filtered <- purrr::map(
   site_bact_list,
-  ~ prev_filter(.x, prev_thresh = 0.2)
+  ~ prev_filter(.x, prev_thresh = 0.1, min_count = 2)
 )
 fungi_filtered <- purrr::map(
   site_fungi_list,
-  ~ prev_filter(.x, prev_thresh = 0.2)
+  ~ prev_filter(.x, prev_thresh = 0.1, min_count = 2)
 )
 
 # Joining
@@ -127,16 +129,16 @@ full_cor_matrices <- purrr::imap(
 
     ## choose correlation methods from: 1) Spearman; 2) Pearson; 3) central log-ratio Pearson
     # 1) Spearman
-    # otu_matx_cor = cor(t(otu_matx), method = "spearman")
+    otu_matx_cor = cor(t(otu_matx), method = "spearman")
 
     # # 2) Pearson, used in this study
     # otu_matx_cor = cor(t(otu_matx), method = "pearson")
 
     # 3) central log-ratio Pearson
-    clr <- apply((otu_matx + 1), 2, function(xc) {
-      log(xc, 2) - sum(log(xc, 2)) / length(xc)
-    })
-    cor(t(clr), method = "pearson")
+    # clr <- apply((otu_matx + 1), 2, function(xc) {
+    #   log(xc, 2) - sum(log(xc, 2)) / length(xc)
+    # })
+    # cor(t(clr), method = "pearson")
   }
 )
 
@@ -188,23 +190,20 @@ save(
 
 # Networks and Subnetworks ----
 
-# amf_node_list = read.table("example_data/OTU_list_AMF-in-network_22.txt")$V1
-
-# my_cor_matrix <- read.table("example_data/correlation_matrix_bipartite.txt")
-# my_cutoff <- 0.757 # the correlation cutoff was determined in MENAP (http://ieg4.rccc.ou.edu/MENA/)
-
 # RMT cutoff for each site
-ef_rmt <- find_rmt_cutoff(
+ef_bact_rmt <- find_rmt_cutoff(
   full_cor_matrices$ef,
+  bact_ids = rownames(aligned_matrices$ef$matx_b),
+  kind = "bacteria",
   cutoff_seq = seq(1, 0.10, by = -0.01),
   n_bins = 15,
-  poly_degree = 5,
   alpha = 0.05,
-  verbose = TRUE
+  verbose = FALSE
 )
-ef_rmt$results
-ef_rmt$optimal_cutoff
-ef_rmt$plot
+print(ef_bact_rmt$results, n = 30)
+ef_bact_rmt$optimal_cutoff
+ef_bact_rmt$plot
+ef_bact_rmt$nnsd_plot
 
 lamps2018_rmt <- find_rmt_cutoff(
   full_cor_matrices$lamps_2018,
@@ -237,7 +236,7 @@ ef_bact_net <- build_network(
   cor_mat = full_cor_matrices[[1]], # ef site
   bact_ids = rownames(aligned_matrices$ef$matx_b),
   fungi_ids = rownames(aligned_matrices$ef$matx_f),
-  cutoff = 0.25, # Testing with this cutoff.
+  cutoff = 0.25,
   kind = "bacteria"
 )
 
@@ -370,8 +369,8 @@ purrr::iwalk(
 # generates input files for visualization using Cytoscape and Gephi.
 
 # Subesetting
-my_graph <- ef_subpt_net$graph
-my_tranmatx <- ef_subpt_net$trans_mat
+my_graph <- ef_bact_net$graph
+my_tranmatx <- ef_bact_net$trans_mat
 
 
 # Graph properties
