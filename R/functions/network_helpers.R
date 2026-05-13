@@ -871,23 +871,26 @@ find_rmt_cutoff <- function(
     key <- as.character(round(thr_val, 4))
     sp <- spacings_cache[[key]]
     h <- graphics::hist(sp, breaks = breaks, plot = FALSE)
-    # Normalise so area ≈ 1 (probability density)
     bin_width <- diff(h$breaks)[1]
     tibble::tibble(
       cutoff = thr_val,
       s = h$mids,
-      density = h$density # already density (counts / (n * bin_width))
+      density = h$density
     )
-  }) |>
-    dplyr::mutate(
-      facet_label = factor(
-        paste0("r = ", sprintf("%.2f", cutoff)),
-        levels = paste0(
-          "r = ",
-          sprintf("%.2f", sort(panel_thr, decreasing = TRUE))
+  })
+
+  if (nrow(nnsd_hist_df) > 0) {
+    nnsd_hist_df <- nnsd_hist_df |>
+      dplyr::mutate(
+        facet_label = factor(
+          paste0("r = ", sprintf("%.2f", cutoff)),
+          levels = paste0(
+            "r = ",
+            sprintf("%.2f", sort(panel_thr, decreasing = TRUE))
+          )
         )
       )
-    )
+  }
 
   nnsd_p <- ggplot2::ggplot() +
     # Observed NNSD as bars
@@ -932,3 +935,4 @@ find_rmt_cutoff <- function(
     nnsd_plot = nnsd_p
   )
 }
+#TODO fix NNSD plot

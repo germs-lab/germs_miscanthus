@@ -205,6 +205,17 @@ ef_bact_rmt$optimal_cutoff
 ef_bact_rmt$plot
 ef_bact_rmt$nnsd_plot
 
+ef_fungi_rmt2 <- find_rmt_cutoff(
+  full_cor_matrices$ef,
+  fungi_ids = rownames(aligned_matrices$ef$matx_f),
+  kind = "fungi",
+  cutoff_seq = seq(1, 0.10, by = -0.01),
+  n_bins = 15,
+  alpha = 0.05,
+  verbose = FALSE
+)
+#TODO
+
 lamps2018_rmt <- find_rmt_cutoff(
   full_cor_matrices$lamps_2018,
   cutoff_seq = seq(1, 0.10, by = -0.01),
