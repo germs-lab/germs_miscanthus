@@ -584,7 +584,7 @@ find_rmt_cutoff <- function(
 
   # Unfold eigenvalues via a natural cubic spline fit to the empirical staircase function N(E).
   .unfold <- function(eigs) {
-    eigs <- sort(eigs)
+    eigs <- sort(unique(eigs)) # Drop duplicates to avoid issues with spline interpolation
     n <- length(eigs)
     staircase <- seq_len(n) # N(E_i) = i
 
@@ -758,6 +758,11 @@ find_rmt_cutoff <- function(
 
     cli::cli_progress_update(id = progressbar_calc_rmt)
   }
+
+  # Process alerts
+  cli::cli_alert_warning(
+    "Duplicate eigenvalues dropped to prevent issues with spline interpolation, \navoiding zero-spacing entries that can distort the NNSD."
+  )
 
   results <- dplyr::bind_rows(results_list)
 
