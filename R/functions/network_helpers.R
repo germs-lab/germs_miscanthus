@@ -574,6 +574,8 @@ find_rmt_cutoff <- function(
   alpha = 0.05,
   verbose = FALSE
 ) {
+  mat_name <- deparse(substitute(cor_mat)) # capture name before any evaluation
+
   # 0. Helpers ----
 
   # Wigner-Dyson (GOE) density over bin midpoints
@@ -833,7 +835,7 @@ find_rmt_cutoff <- function(
       colour = "grey20"
     ) +
     ggplot2::labs(
-      title = "RMT cutoff selection: NNSD chi-squared vs. correlation threshold",
+      title = paste0("RMT cutoff selection: ", mat_name, " (", kind, ")"),
       subtitle = paste0(
         "Optimal = highest cutoff where Poisson is rejected (p < ",
         alpha,
@@ -844,94 +846,86 @@ find_rmt_cutoff <- function(
     ) +
     ggplot2::theme_bw()
 
-  # 5. NNSD panel plot: top-3 valid cutoffs vs. theoretical distributions ----
-  # Select the 3 cutoffs with the most spacings (most connected networks) that
-  # are spread across the tested range (low / mid / high relative to optimal).
+  # 5. NNSD plot: mirroring Luo (2006) Fig. 1 ----
 
   cli::cli_alert_info(
-    "Generating NNSD panel plot for selected cutoffs: observed vs. Poisson and Wigner-Dyson."
+    "Generating NNSD plot for optimal cutoff: observed vs. Poisson and Wigner-Dyson."
   )
-  valid_keys <- names(spacings_cache)
-  valid_thr <- as.numeric(valid_keys)
 
-  if (length(valid_thr) >= 3) {
-    # Evenly sample 3 indices across the sorted valid cutoff range
-    sorted_idx <- base::order(valid_thr, decreasing = TRUE) # high -> low cutoff
-    panel_idx <- sorted_idx[round(seq(1, length(sorted_idx), length.out = 3))]
-    panel_thr <- valid_thr[panel_idx]
-  } else {
-    panel_thr <- valid_thr
-  }
-
-  # Build tidy data frame of observed density histograms
   s_grid <- seq(0, 3, length.out = 300)
-  theory_df <- tibble::tibble(
-    s = s_grid,
-    Poisson = exp(-s_grid),
-    `Wigner-Dyson` = (pi / 2) * s_grid * exp(-(pi / 4) * s_grid^2)
-  ) |>
-    tidyr::pivot_longer(-s, names_to = "distribution", values_to = "density")
 
-  nnsd_hist_df <- purrr::map_dfr(panel_thr, function(thr_val) {
-    key <- as.character(round(thr_val, 4))
-    sp <- spacings_cache[[key]]
-    h <- graphics::hist(sp, breaks = breaks, plot = FALSE)
-    bin_width <- diff(h$breaks)[1]
+  theory_df <- dplyr::bind_rows(
     tibble::tibble(
-      cutoff = thr_val,
-      s = h$mids,
-      density = h$density
+      s = s_grid,
+      density = exp(-s_grid),
+      distribution = "Poisson"
+    ),
+    tibble::tibble(
+      s = s_grid,
+      density = (pi / 2) * s_grid * exp(-(pi / 4) * s_grid^2),
+      distribution = "Wigner-Dyson"
     )
-  })
+  )
+  # Rescale theoretical curves to relative frequency over the same bin grid
+  # by integrating each pdf over bin width so they sum to ~1.
 
-  if (nrow(nnsd_hist_df) > 0) {
-    nnsd_hist_df <- nnsd_hist_df |>
-      dplyr::mutate(
-        facet_label = factor(
-          paste0("r = ", sprintf("%.2f", cutoff)),
-          levels = paste0(
-            "r = ",
-            sprintf("%.2f", sort(panel_thr, decreasing = TRUE))
-          )
-        )
-      )
-  }
+  theory_rf <- theory_df |>
+    dplyr::mutate(density = density * 1)
+
+  # Build tidy DF: one row per bin midpoint per cutoff.
+  # Luo (2006) Fig. 1.
+
+  h <- graphics::hist(spacings, breaks = breaks, plot = FALSE)
+  nnsd_df <- tibble::tibble(
+    s = h$mids,
+    density = h$counts / sum(h$counts)
+  )
 
   nnsd_p <- ggplot2::ggplot() +
-    # Observed NNSD as bars
-    ggplot2::geom_col(
-      data = nnsd_hist_df,
-      ggplot2::aes(x = s, y = density),
-      fill = "grey75",
-      colour = "white",
-      width = diff(breaks)[1] * 0.9
-    ) +
-    # Theoretical curves
+    # Observed NNSDs: points + lines, one colour per cutoff
     ggplot2::geom_line(
-      data = theory_df,
-      ggplot2::aes(x = s, y = density, colour = distribution),
-      linewidth = 1
+      data = nnsd_df,
+      ggplot2::aes(x = s, y = density),
+      color = "red",
+      linewidth = 0.8
     ) +
-    ggplot2::scale_colour_manual(
-      values = c("Poisson" = "#CC2222", "Wigner-Dyson" = "navy"),
-      name = NULL
+    ggplot2::geom_point(
+      data = nnsd_df,
+      ggplot2::aes(x = s, y = density),
+      color = "red",
+      size = 2
     ) +
-    ggplot2::facet_wrap(
-      ~facet_label,
-      ncol = length(panel_thr)
+    ggplot2::geom_line(
+      data = dplyr::filter(theory_rf, distribution == "Wigner-Dyson"),
+      ggplot2::aes(x = s, y = density),
+      colour = "black",
+      linetype = "solid",
+      linewidth = 0.9
     ) +
-    ggplot2::coord_cartesian(xlim = c(0, 3)) +
+    ggplot2::geom_line(
+      data = dplyr::filter(theory_rf, distribution == "Poisson"),
+      ggplot2::aes(x = s, y = density),
+      colour = "black",
+      linetype = "dashed",
+      linewidth = 0.9
+    ) +
+    ggplot2::scale_x_continuous(breaks = seq(0, 3, by = 0.5)) +
+    ggplot2::coord_cartesian(xlim = c(0, 3), ylim = c(0, 1)) +
     ggplot2::labs(
-      title = "Nearest Neighbor Spacing Distribution (NNSD) at selected cutoffs",
-      subtitle = "Grey bars = observed; red = Poisson; navy = Wigner-Dyson (GOE)",
+      title = paste0(
+        "NNSD: ",
+        mat_name,
+        " (",
+        kind,
+        ") - cutoff = ",
+        round(optimal, 3)
+      ),
+      subtitle = "Black solid = Wigner-Dyson (GOE); black dashed = Poisson",
       x = "Level spacing  s",
-      y = "Probability density p(s)"
+      y = "P(s)"
     ) +
     ggplot2::theme_bw() +
-    ggplot2::theme(
-      legend.position = "bottom",
-      strip.text = ggplot2::element_text(face = "bold")
-    )
+    ggplot2::theme(legend.position = "right")
 
   list(
     results = results,
@@ -940,4 +934,3 @@ find_rmt_cutoff <- function(
     nnsd_plot = nnsd_p
   )
 }
-#TODO fix NNSD plot
