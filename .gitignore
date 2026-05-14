@@ -58,3 +58,5 @@ data/input/LAMPS/RNA_amplicon_sequencing/qc_reports/qc_concat_R2/all_lamps_rna_r
 data/input/LAMPS/DNA_amplicon_sequencing/qc_reports/qc_concat_R1/all_lamps_rawreads_R1.fastq
 data/input/LAMPS/DNA_amplicon_sequencing/qc_reports/qc_concat_R2/all_lamps_rawreads_R2.fastq
 data/output/rdata/alpha_beta_plots.rda
+data/output/networks/full_correlation_matrices.rda
+data/output/networks/correlation_matrix.txt

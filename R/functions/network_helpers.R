@@ -138,8 +138,22 @@ align_samples <- function(ps1, ps2) {
 
 .add_attributes <- function(graph, tran_mat, bact_ids, fungi_ids) {
   if (igraph::vcount(graph) == 0) {
-    cli::cli_alert("Returning the same graph object. No vertices found")
+    cli::cli_alert_warning("Returning the same graph object. No vertices found")
     return(graph)
+  }
+
+  # Ensure vertex names exist — graph_from_adjacency_matrix only sets $name
+  # if the input matrix has dimnames. Fall back to rownames(tran_mat).
+  if (is.null(igraph::V(graph)$name)) {
+    if (!is.null(rownames(tran_mat))) {
+      igraph::V(graph)$name <- rownames(tran_mat)
+    } else {
+      cli::cli_alert_warning(
+        ".add_attributes: graph has no vertex names and tran_mat has no rownames. ",
+        "kingdom assignment will be NA."
+      )
+      igraph::V(graph)$name <- as.character(seq_len(igraph::vcount(graph)))
+    }
   }
 
   # Link sign assignment logic (same as in add_link_attribute())
@@ -152,10 +166,10 @@ align_samples <- function(ps1, ps2) {
     )
   }
 
-  igraph::V(graph)$kingdom <- ifelse(
-    igraph::V(graph)$name %in% bact_ids,
-    "Bacteria",
-    "Fungi"
+  igraph::V(graph)$kingdom <- dplyr::case_when(
+    igraph::V(graph)$name %in% bact_ids ~ "Bacteria",
+    igraph::V(graph)$name %in% fungi_ids ~ "Fungi",
+    .default = NA_character_
   )
 
   # Node attribute assignment logic (same as in add_node_attribute())
@@ -207,9 +221,35 @@ build_network <- function(
   b_ids <- intersect(bact_ids, nodes)
   f_ids <- intersect(fungi_ids, nodes)
 
-  idx <- switch(kind, bacteria = b_ids, fungi = f_ids, cross = c(b_ids, f_ids))
+  # For kind = "cross", cor_mat may be a rectangular B×F matrix.
+  # Index rows (bacteria) and columns (fungi) separately, then symmetrise
+  # into a square matrix so igraph can build an undirected graph.
+  if (kind == "cross") {
+    col_nodes <- colnames(cor_mat)
+    f_ids_col <- intersect(fungi_ids, col_nodes)
+    b_ids_row <- intersect(bact_ids, nodes)
 
-  sub_mat <- cor_mat[idx, idx]
+    rect_mat <- cor_mat[b_ids_row, f_ids_col, drop = FALSE]
+
+    # Symmetrise: build a square (B+F) × (B+F) matrix with B×F and F×B blocks
+    all_ids <- c(b_ids_row, f_ids_col)
+    n_all <- length(all_ids)
+    sq_mat <- matrix(
+      0,
+      nrow = n_all,
+      ncol = n_all,
+      dimnames = list(all_ids, all_ids)
+    )
+    sq_mat[b_ids_row, f_ids_col] <- rect_mat
+    sq_mat[f_ids_col, b_ids_row] <- t(rect_mat)
+
+    sub_mat <- sq_mat
+    b_ids <- b_ids_row
+    f_ids <- f_ids_col
+  } else {
+    idx <- switch(kind, bacteria = b_ids, fungi = f_ids)
+    sub_mat <- cor_mat[idx, idx]
+  }
 
   # .cor2tran logic ---- applies cutoff, keeps/rmvs nodes, drops isolates
   sub_mat <- .cor2tran(
@@ -245,13 +285,14 @@ build_network <- function(
 
 # build_asym_network: correlation matrix -> list(graph, trans_mat) with asymmetric cutoffs
 # Like build_network() but applies separate thresholds for within-kingdom edges
-# (within_cutoff) and cross-kingdom bacteria–fungi edges (bf_cutoff).
+# (within_bact_cutoff and within_fungi_cutoff) and cross-kingdom bacteria–fungi edges (bxf_cutoff).
 # Use this when B–F correlations are structurally weaker than within-kingdom ones.
 build_asym_network <- function(
   cor_mat,
   bact_ids,
   fungi_ids,
-  within_cutoff,
+  within_bact_cutoff,
+  within_fungi_cutoff,
   bxf_cutoff
 ) {
   nodes <- rownames(cor_mat)
@@ -269,8 +310,8 @@ build_asym_network <- function(
     ncol = length(idx),
     dimnames = list(idx, idx)
   )
-  mask[b_ids, b_ids] <- abs(sub_mat[b_ids, b_ids]) >= within_cutoff
-  mask[f_ids, f_ids] <- abs(sub_mat[f_ids, f_ids]) >= within_cutoff
+  mask[b_ids, b_ids] <- abs(sub_mat[b_ids, b_ids]) >= within_bact_cutoff
+  mask[f_ids, f_ids] <- abs(sub_mat[f_ids, f_ids]) >= within_fungi_cutoff
   mask[b_ids, f_ids] <- abs(sub_mat[b_ids, f_ids]) >= bxf_cutoff
   mask[f_ids, b_ids] <- t(mask[b_ids, f_ids])
   sub_mat[!mask] <- 0
@@ -323,10 +364,10 @@ network_summary <- function(graph, site, kind) {
   bf_edges <- if ("Fungi" %in% V(graph)$kingdom) {
     e_ends <- igraph::as_edgelist(graph)
     bact_v <- V(graph)$name[V(graph)$kingdom == "Bacteria"]
-    fung_v <- V(graph)$name[V(graph)$kingdom == "Fungi"]
+    fungi_v <- V(graph)$name[V(graph)$kingdom == "Fungi"]
     sum(
-      (e_ends[, 1] %in% bact_v & e_ends[, 2] %in% fung_v) |
-        (e_ends[, 2] %in% bact_v & e_ends[, 1] %in% fung_v)
+      (e_ends[, 1] %in% bact_v & e_ends[, 2] %in% fungi_v) |
+        (e_ends[, 2] %in% bact_v & e_ends[, 1] %in% fungi_v)
     )
   } else {
     NA_integer_
@@ -348,10 +389,10 @@ network_summary <- function(graph, site, kind) {
   )
 
   sub_matx_nodf <- NA_real_
-  if (kind == "cross" && length(b) > 1 && length(f) > 1) {
+  if (kind == "cross" && length(bact_v) > 1 && length(fungi_v) > 1) {
     adj_b <- igraph::as_adjacency_matrix(graph, sparse = FALSE)
-    bpt <- adj_b[b, f]
-    nodf <- tryCatch(
+    bpt <- adj_b[bact_v, fungi_v, drop = FALSE]
+    sub_matx_nodf <- tryCatch(
       bipartite::networklevel(bpt, index = "NODF")[["NODF"]],
       error = function(e) NA_real_
     )
@@ -366,7 +407,7 @@ network_summary <- function(graph, site, kind) {
     positive_links = n_pos,
     negative_links = n_neg,
     density_connectance = edge_density(graph),
-    connectance = if (max_edges > 0) n_e / max_edges else NA_real_,
+    # connectance = if (max_edges > 0) n_e / max_edges else NA_real_,
     bf_edge_fraction = if (!is.na(bf_edges)) bf_edges / n_e else NA_real_,
     pos_neg_link_ratio = if (n_neg > 0) n_pos / (n_pos + n_neg) else NA_real_,
     transitivity_avgCC = transitivity(
@@ -664,7 +705,6 @@ find_rmt_cutoff <- function(
 
   # 2. Sweep cutoffs ----
   results_list <- vector("list", length(cutoff_seq))
-  spacings_cache <- list() # named by cutoff string; populated for every valid step
 
   progressbar_calc_rmt <- cli::cli_progress_bar(
     name = "Calculating RMT cutoff",
@@ -728,9 +768,6 @@ find_rmt_cutoff <- function(
     # Nearest-neighbour spacings, clipped to [0, 3]
     spacings <- diff(unfolded)
     spacings <- spacings[spacings > 0 & spacings <= 3]
-
-    # Cache spacings for the NNSD panel plot (step 5)
-    spacings_cache[[as.character(round(thr, 4))]] <- spacings
 
     res_p <- .chisq_gof(spacings, .poisson_phf, breaks)
     res_w <- .chisq_gof(spacings, .wigner_phf, breaks)
@@ -811,7 +848,7 @@ find_rmt_cutoff <- function(
 
   p <- ggplot2::ggplot(
     plot_df,
-    ggplot2::aes(x = cutoff, y = chi2, colour = distribution)
+    ggplot2::aes(x = cutoff, y = chi2, color = distribution)
   ) +
     ggplot2::geom_line(linewidth = 0.8) +
     ggplot2::geom_point(size = 1.5) +
@@ -822,7 +859,7 @@ find_rmt_cutoff <- function(
     ggplot2::geom_vline(
       xintercept = optimal,
       linetype = "dashed",
-      colour = "grey30",
+      color = "grey30",
       linewidth = 0.7
     ) +
     ggplot2::annotate(
@@ -832,7 +869,7 @@ find_rmt_cutoff <- function(
       label = paste0("optimal\n", round(optimal, 3)),
       hjust = -0.1,
       size = 3,
-      colour = "grey20"
+      color = "grey20"
     ) +
     ggplot2::labs(
       title = paste0("RMT cutoff selection: ", mat_name, " (", kind, ")"),
@@ -882,7 +919,6 @@ find_rmt_cutoff <- function(
   )
 
   nnsd_p <- ggplot2::ggplot() +
-    # Observed NNSDs: points + lines, one colour per cutoff
     ggplot2::geom_line(
       data = nnsd_df,
       ggplot2::aes(x = s, y = density),
@@ -898,14 +934,14 @@ find_rmt_cutoff <- function(
     ggplot2::geom_line(
       data = dplyr::filter(theory_rf, distribution == "Wigner-Dyson"),
       ggplot2::aes(x = s, y = density),
-      colour = "black",
+      color = "black",
       linetype = "solid",
       linewidth = 0.9
     ) +
     ggplot2::geom_line(
       data = dplyr::filter(theory_rf, distribution == "Poisson"),
       ggplot2::aes(x = s, y = density),
-      colour = "black",
+      color = "black",
       linetype = "dashed",
       linewidth = 0.9
     ) +

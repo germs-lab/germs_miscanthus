@@ -3,6 +3,11 @@ fit_power_law_rmt = function(graph, engine) {
   # calculate degree
   if (engine == "OLS") {
     d <- centr_degree(graph)$res
+    # Guard: no edges or all degrees are zero
+    if (length(d) == 0 || max(d) <= 0) {
+      return(NA)
+    }
+
     dd <- degree_distribution(graph)
     degree <- 1:max(d)
     probability <- dd[-1]
@@ -25,6 +30,10 @@ fit_power_law_rmt = function(graph, engine) {
   # Igraph power law
   if (engine == "igraph") {
     d <- igraph::degree(graph)
+    # Guard: no edges or all degrees are zero
+    if (length(d) == 0 || max(d) <= 0) {
+      return(NA)
+    }
     d <- d[d > 0]
     if (length(unique(d)) < 2) {
       return(NA)
