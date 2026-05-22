@@ -1,23 +1,3 @@
-explore_phyloseq_list <- function(physeq_obj, obj_name) {
-  cat("=== Analysis for:", obj_name, "===\n")
-
-  # Basic dimensions
-  cat("OTU table dimensions:", dim(otu_table(physeq_obj)), "\n")
-  cat("Number of taxa:", ntaxa(physeq_obj), "\n")
-  cat("Number of samples:", nsamples(physeq_obj), "\n")
-
-  # Summary statistics
-  cat("\nRaw count summary:\n")
-  print(summary(as.vector(otu_table(physeq_obj))))
-
-  # # Sample sums
-  # cat("\nSample sums (total reads per sample):\n")
-  # print(sample_sums(physeq_obj))
-
-  # cat("\n", rep("=", 50), "\n\n")
-}
-
-
 explore_nested_phyloseq <- function(nested_list) {
   results <- purrr::imap(nested_list, function(project_list, project_name) {
     cat("\n", rep("=", 40), "\n")
@@ -29,7 +9,6 @@ explore_nested_phyloseq <- function(nested_list) {
       cat("Sequencing Type:", toupper(seq_type), "\n")
       cat(rep("-", 40), "\n")
 
-      # Basic phyloseq summaries
       cat("Basic Summary:\n")
       print(metagMisc::phyloseq_summary(
         physeq_obj,
@@ -40,25 +19,6 @@ explore_nested_phyloseq <- function(nested_list) {
       cat("\nRead/Sequencing Summary:\n")
       print(microbiome::summarize_phyloseq(physeq_obj))
 
-      # # Taxonomic distribution
-      # if ("phylum" %in% colnames(tax_table(physeq_obj))) {
-      #   cat("\nPhylum Distribution:\n")
-      #   phyla_dist <- phyloseq_ntaxa_by_tax(
-      #     physeq_obj,
-      #     TaxRank = "phylum",
-      #     relative = FALSE,
-      #     add_meta_data = FALSE
-      #   ) %>%
-      #     as.data.frame() %>%
-      #     mutate(sum = sum(N.OTU)) %>%
-      #     group_by(phylum) %>%
-      #     summarise(occurance_in_samples = n()) %>%
-      #     arrange(desc(occurance_in_samples))
-
-      #   print(phyla_dist)
-      # }
-
-      # Sample and taxa counts
       list(
         project = project_name,
         region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type),

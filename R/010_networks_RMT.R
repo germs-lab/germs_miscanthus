@@ -18,8 +18,6 @@ library(bipartite)
 
 source("R/functions/rmt_approach/fit_power_law.R")
 source("R/functions/rmt_approach/network_properties.R")
-source("R/functions/rmt_approach/bpt.R")
-source("R/functions/rmt_approach/rand_adj_gen.R")
 
 
 # SECTION 1: Pre-process ----
@@ -552,7 +550,19 @@ purrr::iwalk(
   }
 )
 
+
+# Calculate bipartite network properties using the bipartite package.
 # IDs of bacteria and fungi nodes in the adjacency matrix
+
+bpt_matrices <- purrr::imap(
+  adj_matrices,
+  function(net, net_name) {
+    adj_mat <- net$adj_mat
+    rows_16s <- rownames(aligned_matrices)
+
+    list(adj_mat = adj_mat)
+  }
+)
 rows_16s <- rownames(aligned_matrices$ef$matx_b)[
   rownames(aligned_matrices$ef$matx_b) %in% rownames(adj_mat)
 ]
@@ -562,7 +572,7 @@ cols_its <- rownames(aligned_matrices$ef$matx_f)[
 
 bpt_matx <- adj_mat[rows_16s, cols_its]
 
-# Calculate bipartite network properties using the bipartite package.
+
 bipartite_result <- networklevel(
   index = c(
     "connectance",
@@ -596,13 +606,76 @@ purrr::iwalk(
 # this code generates random bipartite networks that preserve the link and node numbers but rewire the links among nodes.
 # then calculates the mean and standard deviation of network properties for multiple random networks.
 
-# input: adjacency matrix from SECTION 4.1, which is the binary version of the transition matrix (i.e., all non-zero entries are set to 1).
-my_adj_mat <- read.table(
-  "data/output/networks/cyto_gephi_inputs/ef_joint_adjacency-matrix.txt",
-  sep = "\t",
-  row.names = 1,
-  header = T
-)
+# Inline: rand_adj_gen
+# Generates adjacency matrix for random networks based on the empirical adjacency matrix.
+rand_adj_gen <- function(ID, adj, bact_ids, fungi_ids) {
+  adj <- as.matrix(adj)
+  id_bact <- which(rownames(adj) %in% bact_ids)
+  id_fungi <- which(rownames(adj) %in% fungi_ids)
+  network_L <- sum(adj[id_bact, id_fungi])
+
+  rand_adj <- adj
+  rand_adj[rand_adj != 0] <- 0
+
+  if (length(id_bact) >= length(id_fungi)) {
+    X <- id_bact
+    Y <- id_fungi
+  } else {
+    X <- id_fungi
+    Y <- id_bact
+  }
+
+  rand_order <- sample(c(
+    Y,
+    sample(Y, size = length(X) - length(Y), replace = TRUE)
+  ))
+  p <- 1
+  for (j in X) {
+    rand_adj[j, rand_order[p]] <- 1
+    p <- p + 1
+  }
+
+  expanded <- as.numeric(rand_adj[X, Y])
+  rand_remain_id <- sample(which(expanded == 0), size = (network_L - length(X)))
+  expanded[rand_remain_id] <- 1
+  rand_adj[X, Y] <- matrix(expanded, nrow = length(X), ncol = length(Y))
+  rand_adj[Y, X] <- t(rand_adj[X, Y])
+
+  if (sum(rand_adj) == sum(adj)) {
+    return(rand_adj)
+  } else {
+    return("Error")
+  }
+}
+
+# Inline: bpt
+# Calculates bipartite network-level properties from an adjacency matrix.
+bpt <- function(adj, bact_ids, fungi_ids) {
+  adj <- as.matrix(adj)
+  id_bact <- which(rownames(adj) %in% bact_ids)
+  id_fungi <- which(rownames(adj) %in% fungi_ids)
+  bpt_matx <- adj[id_bact, id_fungi]
+
+  if (length(dim(bpt_matx)) > 0 && nrow(bpt_matx) > 0 && ncol(bpt_matx) > 0) {
+    bipartite_result <- networklevel(
+      index = c(
+        "connectance",
+        "nestedness",
+        "NODF",
+        "weighted connectance",
+        "number of species",
+        "cluster coefficient",
+        "niche overlap",
+        "partner diversity"
+      ),
+      bpt_matx
+    )
+  } else {
+    bipartite_result <- rep(NA_real_, 13)
+  }
+
+  return(bipartite_result)
+}
 
 # Identify bacteria and fungi node IDs present in the adjacency matrix
 ef_bact_in_adj <- rownames(aligned_matrices$ef$matx_b)[

@@ -14,6 +14,33 @@ library(ComplexUpset)
 # SECTION 1: Prepare data for all taxonomic levels ----
 
 asv_data <- create_asv_upset_data(main_16S_physeq_list)
+
+# Inline: create_tax_presence_list — builds a nested list of unique taxa per crop per project
+create_tax_presence_list <- function(physeq_list, tax_level = "phylum") {
+  imap(physeq_list, function(psq, project_name) {
+    crops <- sample_data(psq)$crop |> unique()
+    crop_taxa <- map(crops, function(crop_name) {
+      psq_subset <- prune_samples(sample_data(psq)$crop == crop_name, psq)
+      tax_df <- tax_table(psq_subset) |>
+        as.data.frame() |>
+        rownames_to_column("asv")
+      present_asvs <- taxa_names(psq_subset)[taxa_sums(psq_subset) > 0]
+      tax_df |>
+        filter(asv %in% present_asvs) |>
+        pull(!!sym(tax_level)) |>
+        unique() |>
+        na.omit() |>
+        as.character()
+    })
+    if (grepl("^lamps", project_name, ignore.case = TRUE)) {
+      prefix <- gsub("^([^_]+_[^_]+).*", "\\1", project_name)
+    } else {
+      prefix <- gsub("^([^_]+).*", "\\1", project_name)
+    }
+    set_names(crop_taxa, paste0(prefix, "_", crops))
+  })
+}
+
 phylum_presence <- create_tax_presence_list(main_16S_physeq_list, "phylum")
 class_presence <- create_tax_presence_list(main_16S_physeq_list, "class")
 
@@ -48,17 +75,21 @@ print(combined_summary)
 
 # SECTION 3: UpSet DataFrames ----
 
-asv_upset_df <- create_upset_df(
-  asv_data$presence_list,
-  asv_data$attributes,
-  tax_level = "asv"
-)
+# Inline: create_upset_df — binary membership df with ASV taxonomy annotation
+asv_upset_df <- {
+  binary_df <- list_to_binary_df(asv_data$presence_list)
+  tax_info <- asv_data$attributes |>
+    select(asv, phylum, class, genus) |>
+    distinct()
+  binary_df |> rename(asv = item) |> left_join(tax_info, by = "asv")
+}
 
-phylum_upset_df <- create_tax_upset_df(phylum_presence) |>
-  rename(phylum = taxon)
+# Inline: create_tax_upset_df — binary membership df for a taxonomic level
+phylum_upset_df <- list_to_binary_df(phylum_presence) |>
+  rename(phylum = item)
 
-class_upset_df <- create_tax_upset_df(class_presence) |>
-  rename(class = taxon)
+class_upset_df <- list_to_binary_df(class_presence) |>
+  rename(class = item)
 
 # SECTION 4: UpSet plots - All crops ----
 
