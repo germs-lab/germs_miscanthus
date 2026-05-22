@@ -6,6 +6,8 @@
 
 # This code calculates the full correlation matrix for constructing the network from OTU tables.
 
+# By Bolívar Aponte Rolón
+# Last updated: 2026-05-22
 ##########################################################################
 
 #  Load data ----
@@ -216,6 +218,8 @@ save(
 # SECTION 3: Networks and Subnetworks ----
 
 ## SECTION 3.1: RMT cutoff for each site ----
+# load("data/output/networks/full_correlation_matrices.rda")
+# load("data/output/networks/bxf_correlation_matrices.rda")
 ef_bact_rmt <- find_rmt_cutoff(
   full_cor_matrices$ef,
   bact_ids = rownames(aligned_matrices$ef$matx_b),
@@ -338,6 +342,10 @@ rmt_cutoff_summary <- tibble(
 
 rmt_cutoff_summary
 
+save(
+  rmt_cutoff_summary,
+  file = "data/output/networks/rmt_cutoff_summary.rda"
+)
 ## SECTION 3.2: Within-kingdom networks ----
 
 ## EF site
@@ -569,6 +577,14 @@ all_cross_centrality <- purrr::map(
   purrr::compact() |>
   dplyr::bind_rows()
 
+
+save(
+  centrality_shifts,
+  all_bact_shifts,
+  all_fungi_shifts,
+  all_cross_centrality,
+  file = "data/output/networks/centrality_shifts.rda"
+)
 ## SECTION 4.2: Bipartite properties from the adjacency matrix ----
 
 # Adjacency matrix makes binary networks for calculating bipartite network properties. The transition matrix has the correlation values, but we need to convert it to binary (0/1) for calculating bipartite properties.
@@ -656,6 +672,10 @@ bpt_properties$lamps_2018_bxf_net$bpt_result
 
 bpt_properties$lamps_2022_bxf_net$bpt_result
 
+save(
+  bpt_properties,
+  file = "data/output/networks/bipartite_properties.rda"
+)
 # SECTION 4.3: Cytoscape and Gephi Visualization ----
 #  Output cytoscape and gephi input files for visualisation
 

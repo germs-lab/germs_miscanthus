@@ -12,6 +12,7 @@ library(ggraph)
 library(patchwork)
 
 source("R/functions/rmt_approach/network_properties.R")
+source("R/functions/rmt_approach/fit_power_law.R")
 
 load("data/output/networks/all_networks.rda")
 
@@ -124,21 +125,34 @@ networks_properties_summary <- purrr::imap(
     )
   }
 )
-
-props_df <- purrr::imap_dfr(networks_properties_summary, function(x, nm) {
-  if (is.null(x$properties)) {
-    return(NULL)
+networks_properties_summary$ef_asym_net$properties
+props_df <- purrr::imap_dfr(
+  networks_properties_summary,
+  function(x, nm) {
+    props <- x$properties # adjust if the key is different
+    if (is.null(props)) {
+      return(NULL)
+    }
+    nms <- names(props)
+    nms[is.null(nms) | is.na(nms) | nms == ""] <- paste0(
+      "V",
+      which(is.null(nms) | is.na(nms) | nms == "")
+    )
+    names(props) <- make.unique(nms)
+    tibble::as_tibble_row(as.list(props)) |>
+      dplyr::mutate(net_name = nm)
   }
-  tibble::as_tibble(x$properties) |>
-    dplyr::mutate(net_name = nm)
-}) |>
-  dplyr::mutate(
-    site = stringr::str_extract(net_name, "^ef|^lamps_2018|^lamps_2022"),
-    site_label = site_labels[site]
-  ) |>
-  dplyr::select(net_name, site_label, dplyr::any_of(prop_cols))
+) |>
+  dplyr::right_join(net_props, join_by(net_name))
 
 props_scaled <- props_df |>
+  dplyr::rename(
+    degree_mean = avgK,
+    clustering_coef = transitivity_avgCC,
+    modularity = grdy_modularity,
+    avg_path_length = GD
+  ) |>
+  dplyr::select(net_name, site_label, dplyr::any_of(prop_cols)) |>
   dplyr::mutate(dplyr::across(dplyr::any_of(prop_cols), scale)) |>
   tidyr::pivot_longer(
     dplyr::any_of(prop_cols),
@@ -232,17 +246,28 @@ plot_kingdom_network <- function(net_name) {
   }
   site <- stringr::str_extract(net_name, "^ef|^lamps_2018|^lamps_2022")
   kind <- dplyr::if_else(grepl("bact", net_name), "bacteria", "fungi")
-  color <- kingdom_colors[[kind]]
   label <- paste(site_labels[site], kind)
 
   set.seed(42)
+  modules <- igraph::cluster_louvain(igraph::as_undirected(g))
+  node_df <- tibble::tibble(
+    degree = igraph::degree(g),
+    module = factor(igraph::membership(modules))
+  )
+
   ggraph::ggraph(g, layout = "fr") +
     ggraph::geom_edge_link(alpha = 0.15, color = "grey70") +
-    ggraph::geom_node_point(color = color, size = 1.5, alpha = 0.8) +
+    ggraph::geom_node_point(
+      ggplot2::aes(size = node_df$degree, color = node_df$module),
+      alpha = 0.8
+    ) +
+    ggplot2::scale_size_continuous(range = c(1, 5), name = "Degree") +
+    ggplot2::scale_color_discrete(name = "Module") +
     ggplot2::labs(title = label) +
     ggplot2::theme_void(base_size = 9) +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"),
+      legend.position = "none"
     )
 }
 
@@ -255,7 +280,8 @@ kingdom_plots <- purrr::map(kingdom_nets, plot_kingdom_network) |>
 
 p_kingdom_grid <- patchwork::wrap_plots(kingdom_plots, ncol = 3) +
   patchwork::plot_annotation(
-    title = "Within-kingdom co-occurrence networks"
+    title = "Within-kingdom co-occurrence networks",
+    subtitle = "Layout = Fruchterman-Reingold | Node color = Louvain module | Node size = degree"
   )
 
 save_plot(p_kingdom_grid, "05_kingdom_networks.pdf", width = 12, height = 8)
@@ -336,7 +362,7 @@ if (igraph::vcount(g_bxf) > 0) {
 }
 
 # SECTION 6a: Bacteria centrality shifts ----
-
+load("data/output/networks/centrality_shifts.rda")
 p_bact_shift <- all_bact_shifts |>
   dplyr::mutate(site_label = site_labels[site]) |>
   ggplot2::ggplot(ggplot2::aes(x = delta_degree, y = delta_eigenvector)) +
@@ -412,7 +438,7 @@ p_cross_deg <- all_cross_centrality |>
 save_plot(p_cross_deg, "09_cross_degree_dist.pdf", width = 8, height = 4)
 
 # SECTION 7: Bipartite properties (valid sites only) ----
-
+load("data/output/networks/bipartite_properties.rda")
 bpt_valid <- purrr::keep(bpt_properties, ~ !all(is.na(.x$bpt_result)))
 
 if (length(bpt_valid) > 0) {
