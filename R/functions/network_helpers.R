@@ -504,56 +504,87 @@ centrality_shift <- function(g_bact, g_fungi, g_cross, site) {
 # cyto_gephi_output: writes node and edge attribute tables for Cytoscape and
 # Gephi. Requires a graph with all vertex and edge attributes already attached
 # (via add_node_attribute() and add_link_attribute()).
-cyto_gephi_output <- function(graph_with_all_attributes) {
+cyto_gephi_output <- function(
+  graph_with_all_attributes,
+  file_path = "data/output/networks/",
+  output_prefix = NULL
+) {
   node_table <- as.data.frame(vertex.attributes(graph_with_all_attributes))
-
   edge_table <- as.data.frame(edge.attributes(graph_with_all_attributes))
-  edge_names <- unlist(strsplit(
-    base::attr(E(graph_with_all_attributes), "vnames"),
-    "|",
-    fixed = T
-  ))
-  edge_table$node1 <- edge_names[seq(
-    from = 1,
-    to = (length(edge_names) - 1),
-    by = 2
-  )]
-  edge_table$node2 <- edge_names[seq(from = 2, to = length(edge_names), by = 2)]
+
+  vnames_attr <- base::attr(igraph::E(graph_with_all_attributes), "vnames")
+
+  if (!is.null(vnames_attr)) {
+    edge_names <- unlist(strsplit(vnames_attr, "|", fixed = TRUE))
+    edge_table$node1 <- edge_names[seq(
+      from = 1,
+      to = length(edge_names) - 1,
+      by = 2
+    )]
+    edge_table$node2 <- edge_names[seq(
+      from = 2,
+      to = length(edge_names),
+      by = 2
+    )]
+  } else {
+    el <- igraph::as_edgelist(graph_with_all_attributes, names = TRUE)
+    edge_table$node1 <- el[, 1]
+    edge_table$node2 <- el[, 2]
+  }
 
   gephi_node_table <- node_table
-  names(gephi_node_table)[1] <- "Id"
+  if (ncol(gephi_node_table) > 0) {
+    names(gephi_node_table)[1] <- "Id"
+  }
 
   gephi_edge_table <- edge_table
-  names(gephi_edge_table)[2:3] <- c("Source", "Target")
-  gephi_edge_table$Type = rep("Undirected", nrow(gephi_edge_table))
+  if (ncol(gephi_edge_table) >= 3) {
+    names(gephi_edge_table)[2:3] <- c("Source", "Target")
+  }
+  gephi_edge_table$Type <- rep("Undirected", nrow(gephi_edge_table))
+
+  if (is.null(file_path) || is.null(output_prefix)) {
+    stop("file_path and output_prefix must be provided.")
+  }
+  if (!dir.exists(file_path)) {
+    dir.create(file_path, recursive = TRUE)
+  }
 
   write.table(
     node_table,
-    "data/output/networks/cytoscape_node_attribute.txt",
+    paste0(
+      file_path,
+      output_prefix,
+      "_cytoscape_node_attribute.txt"
+    ),
     sep = "\t",
-    row.names = F,
-    quote = F
+    row.names = FALSE,
+    quote = FALSE
   )
   write.table(
     edge_table,
-    "data/output/networks/cytoscape_edge_attribute.txt",
+    paste0(
+      file_path,
+      output_prefix,
+      "_cytoscape_edge_attribute.txt"
+    ),
     sep = "\t",
-    row.names = F,
-    quote = F
+    row.names = FALSE,
+    quote = FALSE
   )
   write.table(
     gephi_node_table,
-    "data/output/networks/gephi_node_attribute.csv",
+    paste0(file_path, output_prefix, "_gephi_node_attribute.csv"),
     sep = ",",
-    row.names = F,
-    quote = F
+    row.names = FALSE,
+    quote = FALSE
   )
   write.table(
     gephi_edge_table,
-    "data/output/networks/gephi_edge_attribute.csv",
+    paste0(file_path, output_prefix, "_gephi_edge_attribute.csv"),
     sep = ",",
-    row.names = F,
-    quote = F
+    row.names = FALSE,
+    quote = FALSE
   )
 }
 

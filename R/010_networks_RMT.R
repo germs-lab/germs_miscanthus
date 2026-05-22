@@ -338,6 +338,7 @@ rmt_cutoff_summary <- tibble(
   )
 )
 
+rmt_cutoff_summary
 
 ## SECTION 3.2: Within-kingdom networks ----
 
@@ -494,6 +495,7 @@ save(
 # generates input files for visualization using Cytoscape and Gephi.
 
 # Graph properties
+load("data/output/networks/all_networks.rda")
 
 networks_properties_summary <- purrr::imap(
   all_networks,
@@ -577,7 +579,18 @@ bipartite_result <- networklevel(
 
 # SECTION 4.2: Cytoscape and Gephi Visualization ----
 #  Output cytoscape and gephi input files for visualisation
-cyto_gephi_output(graph_with_all_attributes = my_graph)
+
+purrr::iwalk(
+  all_networks,
+  function(net, net_name) {
+    cyto_gephi_output(
+      graph_with_all_attributes = net$graph,
+      file_path = "data/output/networks/cyto_gephi_inputs/",
+      output_prefix = net_name
+    )
+  }
+)
+
 
 # SECTION 5: Random bipartite network generation and analysis ----
 # this code generates random bipartite networks that preserve the link and node numbers but rewire the links among nodes.
@@ -585,7 +598,7 @@ cyto_gephi_output(graph_with_all_attributes = my_graph)
 
 # input: adjacency matrix from SECTION 4.1, which is the binary version of the transition matrix (i.e., all non-zero entries are set to 1).
 my_adj_mat <- read.table(
-  "data/output/networks/ef_joint_adjacency-matrix.txt",
+  "data/output/networks/cyto_gephi_inputs/ef_joint_adjacency-matrix.txt",
   sep = "\t",
   row.names = 1,
   header = T
