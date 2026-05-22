@@ -343,6 +343,33 @@ union_all <- Reduce(union, list(A, B, C)) # A ∪ B ∪ C
 
 # The combined DT should be the union of all three OTU tables (21833+40189+5132) - minus their intersection (10759)
 
+# Inline: join_otu_tables — full-joins three OTU tables, fills NAs with 0, returns integer matrix
+join_otu_tables <- function(table_a, table_b, table_c) {
+  combined_seqtab_DT <- suppressMessages({
+    full_join(full_join(table_a, table_b, by = NULL), table_c, by = NULL)
+  }) %>%
+    data.table::as.data.table(.)
+
+  for (j in seq_len(ncol(combined_seqtab_DT))) {
+    data.table::set(
+      combined_seqtab_DT,
+      which(is.na(combined_seqtab_DT[[j]])),
+      j,
+      0
+    )
+  }
+
+  combined_seqtab_DT[,
+    (names(combined_seqtab_DT)) := lapply(.SD, function(x) {
+      if (is.numeric(x)) as.integer(x) else x
+    })
+  ]
+
+  combined_seqtab_DT %>%
+    column_to_rownames(., var = "sample_id") %>%
+    as.matrix()
+}
+
 ## New 16S DNA joined otu table (aka seqtab)
 new_16S_DNA_seqtab <- join_otu_tables(
   ef_16S_otu_table,

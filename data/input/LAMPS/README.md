@@ -109,7 +109,7 @@ The standardization process in "01_import.R" conditionally transforms only the i
 - Record any column renames made during import so the join remains stable if schemas change.
 
 
-# LAMPS 202 (AKA LAMPS_EPS)
+# LAMPS 2022 (AKA LAMPS_EPS)
 
 ## Sequence and Metadata provenance
 

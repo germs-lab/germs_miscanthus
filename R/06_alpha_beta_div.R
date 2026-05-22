@@ -15,11 +15,45 @@ main_mxg_physeq_list <- subset_to_miscanthus(main_physeq_list) # Contains  16S, 
 
 # SECTION 1: Alpha Diversity Analysis ----
 
-# Calculate alpha diversity
-alpha_diversity_results_16S <- calculate_alpha_diversity(main_16S_physeq_list)
+# Inline: calculate_alpha_diversity — alpha diversity for a flat named list of phyloseq objects
+alpha_diversity_results_16S <- purrr::imap(
+  main_16S_physeq_list,
+  function(physeq_obj, physeq_name) {
+    alpha_div_full <- alpha_workflow(physeq_obj = physeq_obj)
+    alpha_div_full %>%
+      mutate(
+        project = gsub("([^_]+).*", "\\1", physeq_name),
+        physeq_name = physeq_name,
+        sample_date = if ("sample_date" %in% names(.)) {
+          as.character(sample_date)
+        } else {
+          NA_character_
+        }
+      ) %>%
+      relocate(c(observed:inv_simpson), .before = project)
+  }
+)
 
-main_alpha_diversity_results <- calculate_alpha_diversity_nested(
-  main_physeq_list
+# Inline: calculate_alpha_diversity_nested — alpha diversity for a nested list (project > physeq)
+main_alpha_diversity_results <- purrr::imap(
+  main_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap(project_list, function(physeq_obj, physeq_name) {
+      alpha_div_full <- alpha_workflow(physeq_obj = physeq_obj)
+      alpha_div_full %>%
+        mutate(
+          project = project_name,
+          region = gsub(".*_([^_]+)_physeq$", "\\1", physeq_name),
+          physeq_name = physeq_name,
+          sample_date = if ("sample_date" %in% names(.)) {
+            as.character(sample_date)
+          } else {
+            NA_character_
+          }
+        ) %>%
+        relocate(c(observed:inv_simpson), .before = project)
+    })
+  }
 )
 
 # Flatten lists for easier plotting

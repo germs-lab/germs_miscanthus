@@ -32,33 +32,3 @@ compute_diversity <- function(
 
   return(out)
 }
-
-
-compute_diversity_nested <- function(
-  nested_list,
-  drop,
-  first_asv_col = NULL
-) {
-  results <- purrr::imap(nested_list, function(level1_list, level1_name) {
-    # Level 1: project groups within each main category
-
-    purrr::imap(level1_list, function(dataset, level2_name) {
-      # Level 2: individual phyloseq objects
-
-      # Phyloseq to DF
-      physeq_df <- physeq2df(dataset)
-
-      compute_diversity(
-        dataset = physeq_df,
-        drop = drop,
-        first_asv_col = first_asv_col
-      )
-    })
-  })
-
-  # Flatten the nested structure and set names
-  results <- purrr::list_flatten(results, name_spec = "{inner}_df") %>%
-    purrr::set_names(gsub("_physeq", "", names(.)))
-
-  return(results)
-}

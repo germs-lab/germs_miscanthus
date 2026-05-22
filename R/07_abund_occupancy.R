@@ -4,13 +4,13 @@
 #
 # Author: Bolívar Aponte Rolón
 # Date: 2025-11-24
-# Modified: 2026-01-27
+# Modified: 2026-05-14
 ##########################################################################
 
 source("R/utils/00_setup.R")
 
 
-# Abundance-Occupancy Plots ----
+# SECTION 1: Abundance-Occupancy Plots ----
 
 ## Quick helper function
 multiple_abundance_occupancy_plots <- function(
@@ -301,8 +301,6 @@ main_16S_mxg_physeq_list <- subset_to_miscanthus(
   main_16S_physeq_list,
   crop_patterns = c("MXG", "M", "Miscanthus")
 )
-
-# TO-DO eliminate this logic and just subset by crop in the original phyloseq objects, but for now this is a quick way to get the Miscanthus-only phyloseq objects for the abundance-occupancy by time/location analysis.
 
 # EF: Subset by "timing" (temporal proxy)
 ef_mxg_by_timing <- main_16S_mxg_physeq_list$ef_16S |>

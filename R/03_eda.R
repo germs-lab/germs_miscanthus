@@ -13,6 +13,16 @@ source("R/utils/00_setup.R")
 # SECTION 1: Basic Exploration of Nested Phyloseq ----
 # Total abundance only
 
+# Inline: explore_phyloseq_list — prints basic dimensions for a single phyloseq object
+explore_phyloseq_list <- function(physeq_obj, obj_name) {
+  cat("=== Analysis for:", obj_name, "===\n")
+  cat("OTU table dimensions:", dim(otu_table(physeq_obj)), "\n")
+  cat("Number of taxa:", ntaxa(physeq_obj), "\n")
+  cat("Number of samples:", nsamples(physeq_obj), "\n")
+  cat("\nRaw count summary:\n")
+  print(summary(as.vector(otu_table(physeq_obj))))
+}
+
 # Energy Farm Collab
 # Examine the structure of your phyloseq list
 str(main_physeq_list, max.level = 2)
@@ -65,8 +75,33 @@ nested_summary
 
 # Read Count Analysis for Nested Phyloseq ----
 
-# Get read count data
-nested_read_counts <- analyze_read_counts(main_physeq_list)
+# Inline: analyze_read_counts — returns a flat data frame of read counts + singletons + goods coverage
+nested_read_counts <- purrr::imap(
+  main_physeq_list,
+  function(project_list, project_name) {
+    purrr::imap(project_list, function(physeq_obj, seq_type) {
+      reads <- readcount(physeq_obj) %>%
+        as.data.frame() %>%
+        rownames_to_column(var = "sample_id") %>%
+        rename(n_seqs = ".") %>%
+        group_by(sample_id) %>%
+        mutate(
+          n_singletons = sum(n_seqs == 1),
+          goods = 1 - (n_singletons / n_seqs),
+          project = gsub("_physeq", "", seq_type),
+          region = gsub(".*_([^_]+)_physeq$", "\\1", seq_type)
+        )
+
+      metadata <- physeq_obj %>%
+        physeq2df() %>%
+        select(sample_id, crop)
+
+      dplyr::left_join(reads, metadata, by = "sample_id")
+    })
+  }
+) %>%
+  purrr::list_flatten(name_spec = "{outer}_{inner}") %>%
+  purrr::map_dfr(~.x)
 
 # Visualize read counts by project and sequencing type
 read_count_plots <- list(
