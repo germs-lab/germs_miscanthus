@@ -432,31 +432,31 @@ centrality_shift <- function(g_bact, g_fungi, g_cross, site) {
   cross_f_v <- V(g_cross)$name[V(g_cross)$kingdom == "Fungi"]
 
   # Subgraphs of the cross-kingdom graph for bacteria and fungi
-  b_sub_cross <- induced_subgraph(g_cross, vids = cross_b_v)
-  f_sub_cross <- induced_subgraph(g_cross, vids = cross_f_v)
+  b_sub_cross <- igraph::induced_subgraph(g_cross, vids = cross_b_v)
+  f_sub_cross <- igraph::induced_subgraph(g_cross, vids = cross_f_v)
 
   # Bacteria-only metrics
-  deg_b <- degree(g_bact, normalized = FALSE)
-  btw_b <- betweenness(g_bact, normalized = TRUE)
-  eig_b <- eigen_centrality(g_bact)$vector
+  deg_b <- igraph::degree(g_bact, normalized = FALSE)
+  btw_b <- igraph::betweenness(g_bact, normalized = TRUE)
+  eig_b <- igraph::eigen_centrality(g_bact)$vector
 
-  deg_b_c <- degree(b_sub_cross, normalized = FALSE)
-  btw_b_c <- betweenness(b_sub_cross, normalized = TRUE)
-  eig_b_c <- eigen_centrality(b_sub_cross)$vector
+  deg_b_c <- igraph::degree(b_sub_cross, normalized = FALSE)
+  btw_b_c <- igraph::betweenness(b_sub_cross, normalized = TRUE)
+  eig_b_c <- igraph::eigen_centrality(b_sub_cross)$vector
 
   # Fungi-only metrics
-  deg_f <- degree(g_fungi, normalized = FALSE)
-  btw_f <- betweenness(g_fungi, normalized = TRUE)
-  eig_f <- eigen_centrality(g_fungi)$vector
+  deg_f <- igraph::degree(g_fungi, normalized = FALSE)
+  btw_f <- igraph::betweenness(g_fungi, normalized = TRUE)
+  eig_f <- igraph::eigen_centrality(g_fungi)$vector
 
-  deg_f_c <- degree(f_sub_cross, normalized = FALSE)
-  btw_f_c <- betweenness(f_sub_cross, normalized = TRUE)
-  eig_f_c <- eigen_centrality(f_sub_cross)$vector
+  deg_f_c <- igraph::degree(f_sub_cross, normalized = FALSE)
+  btw_f_c <- igraph::betweenness(f_sub_cross, normalized = TRUE)
+  eig_f_c <- igraph::eigen_centrality(f_sub_cross)$vector
 
   # Cross-kingdom centrality metrics
-  deg_cr <- degree(g_cross, normalized = FALSE)
-  btw_cr <- betweenness(g_cross, normalized = TRUE)
-  eig_cr <- eigen_centrality(g_cross)$vector
+  deg_cr <- igraph::degree(g_cross, normalized = FALSE)
+  btw_cr <- igraph::betweenness(g_cross, normalized = TRUE)
+  eig_cr <- igraph::eigen_centrality(g_cross)$vector
 
   shared_b <- intersect(names(deg_b), names(deg_b_c))
   shared_f <- intersect(names(deg_f), names(deg_f_c))

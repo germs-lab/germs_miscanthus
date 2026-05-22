@@ -523,7 +523,53 @@ networks_properties_summary <- purrr::imap(
 #   site = site,
 # )
 
-## SECTION 4.1: Bipartite properties from the adjacency matrix ----
+## SECTION 4.1: Centrality shifts ----
+# Compares node centrality (degree, betweenness, eigenvector) for bacteria and
+# fungi in their within-kingdom networks vs. their position in the cross-kingdom
+# (bxf) network.
+
+centrality_shifts <- purrr::map(
+  c("ef", "lamps_2018", "lamps_2022"),
+  function(site) {
+    g_bact <- all_networks[[paste0(site, "_bact_net")]]$graph
+    g_fungi <- all_networks[[paste0(site, "_fungi_net")]]$graph
+    g_cross <- all_networks[[paste0(site, "_bxf_net")]]$graph
+
+    if (
+      igraph::vcount(g_bact) == 0 ||
+        igraph::vcount(g_fungi) == 0 ||
+        igraph::vcount(g_cross) == 0
+    ) {
+      message(
+        "Skipping centrality_shift for site '",
+        site,
+        "': one or more graphs are empty."
+      )
+      return(NULL)
+    }
+
+    centrality_shift(g_bact, g_fungi, g_cross, site = site)
+  }
+) |>
+  set_names(c("ef", "lamps_2018", "lamps_2022"))
+
+# Combined bacteria and fungi shift tables across sites
+all_bact_shifts <- purrr::map(centrality_shifts, "bacteria_metrics") |>
+  purrr::compact() |>
+  dplyr::bind_rows()
+
+all_fungi_shifts <- purrr::map(centrality_shifts, "fungi_metrics") |>
+  purrr::compact() |>
+  dplyr::bind_rows()
+
+all_cross_centrality <- purrr::map(
+  centrality_shifts,
+  "cross_network_centrality"
+) |>
+  purrr::compact() |>
+  dplyr::bind_rows()
+
+## SECTION 4.2: Bipartite properties from the adjacency matrix ----
 
 # Adjacency matrix makes binary networks for calculating bipartite network properties. The transition matrix has the correlation values, but we need to convert it to binary (0/1) for calculating bipartite properties.
 adj_matrices <- purrr::imap(
@@ -554,40 +600,63 @@ purrr::iwalk(
 # Calculate bipartite network properties using the bipartite package.
 # IDs of bacteria and fungi nodes in the adjacency matrix
 
-bpt_matrices <- purrr::imap(
-  adj_matrices,
-  function(net, net_name) {
-    adj_mat <- net$adj_mat
-    rows_16s <- rownames(aligned_matrices)
+# Inline: bpt
+# Calculates bipartite network-level properties from an adjacency matrix.
+bpt <- function(adj, bact_ids, fungi_ids) {
+  adj <- as.matrix(adj)
+  id_bact <- which(rownames(adj) %in% bact_ids)
+  id_fungi <- which(rownames(adj) %in% fungi_ids)
+  bpt_matx <- adj[id_bact, id_fungi, drop = FALSE]
 
-    list(adj_mat = adj_mat)
+  has_dims <- length(dim(bpt_matx)) > 0 &&
+    nrow(bpt_matx) > 0 &&
+    ncol(bpt_matx) > 0
+  has_links <- has_dims && any(bpt_matx != 0)
+
+  if (has_links) {
+    bipartite_result <- bipartite::networklevel(
+      bpt_matx,
+      index = c(
+        "connectance",
+        "nestedness",
+        "NODF",
+        "weighted connectance",
+        "number of species",
+        "cluster coefficient",
+        "niche overlap",
+        "partner diversity"
+      )
+    )
+  } else {
+    bipartite_result <- rep(NA_real_, 13)
+  }
+
+  return(bipartite_result)
+}
+
+bpt_properties <- purrr::imap(
+  adj_matrices[stringr::str_detect(names(adj_matrices), "_bxf_net")],
+  function(net, net_name) {
+    site <- stringr::str_extract(net_name, "^ef|^lamps_2018|^lamps_2022")
+    bact_ids <- rownames(aligned_matrices[[site]][["matx_b"]])
+    fungi_ids <- rownames(aligned_matrices[[site]][["matx_f"]])
+
+    list(
+      adj_mat = net$adj_mat,
+      bpt_result = bpt(net$adj_mat, bact_ids = bact_ids, fungi_ids = fungi_ids)
+    )
   }
 )
-rows_16s <- rownames(aligned_matrices$ef$matx_b)[
-  rownames(aligned_matrices$ef$matx_b) %in% rownames(adj_mat)
-]
-cols_its <- rownames(aligned_matrices$ef$matx_f)[
-  rownames(aligned_matrices$ef$matx_f) %in% rownames(adj_mat)
-]
 
-bpt_matx <- adj_mat[rows_16s, cols_its]
+bpt_properties$ef_bxf_net$bpt_result
+bpt_properties$lamps_2018_bxf_net$bpt_result
 
 
-bipartite_result <- networklevel(
-  index = c(
-    "connectance",
-    "nestedness",
-    "NODF",
-    "weighted connectance",
-    "number of species",
-    "cluster coefficient",
-    "niche overlap",
-    "partner diversity"
-  ),
-  bpt_matx
-)
+# Since no cross-kingdom edges passed the RMT cutoff for the EF and LAMPS 2018 site, the bxf network is empty and we cannot calculate bipartite properties for that site. Only LAMPS 2022 has a non-empty bxf network, so we can only calculate bipartite properties for that site.
 
-# SECTION 4.2: Cytoscape and Gephi Visualization ----
+bpt_properties$lamps_2022_bxf_net$bpt_result
+
+# SECTION 4.3: Cytoscape and Gephi Visualization ----
 #  Output cytoscape and gephi input files for visualisation
 
 purrr::iwalk(
@@ -603,11 +672,15 @@ purrr::iwalk(
 
 
 # SECTION 5: Random bipartite network generation and analysis ----
-# this code generates random bipartite networks that preserve the link and node numbers but rewire the links among nodes.
-# then calculates the mean and standard deviation of network properties for multiple random networks.
+# Generates random bipartite networks that preserve node and link counts but
+# rewire links among nodes. Only LAMPS 2022 has a valid cross-kingdom network
+# (ef and lamps_2018 bxf networks are empty after RMT thresholding).
+# 100 randomizations is recommended for ~several hundred nodes; 3 is used here
+# for fast prototyping.
 
 # Inline: rand_adj_gen
-# Generates adjacency matrix for random networks based on the empirical adjacency matrix.
+# Generates adjacency matrix for random networks based on the empirical
+# adjacency matrix.
 rand_adj_gen <- function(ID, adj, bact_ids, fungi_ids) {
   adj <- as.matrix(adj)
   id_bact <- which(rownames(adj) %in% bact_ids)
@@ -648,489 +721,69 @@ rand_adj_gen <- function(ID, adj, bact_ids, fungi_ids) {
   }
 }
 
-# Inline: bpt
-# Calculates bipartite network-level properties from an adjacency matrix.
-bpt <- function(adj, bact_ids, fungi_ids) {
-  adj <- as.matrix(adj)
-  id_bact <- which(rownames(adj) %in% bact_ids)
-  id_fungi <- which(rownames(adj) %in% fungi_ids)
-  bpt_matx <- adj[id_bact, id_fungi]
+# Use lamps_2022 bxf adjacency matrix — the only site with cross-kingdom edges
+lamps2022_adj_mat <- adj_matrices[["lamps_2022_bxf_net"]]$adj_mat
 
-  if (length(dim(bpt_matx)) > 0 && nrow(bpt_matx) > 0 && ncol(bpt_matx) > 0) {
-    bipartite_result <- networklevel(
-      index = c(
-        "connectance",
-        "nestedness",
-        "NODF",
-        "weighted connectance",
-        "number of species",
-        "cluster coefficient",
-        "niche overlap",
-        "partner diversity"
-      ),
-      bpt_matx
-    )
-  } else {
-    bipartite_result <- rep(NA_real_, 13)
-  }
-
-  return(bipartite_result)
-}
-
-# Identify bacteria and fungi node IDs present in the adjacency matrix
-ef_bact_in_adj <- rownames(aligned_matrices$ef$matx_b)[
-  rownames(aligned_matrices$ef$matx_b) %in% rownames(my_adj_mat)
+lamps2022_bact_in_adj <- rownames(aligned_matrices$lamps_2022$matx_b)[
+  rownames(aligned_matrices$lamps_2022$matx_b) %in% rownames(lamps2022_adj_mat)
 ]
-ef_fungi_in_adj <- rownames(aligned_matrices$ef$matx_f)[
-  rownames(aligned_matrices$ef$matx_f) %in% rownames(my_adj_mat)
+lamps2022_fungi_in_adj <- rownames(aligned_matrices$lamps_2022$matx_f)[
+  rownames(aligned_matrices$lamps_2022$matx_f) %in% rownames(lamps2022_adj_mat)
 ]
 
 ## SECTION 5.1: Generate random networks ----
-times <- 3 # number of random networks to generate, depending on the size of the empirical network. 100 times randomization would be good for ~several hundred nodes.
+times <- 3 # increase to ~100 for publication-quality null model comparison
 rand_adj_mat_list <- lapply(
-  as.list(c(1:times)),
+  as.list(seq_len(times)),
   FUN = rand_adj_gen,
-  adj = my_adj_mat,
-  bact_ids = ef_bact_in_adj,
-  fungi_ids = ef_fungi_in_adj
+  adj = lamps2022_adj_mat,
+  bact_ids = lamps2022_bact_in_adj,
+  fungi_ids = lamps2022_fungi_in_adj
 )
-names(rand_adj_mat_list) <- c(1:times)
-length(rand_adj_mat_list) # check the number of random networks
-dim(rand_adj_mat_list[[1]]) # check the dimension of the first random network
+names(rand_adj_mat_list) <- seq_len(times)
+
+# Sanity checks
+length(rand_adj_mat_list)
+dim(rand_adj_mat_list[[1]])
 
 ## SECTION 5.2: Analyze random networks ----
-random_global <- as.data.frame(lapply(rand_adj_mat_list, FUN = global))
-names(random_global) <- c(1:times)
-random_bpt <- as.data.frame(lapply(
-  rand_adj_mat_list,
-  FUN = bpt,
-  bact_ids = ef_bact_in_adj,
-  fungi_ids = ef_fungi_in_adj
-))
-names(random_bpt) <- c(1:times)
-random_properties <- as.data.frame(rbind(random_global, random_bpt))
+# Network-level topological properties for each randomization
+random_properties_list <- lapply(rand_adj_mat_list, function(rand_adj) {
+  g_rand <- igraph::graph_from_adjacency_matrix(
+    rand_adj,
+    mode = "undirected",
+    weighted = NULL,
+    diag = FALSE
+  )
+  network_properties(g_rand, power_law_engine = "OLS")
+})
 
-# get mean and sd
-means <- rowMeans(random_properties)
-sds <- apply(random_properties, 1, FUN = sd)
+random_properties <- dplyr::bind_rows(random_properties_list, .id = "replicate")
 
-# ############################################
-# # Plotting ----
-# # Pull empirical values from the already-computed objects
-# empirical_global <- global(adj_mat)
-# empirical_bpt <- bpt(
-#   adj_mat,
-#   bact_ids = ef_bact_in_adj,
-#   fungi_ids = ef_fungi_in_adj
-# )
-# empirical_vals <- c(empirical_global, empirical_bpt)
+# Bipartite properties for each randomization
+random_bpt_list <- lapply(rand_adj_mat_list, function(rand_adj) {
+  result <- bpt(
+    rand_adj,
+    bact_ids = lamps2022_bact_in_adj,
+    fungi_ids = lamps2022_fungi_in_adj
+  )
+  as.list(result)
+})
 
-# # Build a tidy data frame; drop properties with zero SD (uninformative)
-# plot_df <- tibble(
-#   property = names(means),
-#   random_mean = means,
-#   random_sd = sds,
-#   empirical = empirical_vals[names(means)]
-# ) |>
-#   filter(random_sd > 0) |>
-#   mutate(
-#     property = factor(property, levels = property),
-#     z_score = (empirical - random_mean) / random_sd
-#   )
+random_bpt <- dplyr::bind_rows(random_bpt_list, .id = "replicate")
 
-# # Panel A: empirical vs. random mean ± 2SD
-# p1 <- ggplot(plot_df, aes(x = property)) +
-#   geom_errorbar(
-#     aes(ymin = random_mean - 2 * random_sd, ymax = random_mean + 2 * random_sd),
-#     width = 0.3,
-#     colour = "grey60"
-#   ) +
-#   geom_point(aes(y = random_mean), colour = "grey40", size = 2) +
-#   geom_point(aes(y = empirical), colour = "#E05C5C", size = 3, shape = 17) +
-#   facet_wrap(~property, scales = "free", ncol = 4) +
-#   labs(
-#     title = "Empirical vs. random network properties",
-#     subtitle = "Grey: random mean ± 2SD  |  Red triangle: empirical",
-#     x = NULL,
-#     y = "Value"
-#   ) +
-#   theme_bw() +
-#   theme(
-#     axis.text.x = element_blank(),
-#     axis.ticks.x = element_blank(),
-#     strip.text = element_text(size = 7)
-#   )
+## SECTION 5.3: Null model summary (mean +/- sd) ----
+# Compare empirical lamps_2022 bxf network against the null distribution
+empirical_bpt <- bpt_properties$lamps_2022_bxf_net$bpt_result
 
-# # Panel B: z-scores (how many SDs the empirical value departs from random)
-# p2 <- ggplot(plot_df, aes(x = property, y = z_score, fill = z_score > 0)) +
-#   geom_col() +
-#   geom_hline(yintercept = c(-2, 2), linetype = "dashed", colour = "grey40") +
-#   scale_fill_manual(
-#     values = c("TRUE" = "#4C8CBF", "FALSE" = "#E05C5C"),
-#     labels = c("TRUE" = "above random", "FALSE" = "below random"),
-#     name = NULL
-#   ) +
-#   labs(title = "Z-scores: empirical vs. random", x = NULL, y = "Z-score") +
-#   theme_bw() +
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
+null_summary <- tibble::tibble(
+  metric = names(empirical_bpt),
+  empirical = as.numeric(empirical_bpt),
+  null_mean = colMeans(random_bpt[, -1], na.rm = TRUE),
+  null_sd = apply(random_bpt[, -1], 2, sd, na.rm = TRUE)
+) |>
+  dplyr::mutate(
+    z_score = (empirical - null_mean) / null_sd
+  )
 
-# p1 / p2 # requires patchwork
-
-# ggsave(
-#   "data/output/networks/empirical_vs_random_network_properties.png",
-#   width = 10,
-#   height = 8,
-#   dpi = 300
-# )
-
-# ## igraph ----
-
-# # Assign node type: bacteria vs fungi
-# V(my_graph)$kingdom <- ifelse(
-#   V(my_graph)$name %in% ef_bact_in_adj,
-#   "Bacteria",
-#   "Fungi"
-# )
-
-# V(my_graph)$type <- V(my_graph)$kingdom == "Fungi"
-
-# # Node aesthetics
-# node_colour <- ifelse(V(my_graph)$kingdom == "Bacteria", "#4C8CBF", "#E8A838")
-# node_size <- sqrt(igraph::degree(my_graph)) * 3 # scale by degree
-
-# # Edge colour by sign (positive/negative correlations)
-# edge_colour <- ifelse(
-#   E(my_graph)$link_sign == "positive",
-#   "#2ECC71AA",
-#   "#E05C5CAA"
-# )
-
-# # Layout: Fruchterman-Reingold works well for bipartite-ish networks
-# set.seed(42)
-# layout <- igraph::layout_with_fr(my_graph)
-
-# layout_bi <- igraph::layout_as_bipartite(my_graph)
-
-# ef_bipartite_network <- ggraph(my_graph, layout = layout) +
-#   geom_edge_arc(
-#     aes(colour = link_sign),
-#     width = 0.4,
-#     alpha = 0.7,
-#     circular = FALSE,
-#     strength = 0.1
-#   ) +
-#   geom_node_point(aes(color = "white", size = node_size * 1.03), shape = 21) +
-#   geom_node_point(aes(colour = kingdom, size = node_size)) +
-#   scale_edge_colour_manual(
-#     values = c("positive" = "#2ECC71AA", "negative" = "#E05C5CAA"),
-#     name = "Link sign"
-#   ) +
-#   scale_colour_manual(
-#     values = c("Bacteria" = "#4C8CBF", "Fungi" = "#E8A838"),
-#     name = "Kingdom"
-#   ) +
-#   scale_size_continuous(range = c(1, 8), guide = "none") +
-#   theme_graph() +
-#   labs(title = "EF bipartite network")
-
-# ef_bipartite_network
-# # plot(
-# #   my_graph,
-# #   layout = layout,
-# #   vertex.color = node_colour,
-# #   vertex.size = node_size,
-# #   vertex.label = NA, # hide long ASV names
-# #   vertex.frame.color = "white",
-# #   edge.color = edge_colour,
-# #   edge.width = 0.8,
-# #   edge.curved = 0.2,
-# #   margin = 0
-# # )
-
-# # legend(
-# #   "bottomleft",
-# #   legend = c("Bacteria", "Fungi", "Positive", "Negative"),
-# #   pch = c(21, 21, NA, NA),
-# #   lty = c(NA, NA, 1, 1),
-# #   col = c("white", "white", "#2ECC71", "#E05C5C"),
-# #   pt.bg = c("#4C8CBF", "#E8A838", NA, NA),
-# #   pt.cex = 2,
-# #   bty = "n",
-# #   text.col = "grey20"
-# # )
-
-# ggsave(
-#   filename = "data/output/networks/ef_bipartite_network.png",
-#   plot = ef_bipartite_network,
-#   width = 10,
-#   height = 8,
-#   dpi = 300
-# )
-
-# #TODO: clean  build_network() and centrality_shift() sections. Needs and data driven prev_filter() cutoff and correlation cutoff to be determined first.
-# # Insights
-
-# # EF cross-kingdom network analysis ----
-
-# # Arbitrary cutoff of 0.25 ----
-# # for exploratory analysis; will determine data-driven cutoffs later.
-
-# # Centrality shifts: bacteria-only → cross-kingdom for EF
-
-# ef_bact_id <- rownames(aligned_matrices$ef$matx_b)
-# ef_fungi_id <- rownames(aligned_matrices$ef$matx_f)
-# my_cutoff <- 0.25
-
-# ef_bact_g <- build_network(
-#   joint_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   kind = "bacteria"
-# )
-# ef_fungi_g <- build_network(
-#   joint_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   kind = "fungi"
-# )
-# ef_cross_g <- build_network(
-#   joint_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   kind = "cross"
-# )
-
-# shifts <- centrality_shift(ef_bact_g$graph, ef_cross_g$graph, ef_bact_id)
-
-# # Summary of shifts
-# shift_summary1 <- shifts |>
-#   summarise(
-#     across(
-#       starts_with("delta"),
-#       list(mean = mean, sd = sd),
-#       .names = "{.col}_{.fn}"
-#     )
-#   )
-
-# shift_summary1
-
-# # ── Metrics table ─────────────────────────────────────────────────────────────
-
-# ef_metrics <- bind_rows(
-#   net_summary(ef_bact_g$graph, ef_bact_id, ef_fungi_id, "bacteria"),
-#   net_summary(ef_fungi_g$graph, ef_bact_id, ef_fungi_id, "fungi"),
-#   net_summary(ef_cross_g$graph, ef_bact_id, ef_fungi_id, "cross")
-# )
-# ef_metrics
-
-# # New cutoff for EF bacteria network ----
-# # EF bacteria network has 0 edges - cutoff is too high for this site.
-# # Check what cutoff gives a reasonable network for EF bacteria
-# cor_b <- joint_cor_matrices$ef[ef_bact_id, ef_bact_id]
-# quantile(abs(cor_b[upper.tri(cor_b)]), probs = c(0.90, 0.95, 0.97, 0.99, 0.999))
-
-# # my_cutoff = 0.25 is too lax for EF (only 468 bacteria, small dataset).
-# # Use the 99th percentile as a data-driven cutoff for EF specifically
-# ef_cutoff <- unname(quantile(abs(cor_b[upper.tri(cor_b)]), 0.99))
-
-# ef_bact_g2 <- build_network(
-#   joint_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   cutoff = ef_cutoff,
-#   kind = "bacteria"
-# )
-# ef_fungi_g2 <- build_network(
-#   joint_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   cutoff = ef_cutoff,
-#   kind = "fungi"
-# )
-# ef_cross_g2 <- build_network(
-#   joint_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   cutoff = ef_cutoff,
-#   kind = "cross"
-# )
-
-# ef_metrics <- bind_rows(
-#   net_summary(ef_bact_g2$graph, ef_bact_id, ef_fungi_id, "bacteria"),
-#   net_summary(ef_fungi_g2$graph, ef_bact_id, ef_fungi_id, "fungi"),
-#   net_summary(ef_cross_g2$graph, ef_bact_id, ef_fungi_id, "cross")
-# )
-
-# cat("EF cutoff used:", round(ef_cutoff, 3), "\n")
-# ef_metrics
-
-# # Another cutoff ----
-
-# # cross network has 0 BF edges - the cross correlation matrix still has 0 bacteria-fungi entries
-# # because bipartite_cor_matrices zeroes those out. We need joint_cor_matrices (unzeroed) for cross.
-# # Check cross-kingdom correlations in joint vs bipartite
-# cor_cross <- joint_cor_matrices$ef[ef_bact_id, ef_fungi_id]
-# range(cor_cross)
-# quantile(abs(cor_cross), probs = c(0.90, 0.95, 0.99))
-
-# # Max B-F correlation is 0.39 - far below ef_cutoff (0.43).
-# # Use a lower cross-kingdom cutoff based on the 95th percentile of B-F correlations
-# ef_bf_cutoff <- unname(quantile(abs(cor_cross), 0.95))
-# cat("B-F cutoff:", round(ef_bf_cutoff, 3), "\n")
-
-# # Rebuild cross network with the B-F specific cutoff
-# ef_cross_g2 <- build_asym_network(
-#   joint_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   within_cutoff = ef_cutoff,
-#   bf_cutoff = ef_bf_cutoff
-# )
-
-# ef_metrics <- bind_rows(
-#   net_summary(ef_bact_g2$graph, ef_bact_id, ef_fungi_id, "bacteria"),
-#   net_summary(ef_fungi_g2$graph, ef_bact_id, ef_fungi_id, "fungi"),
-#   net_summary(ef_cross_g2$graph, ef_bact_id, ef_fungi_id, "cross")
-# )
-
-# # Centrality shifts: bacteria-only → cross-kingdom ----
-# # centrality_shift(g_bact, g_cross, site) compares degree/betweenness/eigenvector
-# # centrality for bacteria in a bacteria-only graph vs. the bacterial subgraph of
-# # the cross-kingdom network.
-
-# # ── EF ──────────────────────────────────────────────────────────────────────
-
-# ef_bact_id <- rownames(aligned_matrices$ef$matx_b)
-# ef_fungi_id <- rownames(aligned_matrices$ef$matx_f)
-# my_cutoff <- 0.25
-
-# ef_bact_g <- build_network(
-#   full_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   kind = "bacteria"
-# )
-# ef_fungi_g <- build_network(
-#   full_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   kind = "fungi"
-# )
-# ef_bxf_g <- build_network(
-#   bxf_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   kind = "cross"
-# )
-# ef_asym_g <- build_asym_network(
-#   full_cor_matrices$ef,
-#   ef_bact_id,
-#   ef_fungi_id,
-#   within_cutoff = my_cutoff,
-#   bxf_cutoff = my_cutoff * 0.75
-# )
-
-# ef_shifts <- centrality_shift(ef_bact_g$graph, ef_bxf_g$graph, site = "ef")
-
-# ef_metrics <- bind_rows(
-#   network_summary(ef_bact_g$graph, site = "ef", kind = "bacteria"),
-#   network_summary(ef_fungi_g$graph, site = "ef", kind = "fungi"),
-#   network_summary(ef_bxf_g$graph, site = "ef", kind = "bxf"),
-#   network_summary(ef_asym_g$graph, site = "ef", kind = "asym")
-# )
-
-# # ── LAMPS 2018 ───────────────────────────────────────────────────────────────
-
-# lamps18_bact_id <- rownames(aligned_matrices$lamps_2018$matx_b)
-# lamps18_fungi_id <- rownames(aligned_matrices$lamps_2018$matx_f)
-
-# lamps18_bact_g <- build_network(
-#   full_cor_matrices$lamps_2018,
-#   lamps18_bact_id,
-#   lamps18_fungi_id,
-#   kind = "bacteria"
-# )
-# lamps18_fungi_g <- build_network(
-#   full_cor_matrices$lamps_2018,
-#   lamps18_bact_id,
-#   lamps18_fungi_id,
-#   kind = "fungi"
-# )
-# lamps18_bxf_g <- build_network(
-#   bxf_cor_matrices$lamps_2018,
-#   lamps18_bact_id,
-#   lamps18_fungi_id,
-#   kind = "cross"
-# )
-# lamps18_asym_g <- build_asym_network(
-#   full_cor_matrices$lamps_2018,
-#   lamps18_bact_id,
-#   lamps18_fungi_id,
-#   within_cutoff = my_cutoff,
-#   bxf_cutoff = my_cutoff * 0.75
-# )
-
-# lamps18_shifts <- centrality_shift(
-#   lamps18_bact_g$graph,
-#   lamps18_bxf_g$graph,
-#   site = "lamps_2018"
-# )
-
-# lamps18_metrics <- bind_rows(
-#   network_summary(lamps18_bact_g$graph, site = "lamps_2018", kind = "bacteria"),
-#   network_summary(lamps18_fungi_g$graph, site = "lamps_2018", kind = "fungi"),
-#   network_summary(lamps18_bxf_g$graph, site = "lamps_2018", kind = "bxf"),
-#   network_summary(lamps18_asym_g$graph, site = "lamps_2018", kind = "asym")
-# )
-
-# # ── LAMPS 2022 ───────────────────────────────────────────────────────────────
-
-# lamps22_bact_id <- rownames(aligned_matrices$lamps_2022$matx_b)
-# lamps22_fungi_id <- rownames(aligned_matrices$lamps_2022$matx_f)
-
-# lamps22_bact_g <- build_network(
-#   full_cor_matrices$lamps_2022,
-#   lamps22_bact_id,
-#   lamps22_fungi_id,
-#   kind = "bacteria"
-# )
-# lamps22_fungi_g <- build_network(
-#   full_cor_matrices$lamps_2022,
-#   lamps22_bact_id,
-#   lamps22_fungi_id,
-#   kind = "fungi"
-# )
-# lamps22_bxf_g <- build_network(
-#   bxf_cor_matrices$lamps_2022,
-#   lamps22_bact_id,
-#   lamps22_fungi_id,
-#   kind = "cross"
-# )
-# lamps22_asym_g <- build_asym_network(
-#   full_cor_matrices$lamps_2022,
-#   lamps22_bact_id,
-#   lamps22_fungi_id,
-#   within_cutoff = my_cutoff,
-#   bxf_cutoff = my_cutoff * 0.75
-# )
-
-# lamps22_shifts <- centrality_shift(
-#   lamps22_bact_g$graph,
-#   lamps22_bxf_g$graph,
-#   site = "lamps_2022"
-# )
-
-# lamps22_metrics <- bind_rows(
-#   network_summary(lamps22_bact_g$graph, site = "lamps_2022", kind = "bacteria"),
-#   network_summary(lamps22_fungi_g$graph, site = "lamps_2022", kind = "fungi"),
-#   network_summary(lamps22_bxf_g$graph, site = "lamps_2022", kind = "bxf"),
-#   network_summary(lamps22_asym_g$graph, site = "lamps_2022", kind = "asym")
-# )
-
-# # ── Combined tables ───────────────────────────────────────────────────────────
-
-# all_shifts <- bind_rows(ef_shifts, lamps18_shifts, lamps22_shifts)
-# all_metrics <- bind_rows(ef_metrics, lamps18_metrics, lamps22_metrics)
-
-# all_shifts
-# all_metrics
+null_summary
